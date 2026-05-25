@@ -2904,6 +2904,254 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
             min-width: 0;
           }
         }
+
+        /* 🚀 PREMIUM FORMULABOT-STYLE HERO & LANDING PAGE STYLES */
+        .landing-hero {
+          text-align: center;
+          padding: 4rem 1.5rem 3rem 1.5rem;
+          max-width: 1000px;
+          margin: 0 auto;
+        }
+
+        .hero-title {
+          font-family: var(--font-display);
+          font-size: 3.2rem;
+          font-weight: 800;
+          line-height: 1.15;
+          letter-spacing: -1px;
+          margin-bottom: 1.5rem;
+          background: linear-gradient(135deg, var(--ink) 30%, var(--coral) 100%);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+        }
+
+        [data-theme="dark"] .hero-title {
+          background: linear-gradient(135deg, var(--on-dark) 40%, var(--coral-soft) 100%);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+        }
+
+        .hero-subtitle {
+          font-family: var(--font-ui);
+          font-size: 1.25rem;
+          line-height: 1.6;
+          color: var(--slate);
+          max-width: 720px;
+          margin: 0 auto 3rem auto;
+          font-weight: 400;
+        }
+
+        /* Responsive Spreadsheet Mockup Graphic */
+        .mockup-container {
+          background: var(--canvas);
+          border: 1px solid var(--hairline);
+          border-radius: 16px;
+          box-shadow: 0 30px 60px rgba(0, 0, 0, 0.08);
+          margin: 0 auto 4.5rem auto;
+          overflow: hidden;
+          max-width: 900px;
+          text-align: left;
+        }
+
+        [data-theme="dark"] .mockup-container {
+          box-shadow: 0 30px 60px rgba(0, 0, 0, 0.35);
+          background: #090d16;
+        }
+
+        .mockup-header {
+          background: var(--soft-stone);
+          border-bottom: 1px solid var(--hairline);
+          padding: 10px 16px;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+
+        .mockup-dot {
+          width: 10px;
+          height: 10px;
+          border-radius: 50%;
+          display: inline-block;
+        }
+
+        .mockup-tab-strip {
+          background: var(--soft-stone);
+          display: flex;
+          border-bottom: 1px solid var(--hairline);
+          padding: 0 12px;
+          gap: 4px;
+        }
+
+        .mockup-tab {
+          padding: 8px 16px;
+          font-size: 11px;
+          font-weight: 600;
+          color: var(--slate);
+          border-bottom: 2px solid transparent;
+          font-family: var(--font-technical);
+          text-transform: uppercase;
+        }
+
+        .mockup-tab.active {
+          color: var(--coral);
+          border-bottom-color: var(--coral);
+        }
+
+        .mockup-body {
+          display: grid;
+          grid-template-columns: 1.5fr 1fr;
+          border-bottom: 1px solid var(--hairline);
+        }
+
+        @media (max-width: 768px) {
+          .mockup-body {
+            grid-template-columns: 1fr;
+          }
+        }
+
+        .mockup-left {
+          padding: 1.25rem;
+          border-right: 1px solid var(--hairline);
+          overflow-x: auto;
+        }
+
+        @media (max-width: 768px) {
+          .mockup-left {
+            border-right: none;
+            border-bottom: 1px solid var(--hairline);
+          }
+        }
+
+        .mockup-right {
+          padding: 1.25rem;
+          background: var(--soft-stone);
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+
+        .mockup-table {
+          width: 100%;
+          border-collapse: collapse;
+          font-size: 11px;
+          font-family: var(--font-technical);
+        }
+
+        .mockup-table th {
+          text-align: left;
+          color: var(--slate);
+          padding: 8px;
+          border-bottom: 1px solid var(--hairline);
+          font-weight: 600;
+        }
+
+        .mockup-table td {
+          padding: 8px;
+          border-bottom: 1px solid var(--hairline);
+          color: var(--ink);
+        }
+
+        .mockup-badge {
+          padding: 2px 6px;
+          border-radius: 4px;
+          font-size: 9px;
+          font-weight: 700;
+        }
+
+        .mockup-badge.delivered {
+          background: rgba(16, 185, 129, 0.15);
+          color: #10b981;
+        }
+
+        .mockup-badge.rto {
+          background: rgba(239, 68, 68, 0.15);
+          color: #ef4444;
+        }
+
+        .mockup-card-right {
+          background: var(--canvas);
+          border: 1px solid var(--hairline);
+          border-radius: 8px;
+          padding: 12px;
+        }
+
+        .mockup-chart-row {
+          display: flex;
+          align-items: flex-end;
+          gap: 6px;
+          height: 80px;
+          margin-top: 10px;
+        }
+
+        .mockup-chart-bar {
+          flex: 1;
+          background: var(--coral-soft);
+          border-radius: 4px 4px 0 0;
+          transition: height 0.3s;
+        }
+
+        .mockup-chart-bar.highlight {
+          background: var(--coral);
+        }
+
+        /* Detailed Features Grid (FormulaBot-Style) */
+        .features-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+          gap: 20px;
+          max-width: 1000px;
+          margin: 0 auto 3rem auto;
+          padding: 0 1.5rem;
+        }
+
+        .feature-item-card {
+          background: var(--canvas);
+          border: 1px solid var(--hairline);
+          border-radius: 14px;
+          padding: 1.5rem;
+          text-align: left;
+          transition: all 0.25s ease;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.02);
+        }
+
+        .feature-item-card:hover {
+          transform: translateY(-4px);
+          box-shadow: 0 12px 24px rgba(0,0,0,0.06);
+          border-color: var(--coral);
+        }
+
+        [data-theme="dark"] .feature-item-card:hover {
+          box-shadow: 0 12px 24px rgba(0,0,0,0.25);
+          background: rgba(255,255,255,0.02);
+        }
+
+        .feature-icon-wrapper {
+          width: 44px;
+          height: 44px;
+          border-radius: 10px;
+          background: var(--soft-stone);
+          display: grid;
+          place-items: center;
+          font-size: 1.25rem;
+          margin-bottom: 1.25rem;
+          border: 1px solid var(--hairline);
+        }
+
+        .feature-title-card {
+          font-family: var(--font-display);
+          font-size: 1.1rem;
+          font-weight: 700;
+          color: var(--ink);
+          margin: 0 0 8px 0;
+        }
+
+        .feature-desc-card {
+          font-family: var(--font-ui);
+          font-size: 0.85rem;
+          line-height: 1.5;
+          color: var(--slate);
+          margin: 0;
+        }
       `}</style>
 
       {/* Announcement Bar */}
@@ -3030,72 +3278,191 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
       {/* Step 1: Upload File Area */}
       {step === "upload" && (
         <>
-          <div 
-            className={`upload-card ${dragging ? "dragging" : ""}`}
-            onDrop={onDrop}
-            onDragOver={onDragOver}
-            onDragLeave={onDragLeave}
-            onClick={() => hasFreeReportsRemaining && inputRef.current?.click()}
-          >
-            <input 
-              type="file" 
-              ref={inputRef} 
-              accept=".xlsx,.xls,.csv" 
-              style={{ display: "none" }} 
-              onChange={onFileChange} 
-            />
-            <span className="upload-icon">📂</span>
-            <h2 className="upload-title">
-              Drop your spreadsheet here
+          {/* HERO HEADING SECTION */}
+          <section className="landing-hero">
+            <h2 className="hero-title">
+              The AI-Powered Spreadsheet Analyst
             </h2>
-            <p className="upload-desc">
-              Supports `.xlsx`, `.xls`, or `.csv` files. No report type selection needed.
+            <p className="hero-subtitle">
+              Upload your raw export files from Shopify, Shiprocket, or custom sheets. SheetCodeCrest automatically consolidates your data, profiles quality, optimizes logistics, and provides conversational AI strategy.
             </p>
-            <div className="usage-meter">
-              {hasFreeReportsRemaining
-                ? `Free reports remaining: ${freeReportsRemaining} of ${globalFreeLimit}`
-                : "Free trial complete"}
+            
+            <div 
+              className={`upload-card ${dragging ? "dragging" : ""}`}
+              onDrop={onDrop}
+              onDragOver={onDragOver}
+              onDragLeave={onDragLeave}
+              onClick={() => hasFreeReportsRemaining && inputRef.current?.click()}
+              style={{ margin: "0 auto 4rem auto", maxWidth: "680px" }}
+            >
+              <input 
+                type="file" 
+                ref={inputRef} 
+                accept=".xlsx,.xls,.csv" 
+                style={{ display: "none" }} 
+                onChange={onFileChange} 
+              />
+              <span className="upload-icon">📂</span>
+              <h2 className="upload-title">
+                Drop your spreadsheet here
+              </h2>
+              <p className="upload-desc">
+                Supports `.xlsx`, `.xls`, or `.csv` files. No manual type mapping needed.
+              </p>
+              <div className="usage-meter">
+                {hasFreeReportsRemaining
+                  ? `Free reports remaining: ${freeReportsRemaining} of ${globalFreeLimit}`
+                  : "Free trial complete"}
+              </div>
+              {!hasFreeReportsRemaining && (
+                <div className="subscription-card" onClick={(e) => e.stopPropagation()}>
+                  <h3>Purchase access to continue</h3>
+                  <p>
+                    You have used your free report generations. Upgrade with Codecrest Studio to keep creating Shopify, Shiprocket, and universal Excel analytics workbooks.
+                  </p>
+                  <div className="subscription-actions" style={{ display: "flex", gap: "10px", marginTop: "1rem" }}>
+                    {currentUser ? (
+                      <button
+                        type="button"
+                        className="btn-primary"
+                        onClick={() => setCheckoutOpen(true)}
+                        style={{ padding: "10px 20px", fontSize: "13px", borderRadius: "30px", flex: "none" }}
+                      >
+                        ⚡ Upgrade to Pro ($19/mo)
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="btn-primary"
+                        onClick={() => {
+                          setAuthTab("login");
+                          setAuthError("");
+                          setAuthModalOpen(true);
+                        }}
+                        style={{ padding: "10px 20px", fontSize: "13px", borderRadius: "30px", flex: "none" }}
+                      >
+                        🔑 Sign In to Upgrade
+                      </button>
+                    )}
+                    <a className="icon-only" href={CODECREST.website} target="_blank" rel="noopener noreferrer" aria-label="Open Codecrest Studio website" title="Website" style={{ width: "40px", height: "40px" }}>
+                      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+                    </a>
+                  </div>
+                </div>
+              )}
             </div>
-            {!hasFreeReportsRemaining && (
-              <div className="subscription-card" onClick={(e) => e.stopPropagation()}>
-                <h3>Purchase access to continue</h3>
-                <p>
-                  You have used your free report generations. Upgrade with Codecrest Studio to keep creating Shopify, Shiprocket, and universal Excel analytics workbooks.
-                </p>
-                <div className="subscription-actions" style={{ display: "flex", gap: "10px", marginTop: "1rem" }}>
-                  {currentUser ? (
-                    <button
-                      type="button"
-                      className="btn-primary"
-                      onClick={() => setCheckoutOpen(true)}
-                      style={{ padding: "10px 20px", fontSize: "13px", borderRadius: "30px", flex: "none" }}
-                    >
-                      ⚡ Upgrade to Pro ($19/mo)
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      className="btn-primary"
-                      onClick={() => {
-                        setAuthTab("login");
-                        setAuthError("");
-                        setAuthModalOpen(true);
-                      }}
-                      style={{ padding: "10px 20px", fontSize: "13px", borderRadius: "30px", flex: "none" }}
-                    >
-                      🔑 Sign In to Upgrade
-                    </button>
-                  )}
-                  <a className="icon-only" href={CODECREST.website} target="_blank" rel="noopener noreferrer" aria-label="Open Codecrest Studio website" title="Website" style={{ width: "40px", height: "40px" }}>
-                    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
-                  </a>
+
+            {/* SPREADSHEET MOCKUP VISUAL */}
+            <div className="mockup-container">
+              <div className="mockup-header">
+                <span className="mockup-dot" style={{ background: "#ef4444" }}></span>
+                <span className="mockup-dot" style={{ background: "#f59e0b" }}></span>
+                <span className="mockup-dot" style={{ background: "#10b981" }}></span>
+                <span style={{ fontSize: "10px", color: "var(--slate)", fontFamily: "var(--font-technical)", marginLeft: "8px", textTransform: "uppercase" }}>Interactive Data Profiler & Consolidator</span>
+              </div>
+              <div className="mockup-tab-strip">
+                <span className="mockup-tab active">📊 Shopify Store Sales</span>
+                <span className="mockup-tab">🚚 Courier Shipments</span>
+                <span className="mockup-tab">📋 Universal Profiling</span>
+              </div>
+              <div className="mockup-body">
+                <div className="mockup-left">
+                  <table className="mockup-table">
+                    <thead>
+                      <tr>
+                        <th>Order ID</th>
+                        <th>Customer</th>
+                        <th>City / Region</th>
+                        <th>Status</th>
+                        <th>Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td>#1001-A</td>
+                        <td>Aman Sharma</td>
+                        <td>Mumbai, MH</td>
+                        <td><span className="mockup-badge delivered">Delivered</span></td>
+                        <td>₹1,899.00</td>
+                      </tr>
+                      <tr>
+                        <td>#1002-B</td>
+                        <td>Sarah Jones</td>
+                        <td>Bangalore, KA</td>
+                        <td><span className="mockup-badge delivered">Delivered</span></td>
+                        <td>₹2,450.00</td>
+                      </tr>
+                      <tr>
+                        <td>#1003-C</td>
+                        <td>Vikram Singh</td>
+                        <td>Delhi, NCR</td>
+                        <td><span className="mockup-badge rto">RTO Returned</span></td>
+                        <td>₹1,299.00</td>
+                      </tr>
+                      <tr>
+                        <td>#1004-D</td>
+                        <td>Rohan Verma</td>
+                        <td>Pune, MH</td>
+                        <td><span className="mockup-badge delivered">Delivered</span></td>
+                        <td>₹999.00</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div className="mockup-right">
+                  <div className="mockup-card-right">
+                    <div style={{ fontSize: "10px", fontWeight: 700, color: "var(--slate)", textTransform: "uppercase" }}>Store Revenue Share</div>
+                    <div style={{ fontSize: "16px", fontWeight: 700, marginTop: "4px", color: "var(--ink)" }}>₹4.82 Lakhs</div>
+                    <div className="mockup-chart-row">
+                      <div className="mockup-chart-bar" style={{ height: "40%" }}></div>
+                      <div className="mockup-chart-bar" style={{ height: "70%" }}></div>
+                      <div className="mockup-chart-bar highlight" style={{ height: "95%" }}></div>
+                      <div className="mockup-chart-bar" style={{ height: "55%" }}></div>
+                      <div className="mockup-chart-bar" style={{ height: "80%" }}></div>
+                    </div>
+                  </div>
+                  <div className="mockup-card-right" style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                    <span style={{ fontSize: "18px" }}>🧠</span>
+                    <div style={{ fontSize: "10.5px", color: "var(--slate)", lineHeight: "1.4" }}>
+                      <strong>Avery Smith:</strong> "SKU consolidated. Found 14 duplicate order ID items. Delivery rate is at 78.4%."
+                    </div>
+                  </div>
                 </div>
               </div>
-            )}
-          </div>
+            </div>
+
+            {/* DETAILED FEATURES MATRIX */}
+            <div style={{ textAlign: "center", marginBottom: "2.5rem" }}>
+              <div style={{ fontFamily: "var(--font-technical)", fontSize: "10.5px", fontWeight: 700, color: "var(--coral)", textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: "6px" }}>Core Capabilities</div>
+              <h3 style={{ fontFamily: "var(--font-display)", fontSize: "2rem", fontWeight: 700, margin: 0 }}>Built for High-Growth E-Commerce</h3>
+            </div>
+            
+            <div className="features-grid">
+              <div className="feature-item-card">
+                <div className="feature-icon-wrapper">🛍️</div>
+                <h4 className="feature-title-card">Shopify Sales Consolidator</h4>
+                <p className="feature-desc-card">Automatically consolidates order rows, calculates geographical performance, filters COD risk status, and groups repeat buyers for retargeting campaigns.</p>
+              </div>
+              <div className="feature-item-card">
+                <div className="feature-icon-wrapper">🚚</div>
+                <h4 className="feature-title-card">Logistics Optimizer</h4>
+                <p className="feature-desc-card">Upload Shiprocket or courier sheets to consolidate multiple item packages, highlight shipping cost leakages, and rank courier company RTO risks.</p>
+              </div>
+              <div className="feature-item-card">
+                <div className="feature-icon-wrapper">📊</div>
+                <h4 className="feature-title-card">Universal Data Profiler</h4>
+                <p className="feature-desc-card">Instantly calculates column fill rates, auto-detects date/numerical types, performs average and standard deviation computations, and outputs an interactive grid editor.</p>
+              </div>
+              <div className="feature-item-card">
+                <div className="feature-icon-wrapper">🧠</div>
+                <h4 className="feature-title-card">Conversational AI Analyst</h4>
+                <p className="feature-desc-card">Connect your own Anthropic Claude key or run offline to query Avery, your business data analyst, directly inside the app without writing formulas or scripts.</p>
+              </div>
+            </div>
+          </section>
 
           {/* Trust Partner / Logo Strip */}
-          <div className="trust-logo-strip">
+          <div className="trust-logo-strip" style={{ marginTop: "1rem" }}>
             <div className="trust-logo-title">Compatible Integrations & formats</div>
             <div className="trust-logos">
               <span>SHIPROCKET</span>
@@ -3110,7 +3477,7 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
       )}
 
       {/* Step 2: Live Processing Log console */}
-      {log.length > 0 && (
+      {isAdminActive && log.length > 0 && (
         <div className="console-box">
           <div className="console-header">
             <span>Terminal Log console</span>
