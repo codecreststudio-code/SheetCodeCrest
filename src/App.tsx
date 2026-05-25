@@ -207,6 +207,8 @@ export default function App() {
     return stored ? Number(stored) : 3;
   });
 
+  const [mockupTabActive, setMockupTabActive] = useState<"shopify" | "logistics" | "universal">("shopify");
+
   // Universal Profiler Data
   const [dataProfile, setDataProfile] = useState<DataProfile | null>(null);
   
@@ -3361,72 +3363,232 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
                 <span style={{ fontSize: "10px", color: "var(--slate)", fontFamily: "var(--font-technical)", marginLeft: "8px", textTransform: "uppercase" }}>Interactive Data Profiler & Consolidator</span>
               </div>
               <div className="mockup-tab-strip">
-                <span className="mockup-tab active">📊 Shopify Store Sales</span>
-                <span className="mockup-tab">🚚 Courier Shipments</span>
-                <span className="mockup-tab">📋 Universal Profiling</span>
+                <button 
+                  type="button"
+                  className={`mockup-tab ${mockupTabActive === "shopify" ? "active" : ""}`}
+                  onClick={() => setMockupTabActive("shopify")}
+                  style={{ background: "transparent", border: "none", cursor: "pointer", outline: "none" }}
+                >
+                  📊 Shopify Store Sales
+                </button>
+                <button 
+                  type="button"
+                  className={`mockup-tab ${mockupTabActive === "logistics" ? "active" : ""}`}
+                  onClick={() => setMockupTabActive("logistics")}
+                  style={{ background: "transparent", border: "none", cursor: "pointer", outline: "none" }}
+                >
+                  🚚 Courier Shipments
+                </button>
+                <button 
+                  type="button"
+                  className={`mockup-tab ${mockupTabActive === "universal" ? "active" : ""}`}
+                  onClick={() => setMockupTabActive("universal")}
+                  style={{ background: "transparent", border: "none", cursor: "pointer", outline: "none" }}
+                >
+                  📋 Universal Profiling
+                </button>
               </div>
               <div className="mockup-body">
                 <div className="mockup-left">
-                  <table className="mockup-table">
-                    <thead>
-                      <tr>
-                        <th>Order ID</th>
-                        <th>Customer</th>
-                        <th>City / Region</th>
-                        <th>Status</th>
-                        <th>Amount</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr>
-                        <td>#1001-A</td>
-                        <td>Aman Sharma</td>
-                        <td>Mumbai, MH</td>
-                        <td><span className="mockup-badge delivered">Delivered</span></td>
-                        <td>₹1,899.00</td>
-                      </tr>
-                      <tr>
-                        <td>#1002-B</td>
-                        <td>Sarah Jones</td>
-                        <td>Bangalore, KA</td>
-                        <td><span className="mockup-badge delivered">Delivered</span></td>
-                        <td>₹2,450.00</td>
-                      </tr>
-                      <tr>
-                        <td>#1003-C</td>
-                        <td>Vikram Singh</td>
-                        <td>Delhi, NCR</td>
-                        <td><span className="mockup-badge rto">RTO Returned</span></td>
-                        <td>₹1,299.00</td>
-                      </tr>
-                      <tr>
-                        <td>#1004-D</td>
-                        <td>Rohan Verma</td>
-                        <td>Pune, MH</td>
-                        <td><span className="mockup-badge delivered">Delivered</span></td>
-                        <td>₹999.00</td>
-                      </tr>
-                    </tbody>
-                  </table>
+                  {mockupTabActive === "shopify" && (
+                    <table className="mockup-table">
+                      <thead>
+                        <tr>
+                          <th>Order ID</th>
+                          <th>Customer</th>
+                          <th>City / Region</th>
+                          <th>Status</th>
+                          <th>Amount</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td>#1001-A</td>
+                          <td>Aman Sharma</td>
+                          <td>Mumbai, MH</td>
+                          <td><span className="mockup-badge delivered">Delivered</span></td>
+                          <td>₹1,899.00</td>
+                        </tr>
+                        <tr>
+                          <td>#1002-B</td>
+                          <td>Sarah Jones</td>
+                          <td>Bangalore, KA</td>
+                          <td><span className="mockup-badge delivered">Delivered</span></td>
+                          <td>₹2,450.00</td>
+                        </tr>
+                        <tr>
+                          <td>#1003-C</td>
+                          <td>Vikram Singh</td>
+                          <td>Delhi, NCR</td>
+                          <td><span className="mockup-badge rto">RTO Returned</span></td>
+                          <td>₹1,299.00</td>
+                        </tr>
+                        <tr>
+                          <td>#1004-D</td>
+                          <td>Rohan Verma</td>
+                          <td>Pune, MH</td>
+                          <td><span className="mockup-badge delivered">Delivered</span></td>
+                          <td>₹999.00</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  )}
+
+                  {mockupTabActive === "logistics" && (
+                    <table className="mockup-table">
+                      <thead>
+                        <tr>
+                          <th>AWB Number</th>
+                          <th>Courier Co.</th>
+                          <th>Destination</th>
+                          <th>Delivery Status</th>
+                          <th>COD/Prepaid</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td>AWB-82019</td>
+                          <td>Delhivery</td>
+                          <td>Mumbai, MH</td>
+                          <td><span className="mockup-badge delivered">DELIVERED</span></td>
+                          <td>COD</td>
+                        </tr>
+                        <tr>
+                          <td>AWB-71928</td>
+                          <td>Bluedart</td>
+                          <td>Chennai, TN</td>
+                          <td><span className="mockup-badge rto">RTO RETURNED</span></td>
+                          <td>COD</td>
+                        </tr>
+                        <tr>
+                          <td>AWB-90123</td>
+                          <td>Xpressbees</td>
+                          <td>Kolkata, WB</td>
+                          <td><span className="mockup-badge delivered">DELIVERED</span></td>
+                          <td>PREPAID</td>
+                        </tr>
+                        <tr>
+                          <td>AWB-33412</td>
+                          <td>Delhivery</td>
+                          <td>Delhi, NCR</td>
+                          <td><span className="mockup-badge delivered">DELIVERED</span></td>
+                          <td>COD</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  )}
+
+                  {mockupTabActive === "universal" && (
+                    <table className="mockup-table">
+                      <thead>
+                        <tr>
+                          <th>Field Name</th>
+                          <th>Type Detection</th>
+                          <th>Fill Rate</th>
+                          <th>Distinct Count</th>
+                          <th>Sample Values</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td style={{ fontWeight: 600 }}>order_id</td>
+                          <td>NUMERIC</td>
+                          <td>100%</td>
+                          <td>150 unique</td>
+                          <td style={{ color: "var(--slate)" }}>1001; 1002; 1003</td>
+                        </tr>
+                        <tr>
+                          <td style={{ fontWeight: 600 }}>customer</td>
+                          <td>TEXT</td>
+                          <td>100%</td>
+                          <td>142 unique</td>
+                          <td style={{ color: "var(--slate)" }}>Aman; Sarah; Vikram</td>
+                        </tr>
+                        <tr>
+                          <td style={{ fontWeight: 600 }}>shipping_date</td>
+                          <td>DATE</td>
+                          <td>94%</td>
+                          <td>18 unique</td>
+                          <td style={{ color: "var(--slate)" }}>2026-05-01; 2026-05-02</td>
+                        </tr>
+                        <tr>
+                          <td style={{ fontWeight: 600 }}>discount_code</td>
+                          <td>TEXT</td>
+                          <td>40%</td>
+                          <td>4 unique</td>
+                          <td style={{ color: "var(--slate)" }}>WELCOME10; FREE</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  )}
                 </div>
+                
                 <div className="mockup-right">
-                  <div className="mockup-card-right">
-                    <div style={{ fontSize: "10px", fontWeight: 700, color: "var(--slate)", textTransform: "uppercase" }}>Store Revenue Share</div>
-                    <div style={{ fontSize: "16px", fontWeight: 700, marginTop: "4px", color: "var(--ink)" }}>₹4.82 Lakhs</div>
-                    <div className="mockup-chart-row">
-                      <div className="mockup-chart-bar" style={{ height: "40%" }}></div>
-                      <div className="mockup-chart-bar" style={{ height: "70%" }}></div>
-                      <div className="mockup-chart-bar highlight" style={{ height: "95%" }}></div>
-                      <div className="mockup-chart-bar" style={{ height: "55%" }}></div>
-                      <div className="mockup-chart-bar" style={{ height: "80%" }}></div>
-                    </div>
-                  </div>
-                  <div className="mockup-card-right" style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                    <span style={{ fontSize: "18px" }}>🧠</span>
-                    <div style={{ fontSize: "10.5px", color: "var(--slate)", lineHeight: "1.4" }}>
-                      <strong>Avery Smith:</strong> "SKU consolidated. Found 14 duplicate order ID items. Delivery rate is at 78.4%."
-                    </div>
-                  </div>
+                  {mockupTabActive === "shopify" && (
+                    <>
+                      <div className="mockup-card-right">
+                        <div style={{ fontSize: "10px", fontWeight: 700, color: "var(--slate)", textTransform: "uppercase" }}>Store Revenue Share</div>
+                        <div style={{ fontSize: "16px", fontWeight: 700, marginTop: "4px", color: "var(--ink)" }}>₹4.82 Lakhs</div>
+                        <div className="mockup-chart-row">
+                          <div className="mockup-chart-bar" style={{ height: "40%" }}></div>
+                          <div className="mockup-chart-bar" style={{ height: "70%" }}></div>
+                          <div className="mockup-chart-bar highlight" style={{ height: "95%" }}></div>
+                          <div className="mockup-chart-bar" style={{ height: "55%" }}></div>
+                          <div className="mockup-chart-bar" style={{ height: "80%" }}></div>
+                        </div>
+                      </div>
+                      <div className="mockup-card-right" style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                        <span style={{ fontSize: "18px" }}>🧠</span>
+                        <div style={{ fontSize: "10.5px", color: "var(--slate)", lineHeight: "1.4" }}>
+                          <strong>Avery Smith:</strong> "SKU consolidated. Found 14 duplicate order ID items. Delivery rate is at 78.4%."
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {mockupTabActive === "logistics" && (
+                    <>
+                      <div className="mockup-card-right">
+                        <div style={{ fontSize: "10px", fontWeight: 700, color: "var(--slate)", textTransform: "uppercase" }}>Courier Success Index</div>
+                        <div style={{ fontSize: "16px", fontWeight: 700, marginTop: "4px", color: "var(--ink)" }}>86.5% Rating</div>
+                        <div className="mockup-chart-row">
+                          <div className="mockup-chart-bar highlight" style={{ height: "92%" }} title="Delhivery"></div>
+                          <div className="mockup-chart-bar" style={{ height: "72%" }} title="Bluedart"></div>
+                          <div className="mockup-chart-bar" style={{ height: "84%" }} title="Xpressbees"></div>
+                          <div className="mockup-chart-bar highlight" style={{ height: "90%" }} title="Delhivery 2"></div>
+                          <div className="mockup-chart-bar" style={{ height: "65%" }} title="Shadowfax"></div>
+                        </div>
+                      </div>
+                      <div className="mockup-card-right" style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                        <span style={{ fontSize: "18px" }}>🧠</span>
+                        <div style={{ fontSize: "10.5px", color: "var(--slate)", lineHeight: "1.4" }}>
+                          <strong>Avery Smith:</strong> "Logistics audit: Delhivery has 92% SLA fill rate. Bluedart COD RTO risk is high at 21%."
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {mockupTabActive === "universal" && (
+                    <>
+                      <div className="mockup-card-right">
+                        <div style={{ fontSize: "10px", fontWeight: 700, color: "var(--slate)", textTransform: "uppercase" }}>Data Quality Index</div>
+                        <div style={{ fontSize: "16px", fontWeight: 700, marginTop: "4px", color: "var(--ink)" }}>96.8% Score</div>
+                        <div className="mockup-chart-row">
+                          <div className="mockup-chart-bar highlight" style={{ height: "100%" }}></div>
+                          <div className="mockup-chart-bar highlight" style={{ height: "100%" }}></div>
+                          <div className="mockup-chart-bar highlight" style={{ height: "94%" }}></div>
+                          <div className="mockup-chart-bar" style={{ height: "40%" }}></div>
+                          <div className="mockup-chart-bar highlight" style={{ height: "92%" }}></div>
+                        </div>
+                      </div>
+                      <div className="mockup-card-right" style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                        <span style={{ fontSize: "18px" }}>🧠</span>
+                        <div style={{ fontSize: "10.5px", color: "var(--slate)", lineHeight: "1.4" }}>
+                          <strong>Avery Smith:</strong> "Data Quality profile complete. 12 columns mapped. Detected 6 missing cells in discount_code."
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
