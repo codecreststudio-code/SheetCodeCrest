@@ -19,7 +19,10 @@ import {
   dbGetUser,
   dbSaveRecord,
   dbGetRecords,
-  dbDeleteRecord
+  dbDeleteRecord,
+  dbGetAllUsers,
+  dbGetAllPayments,
+  dbApprovePayment
 } from "./db";
 
 type AppMode = "universal" | "logistics" | "shopify";
@@ -168,14 +171,6 @@ export default function App() {
 
   // Payment Checkout Gateway Modal State
   const [checkoutOpen, setCheckoutOpen] = useState(false);
-  const [checkoutTab, setCheckoutTab] = useState<"stripe" | "razorpay">("stripe");
-  
-  // Stripe form fields
-  const [cardName, setCardName] = useState("");
-  const [cardNumber, setCardNumber] = useState("");
-  const [cardExpiry, setCardExpiry] = useState("");
-  const [cardCVC, setCardCVC] = useState("");
-  const [cardZip, setCardZip] = useState("");
   
   // Razorpay UPI fields
   const [upiVPA, setUpiVPA] = useState("");
@@ -198,6 +193,19 @@ export default function App() {
   
   // Custom API Key for real-time Anthropic analysis
   const [customApiKey, setCustomApiKey] = useState("");
+
+  // Admin Portal State
+  const [adminModalOpen, setAdminModalOpen] = useState(false);
+  const [adminTab, setAdminTab] = useState<"users" | "payments" | "config">("users");
+  const [adminUsers, setAdminUsers] = useState<User[]>([]);
+  const [adminPayments, setAdminPayments] = useState<any[]>([]);
+  const [adminSearch, setAdminSearch] = useState("");
+  const [adminLoading, setAdminLoading] = useState(false);
+  const [globalFreeLimit, setGlobalFreeLimit] = useState(() => {
+    if (typeof window === "undefined") return 3;
+    const stored = window.localStorage.getItem("sheetcodecrest_global_free_limit");
+    return stored ? Number(stored) : 3;
+  });
 
   // Universal Profiler Data
   const [dataProfile, setDataProfile] = useState<DataProfile | null>(null);
@@ -232,7 +240,8 @@ export default function App() {
   const dlRef = useRef<string | null>(null);
   
   const isProActive = currentUser?.isPro === true;
-  const freeReportsRemaining = isProActive ? 999999 : Math.max(0, FREE_REPORT_LIMIT - usageCount);
+  const isAdminActive = currentUser?.username === "codecreststudio" || currentUser?.email === "codecreststudio@gmail.com";
+  const freeReportsRemaining = isProActive ? 999999 : Math.max(0, globalFreeLimit - usageCount);
   const hasFreeReportsRemaining = isProActive || freeReportsRemaining > 0;
 
   // Load session and handle Stripe payment callbacks on startup
@@ -251,38 +260,7 @@ export default function App() {
         }
       }
 
-      // Check for Stripe success redirect query parameters
-      const params = new URLSearchParams(window.location.search);
-      const paymentStatus = params.get("payment");
-      const paymentUsername = params.get("username") || activeUser?.username;
-      
-      if (paymentStatus === "success" && paymentUsername) {
-        // Clear query parameters from URL bar to prevent replay on refresh
-        window.history.replaceState({}, document.title, window.location.pathname);
-        
-        const user = await dbGetUser(paymentUsername);
-        if (user) {
-          const updatedUser = { ...user, isPro: true };
-          await dbSaveUser(updatedUser);
-          setCurrentUser(updatedUser);
-          
-          addLog(`⚡ Payment verified! Account "${paymentUsername}" upgraded to PRO plan via Stripe Checkout.`, "success");
-          sendToGoogleSheets(updatedUser, "upgrade");
-          
-          // Log transaction securely to Supabase
-          const sessionId = params.get("session_id") || "stripe_payment_link_direct";
-          const { dbLogPayment } = await import("./db");
-          dbLogPayment({
-            username: paymentUsername,
-            gateway: "stripe",
-            paymentId: sessionId,
-            amount: 19,
-            status: "success"
-          });
-          
-          alert("🎉 Welcome to SheetCodeCrest Pro! Your account has been upgraded successfully.");
-        }
-      }
+      // Local check finished
     };
 
     initializeUser();
@@ -550,175 +528,126 @@ export default function App() {
     }
   };
 
-  const startPaymentSimulation = async (method: "stripe" | "razorpay") => {
+  const startPaymentSimulation = async () => {
     setPaymentProcessing(true);
     setPaymentCompleted(false);
     setPaymentLogs([]);
 
-    if (method === "stripe") {
-      const stripePaymentLink = import.meta.env.VITE_STRIPE_PAYMENT_LINK || "";
-      if (stripePaymentLink) {
-        // Redirection to Live Stripe Payment Link with customer data
-        const clientRef = currentUser ? currentUser.username : "anonymous";
-        const emailPrefill = currentUser && currentUser.email ? `&prefilled_email=${encodeURIComponent(currentUser.email)}` : "";
-        window.location.href = `${stripePaymentLink}?client_reference_id=${encodeURIComponent(clientRef)}${emailPrefill}`;
-        return;
-      }
-
-      // Fallback: Stripe Simulation Mode
-      setPaymentLogs([
-        "🔒 Initiating Stripe Secure 3D Handshake...",
-        "📡 Connecting to Stripe Payment API (api.stripe.com)...",
-        "💸 Transmitting card details over AES-256 TLS Tunnel...",
-        "🛡️ Running Stripe Radar fraud mitigation checks...",
-        "💳 Verifying card balance with issuing bank...",
-        "📡 Waiting for authorization callback...",
-        "✓ Payment Authorized! ID: ch_stripe_3M82j9aPq",
-        "⚡ Updating subscription entitlement store...",
-        "🎉 Transaction Successful!"
-      ]);
-
-      let currentIdx = 0;
-      const interval = setInterval(() => {
-        if (currentIdx < 9) {
-          currentIdx++;
-        } else {
-          clearInterval(interval);
-          setPaymentProcessing(false);
-          setPaymentCompleted(true);
-          if (currentUser) {
-            const updatedUser = { ...currentUser, isPro: true };
-            dbSaveUser(updatedUser).then(() => {
+    // Live Razorpay Mode
+    const razorpayKey = import.meta.env.VITE_RAZORPAY_KEY_ID || "rzp_test_StUNrV1X2WAvV4";
+    if (razorpayKey && typeof (window as any).Razorpay !== "undefined") {
+      const options = {
+        key: razorpayKey,
+        amount: 159900, // ₹1,599 in paisa
+        currency: "INR",
+        name: "SheetCodeCrest Pro",
+        description: "Premium Spreadsheet Analytics Subscription",
+        image: "https://sheetcodecrest.vercel.app/logo.png",
+        handler: async function (response: any) {
+          try {
+            addLog(`💳 Razorpay transaction completed! Payment ID: ${response.razorpay_payment_id}`, "success");
+            
+            if (currentUser) {
+              const updatedUser = { ...currentUser, isPro: true };
+              await dbSaveUser(updatedUser);
               setCurrentUser(updatedUser);
-              addLog(`⚡ Payment verified! Account "${currentUser.username}" upgraded to PRO plan.`, "success");
-              sendToGoogleSheets(updatedUser, "upgrade");
-              setTimeout(() => {
-                setCheckoutOpen(false);
-                setPaymentCompleted(false);
-                setPaymentLogs([]);
-              }, 1500);
-            });
-          }
-        }
-      }, 500);
-
-    } else {
-      // Live Razorpay Mode
-      const razorpayKey = import.meta.env.VITE_RAZORPAY_KEY_ID || "rzp_test_StUNrV1X2WAvV4";
-      if (razorpayKey && typeof (window as any).Razorpay !== "undefined") {
-        const options = {
-          key: razorpayKey,
-          amount: 159900, // ₹1,599 in paisa
-          currency: "INR",
-          name: "SheetCodeCrest Pro",
-          description: "Premium Spreadsheet Analytics Subscription",
-          image: "https://sheetcodecrest.vercel.app/logo.png",
-          handler: async function (response: any) {
-            try {
-              addLog(`💳 Razorpay transaction completed! Payment ID: ${response.razorpay_payment_id}`, "success");
               
-              if (currentUser) {
-                const updatedUser = { ...currentUser, isPro: true };
-                await dbSaveUser(updatedUser);
-                setCurrentUser(updatedUser);
-                
-                // Log payment securely in Supabase
-                const { dbLogPayment } = await import("./db");
-                await dbLogPayment({
-                  username: currentUser.username,
-                  gateway: "razorpay",
-                  paymentId: response.razorpay_payment_id,
-                  orderId: response.razorpay_order_id || "",
-                  signature: response.razorpay_signature || "",
-                  amount: 1599,
-                  status: "success"
-                });
-                
-                addLog(`⚡ Live payment verified! Account "${currentUser.username}" upgraded to PRO.`, "success");
-                sendToGoogleSheets(updatedUser, "upgrade");
-                
-                setPaymentProcessing(false);
-                setPaymentCompleted(true);
-                setTimeout(() => {
-                  setCheckoutOpen(false);
-                  setPaymentCompleted(false);
-                  setUpiVPA("");
-                }, 1500);
-              }
-            } catch (err: any) {
-              console.error("Razorpay callback processing failed", err);
-              alert(`Error processing payment verification: ${err.message || err}`);
-              setPaymentProcessing(false);
-            }
-          },
-          prefill: {
-            name: currentUser?.name || currentUser?.username || "",
-            email: currentUser?.email || "",
-            contact: currentUser?.mobile || ""
-          },
-          notes: {
-            username: currentUser?.username || "anonymous"
-          },
-          theme: {
-            color: "#0f172a"
-          }
-        };
-
-        setPaymentProcessing(false);
-        const rzp = new (window as any).Razorpay(options);
-        rzp.on("payment.failed", function (resp: any) {
-          console.error("Razorpay payment failed", resp.error);
-          alert(`Payment failed: ${resp.error.description}`);
-          setPaymentProcessing(false);
-        });
-        rzp.open();
-        return;
-      }
-
-      // Fallback: Razorpay UPI Simulation Mode
-      if (!upiVPA.trim()) {
-        alert("Please enter your UPI ID.");
-        setPaymentProcessing(false);
-        return;
-      }
-
-      setPaymentLogs([
-        "🔒 Initiating Razorpay UPI Gateway Ping...",
-        "📡 Handshaking with UPI Address Resolver (vpa@okicici)...",
-        "📲 Generating dynamic UPI deep-link QR intent payload...",
-        "📡 Listening for mobile banking app webhook callback...",
-        "🛡️ Validating secure transaction checksum (SHA-256)...",
-        "💸 Transferring funds to merchant account...",
-        "📡 Razorpay callback verified by merchant...",
-        "⚡ Updating subscription entitlement store...",
-        "🎉 Transaction Successful!"
-      ]);
-
-      let currentIdx = 0;
-      const interval = setInterval(() => {
-        if (currentIdx < 9) {
-          currentIdx++;
-        } else {
-          clearInterval(interval);
-          setPaymentProcessing(false);
-          setPaymentCompleted(true);
-          if (currentUser) {
-            const updatedUser = { ...currentUser, isPro: true };
-            dbSaveUser(updatedUser).then(() => {
-              setCurrentUser(updatedUser);
-              addLog(`⚡ Payment verified! Account "${currentUser.username}" upgraded to PRO plan.`, "success");
+              // Log payment securely in Supabase
+              const { dbLogPayment } = await import("./db");
+              await dbLogPayment({
+                username: currentUser.username,
+                gateway: "razorpay",
+                paymentId: response.razorpay_payment_id,
+                orderId: response.razorpay_order_id || "",
+                signature: response.razorpay_signature || "",
+                amount: 1599,
+                status: "success"
+              });
+              
+              addLog(`⚡ Live payment verified! Account "${currentUser.username}" upgraded to PRO.`, "success");
               sendToGoogleSheets(updatedUser, "upgrade");
+              
+              setPaymentProcessing(false);
+              setPaymentCompleted(true);
               setTimeout(() => {
                 setCheckoutOpen(false);
                 setPaymentCompleted(false);
                 setPaymentLogs([]);
-                setUpiVPA("");
               }, 1500);
-            });
+            }
+          } catch (err: any) {
+            console.error("Razorpay callback processing failed", err);
+            alert(`Error processing payment verification: ${err.message || err}`);
+            setPaymentProcessing(false);
           }
+        },
+        prefill: {
+          name: currentUser?.name || currentUser?.username || "",
+          email: currentUser?.email || "",
+          contact: currentUser?.mobile || ""
+        },
+        notes: {
+          username: currentUser?.username || "anonymous"
+        },
+        theme: {
+          color: "#0f172a"
         }
-      }, 500);
+      };
+
+      setPaymentProcessing(false);
+      const rzp = new (window as any).Razorpay(options);
+      rzp.on("payment.failed", function (resp: any) {
+        console.error("Razorpay payment failed", resp.error);
+        alert(`Payment failed: ${resp.error.description}`);
+        setPaymentProcessing(false);
+      });
+      rzp.open();
+      return;
     }
+
+    // Fallback: Razorpay UPI Simulation Mode
+    if (!upiVPA.trim()) {
+      alert("Please enter your UPI ID.");
+      setPaymentProcessing(false);
+      return;
+    }
+
+    setPaymentLogs([
+      "🔒 Initiating Razorpay UPI Gateway Ping...",
+      "📡 Handshaking with UPI Address Resolver (vpa@okicici)...",
+      "📲 Generating dynamic UPI deep-link QR intent payload...",
+      "📡 Listening for mobile banking app webhook callback...",
+      "🛡️ Validating secure transaction checksum (SHA-256)...",
+      "💸 Transferring funds to merchant account...",
+      "📡 Razorpay callback verified by merchant...",
+      "⚡ Updating subscription entitlement store...",
+      "🎉 Transaction Successful!"
+    ]);
+
+    let currentIdx = 0;
+    const interval = setInterval(() => {
+      if (currentIdx < 9) {
+        currentIdx++;
+      } else {
+        clearInterval(interval);
+        setPaymentProcessing(false);
+        setPaymentCompleted(true);
+        if (currentUser) {
+          const updatedUser = { ...currentUser, isPro: true };
+          dbSaveUser(updatedUser).then(() => {
+            setCurrentUser(updatedUser);
+            addLog(`⚡ Payment verified! Account "${currentUser.username}" upgraded to PRO plan.`, "success");
+            sendToGoogleSheets(updatedUser, "upgrade");
+            setTimeout(() => {
+              setCheckoutOpen(false);
+              setPaymentCompleted(false);
+              setPaymentLogs([]);
+              setUpiVPA("");
+            }, 1500);
+          });
+        }
+      }
+    }, 500);
   };
 
   const handleManualUpiVerification = async (e: React.FormEvent) => {
@@ -773,6 +702,73 @@ export default function App() {
         }
       }
     }, 600);
+  };
+
+  // ----------------------------------------------------
+  // 🛡️ ADMIN PANEL CONTROLLERS
+  // ----------------------------------------------------
+  const loadAdminData = async () => {
+    setAdminLoading(true);
+    try {
+      const [users, payments] = await Promise.all([
+        dbGetAllUsers(),
+        dbGetAllPayments()
+      ]);
+      setAdminUsers(users);
+      setAdminPayments(payments);
+    } catch (err) {
+      console.error("Failed to load admin data", err);
+    } finally {
+      setAdminLoading(false);
+    }
+  };
+
+  const handleToggleUserPro = async (targetUser: User) => {
+    try {
+      const updated = { ...targetUser, isPro: !targetUser.isPro };
+      await dbSaveUser(updated);
+      addLog(`🛡️ Admin: Toggled PRO status for user "${targetUser.username}" to ${!targetUser.isPro}`, "info");
+      await loadAdminData(); // Reload list
+      
+      if (currentUser && currentUser.username === targetUser.username) {
+        setCurrentUser(updated);
+      }
+    } catch (err) {
+      console.error("Failed to toggle PRO", err);
+      alert("Failed to update user privilege.");
+    }
+  };
+
+  const handleAdminApproveUpi = async (paymentId: string, username: string) => {
+    if (!confirm(`Are you sure you want to approve transaction "${paymentId}" and upgrade "${username}" to PRO?`)) return;
+    setAdminLoading(true);
+    try {
+      await dbApprovePayment(paymentId, username);
+      addLog(`🛡️ Admin approved payment: ${paymentId}. promoted "${username}" to PRO.`, "success");
+      
+      const userObj = await dbGetUser(username);
+      if (userObj) {
+        sendToGoogleSheets(userObj, "upgrade");
+      }
+      
+      await loadAdminData(); // Reload list
+      alert("🎉 UPI Payment Approved! User promoted to PRO successfully.");
+    } catch (err) {
+      console.error("Failed to approve payment", err);
+      alert("Failed to approve payment.");
+    } finally {
+      setAdminLoading(false);
+    }
+  };
+
+  const handleSaveFreeLimit = (limit: number) => {
+    if (isNaN(limit) || limit < 1) {
+      alert("Please enter a valid limit number >= 1.");
+      return;
+    }
+    window.localStorage.setItem("sheetcodecrest_global_free_limit", String(limit));
+    setGlobalFreeLimit(limit);
+    alert("⚙️ System settings updated successfully!");
   };
 
   const recordSuccessfulReport = useCallback(() => {
@@ -2943,6 +2939,19 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
                   {currentUser.isPro ? "Pro" : "Free"}
                 </span>
               </span>
+              {isAdminActive && (
+                <button 
+                  type="button" 
+                  className="header-btn" 
+                  onClick={() => {
+                    setAdminModalOpen(true);
+                    loadAdminData();
+                  }}
+                  style={{ borderColor: "var(--amber)", color: "var(--amber)", fontWeight: 600 }}
+                >
+                  🛡️ Admin Panel
+                </button>
+              )}
               <button 
                 type="button" 
                 className="header-btn" 
@@ -3025,7 +3034,7 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
             </p>
             <div className="usage-meter">
               {hasFreeReportsRemaining
-                ? `Free reports remaining: ${freeReportsRemaining} of ${FREE_REPORT_LIMIT}`
+                ? `Free reports remaining: ${freeReportsRemaining} of ${globalFreeLimit}`
                 : "Free trial complete"}
             </div>
             {!hasFreeReportsRemaining && (
@@ -3845,7 +3854,7 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
               {!paymentProcessing && !paymentCompleted ? (
                 <div style={{ marginTop: "1rem" }}>
                   {import.meta.env.VITE_RAZORPAY_KEY_ID && (window as any).Razorpay ? (
-                    <form onSubmit={(e) => { e.preventDefault(); startPaymentSimulation("razorpay"); }}>
+                    <form onSubmit={(e) => { e.preventDefault(); startPaymentSimulation(); }}>
                       <p style={{ fontSize: "14px", color: "var(--slate)", marginBottom: "1.5rem", lineHeight: "1.5", textAlign: "center" }}>
                         Upgrade instantly via UPI, Netbanking, or Credit/Debit cards securely using the Razorpay gateway.
                       </p>
@@ -3927,6 +3936,238 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
                     </div>
                   )}
                 </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 🛡️ Secure Admin Panel Modal */}
+      {adminModalOpen && (
+        <div className="modal-overlay" onClick={() => !adminLoading && setAdminModalOpen(false)}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "750px", width: "95%" }}>
+            <div className="modal-header" style={{ borderColor: "var(--amber)" }}>
+              <h3 className="modal-title" style={{ display: "flex", alignItems: "center", gap: "8px", color: "var(--amber)" }}>
+                <span>🛡️</span> SheetCodeCrest Admin Console
+              </h3>
+              <button 
+                type="button" 
+                className="modal-close-btn" 
+                onClick={() => !adminLoading && setAdminModalOpen(false)}
+                disabled={adminLoading}
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div className="modal-body" style={{ padding: "1.5rem" }}>
+              {/* Admin Tabs */}
+              <div className="checkout-tabs" style={{ marginBottom: "1.25rem" }}>
+                <button 
+                  type="button" 
+                  className={`checkout-tab-btn ${adminTab === "users" ? "active" : ""}`}
+                  onClick={() => { setAdminTab("users"); setAdminSearch(""); }}
+                  style={{ flex: 1, borderColor: adminTab === "users" ? "var(--amber)" : "transparent" }}
+                >
+                  👤 Users ({adminUsers.length})
+                </button>
+                <button 
+                  type="button" 
+                  className={`checkout-tab-btn ${adminTab === "payments" ? "active" : ""}`}
+                  onClick={() => { setAdminTab("payments"); setAdminSearch(""); }}
+                  style={{ flex: 1, borderColor: adminTab === "payments" ? "var(--amber)" : "transparent" }}
+                >
+                  💳 Transactions ({adminPayments.length})
+                </button>
+                <button 
+                  type="button" 
+                  className={`checkout-tab-btn ${adminTab === "config" ? "active" : ""}`}
+                  onClick={() => { setAdminTab("config"); setAdminSearch(""); }}
+                  style={{ flex: 1, borderColor: adminTab === "config" ? "var(--amber)" : "transparent" }}
+                >
+                  ⚙️ Settings
+                </button>
+              </div>
+
+              {adminLoading ? (
+                <div style={{ textAlign: "center", padding: "3rem 0" }}>
+                  <div style={{ display: "inline-block", width: "35px", height: "35px", border: "3px solid var(--hairline)", borderTopColor: "var(--amber)", borderRadius: "50%", animation: "spin 1s linear infinite" }}></div>
+                  <div style={{ marginTop: "1rem", fontSize: "14px", color: "var(--slate)", fontWeight: 500 }}>Syncing active database records...</div>
+                </div>
+              ) : (
+                <>
+                  {/* Search Bar for Users and Payments */}
+                  {adminTab !== "config" && (
+                    <div className="form-group" style={{ marginBottom: "1rem" }}>
+                      <input 
+                        type="text" 
+                        className="form-input" 
+                        placeholder={adminTab === "users" ? "🔍 Search users by username, name, email, phone..." : "🔍 Search payments by username or reference ID..."}
+                        value={adminSearch}
+                        onChange={(e) => setAdminSearch(e.target.value)}
+                        style={{ background: "rgba(255, 255, 255, 0.03)" }}
+                      />
+                    </div>
+                  )}
+
+                  {/* TAB 1: USERS DIRECTORY */}
+                  {adminTab === "users" && (
+                    <div className="records-list-wrapper" style={{ maxHeight: "350px", overflowY: "auto" }}>
+                      {adminUsers.filter((u) => 
+                        u.username.toLowerCase().includes(adminSearch.toLowerCase()) ||
+                        (u.name || "").toLowerCase().includes(adminSearch.toLowerCase()) ||
+                        (u.email || "").toLowerCase().includes(adminSearch.toLowerCase()) ||
+                        (u.mobile || "").toLowerCase().includes(adminSearch.toLowerCase())
+                      ).length > 0 ? (
+                        adminUsers.filter((u) => 
+                          u.username.toLowerCase().includes(adminSearch.toLowerCase()) ||
+                          (u.name || "").toLowerCase().includes(adminSearch.toLowerCase()) ||
+                          (u.email || "").toLowerCase().includes(adminSearch.toLowerCase()) ||
+                          (u.mobile || "").toLowerCase().includes(adminSearch.toLowerCase())
+                        ).map((user) => (
+                          <div className="record-item-row" key={user.username} style={{ padding: "12px", gap: "10px", alignItems: "center" }}>
+                            <div className="record-info-left" style={{ textAlign: "left" }}>
+                              <div style={{ fontWeight: 700, fontSize: "14px", display: "flex", alignItems: "center", gap: "8px" }}>
+                                <span>{user.username}</span>
+                                <span className={`plan-badge ${user.isPro ? "pro" : "free"}`} style={{ fontSize: "8.5px", padding: "1px 5px" }}>
+                                  {user.isPro ? "PRO" : "FREE"}
+                                </span>
+                              </div>
+                              <div className="record-meta-text" style={{ display: "flex", flexWrap: "wrap", gap: "8px", fontSize: "11px", marginTop: "4px" }}>
+                                <span>👤 {user.name || "N/A"}</span>
+                                <span>•</span>
+                                <span>📧 {user.email || "N/A"}</span>
+                                <span>•</span>
+                                <span>📞 {user.mobile || "N/A"}</span>
+                                <span>•</span>
+                                <span>📅 {user.dateCreated}</span>
+                              </div>
+                            </div>
+                            <div className="record-item-actions">
+                              <button
+                                type="button"
+                                className="record-load-btn"
+                                onClick={() => handleToggleUserPro(user)}
+                                style={{
+                                  background: user.isPro ? "rgba(239, 68, 68, 0.1)" : "rgba(16, 185, 129, 0.1)",
+                                  color: user.isPro ? "#ef4444" : "#10b981",
+                                  borderColor: user.isPro ? "#ef4444" : "#10b981",
+                                  fontSize: "11px"
+                                }}
+                              >
+                                {user.isPro ? "Revoke PRO" : "Grant PRO"}
+                              </button>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div style={{ padding: "2rem", textAlign: "center", color: "var(--slate)" }}>
+                          No users found matching query.
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* TAB 2: TRANSACTION LOGS */}
+                  {adminTab === "payments" && (
+                    <div className="records-list-wrapper" style={{ maxHeight: "350px", overflowY: "auto" }}>
+                      {adminPayments.filter((p) => 
+                        p.username.toLowerCase().includes(adminSearch.toLowerCase()) ||
+                        p.paymentId.toLowerCase().includes(adminSearch.toLowerCase())
+                      ).length > 0 ? (
+                        adminPayments.filter((p) => 
+                          p.username.toLowerCase().includes(adminSearch.toLowerCase()) ||
+                          p.paymentId.toLowerCase().includes(adminSearch.toLowerCase())
+                        ).map((pay) => {
+                          const isPending = pay.status === "pending_verification";
+                          return (
+                            <div className="record-item-row" key={pay.id || pay.paymentId} style={{ padding: "12px", gap: "10px", alignItems: "center" }}>
+                              <div className="record-info-left" style={{ textAlign: "left" }}>
+                                <div style={{ fontWeight: 700, fontSize: "14px", display: "flex", flexWrap: "wrap", alignItems: "center", gap: "8px" }}>
+                                  <span style={{ fontSize: "12px", fontFamily: "var(--font-technical)", background: "rgba(255, 255, 255, 0.05)", padding: "2px 6px", borderRadius: "4px" }}>
+                                    {pay.paymentId}
+                                  </span>
+                                  <span className={`plan-badge ${pay.status === "success" ? "pro" : "free"}`} style={{ 
+                                    fontSize: "8.5px", 
+                                    padding: "1px 5px",
+                                    background: isPending ? "rgba(245, 158, 11, 0.15)" : undefined,
+                                    color: isPending ? "#f59e0b" : undefined
+                                  }}>
+                                    {pay.status.toUpperCase()}
+                                  </span>
+                                </div>
+                                <div className="record-meta-text" style={{ fontSize: "11px", marginTop: "6px" }}>
+                                  <span>👤 Account: <strong>{pay.username}</strong></span>
+                                  <span>•</span>
+                                  <span>💳 Gateway: {pay.gateway.toUpperCase()}</span>
+                                  <span>•</span>
+                                  <span>💰 Amount: ₹{pay.amount.toLocaleString()}</span>
+                                </div>
+                              </div>
+                              <div className="record-item-actions">
+                                {isPending && (
+                                  <button
+                                    type="button"
+                                    className="record-load-btn"
+                                    onClick={() => handleAdminApproveUpi(pay.paymentId, pay.username)}
+                                    style={{
+                                      background: "rgba(245, 158, 11, 0.1)",
+                                      color: "#f59e0b",
+                                      borderColor: "#f59e0b",
+                                      fontSize: "11px",
+                                      fontWeight: 600
+                                    }}
+                                  >
+                                    Approve UPI
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <div style={{ padding: "2rem", textAlign: "center", color: "var(--slate)" }}>
+                          No transaction records found matching query.
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* TAB 3: SYSTEM CONFIG */}
+                  {adminTab === "config" && (
+                    <div style={{ padding: "1rem 0" }}>
+                      <div className="subscription-card" style={{ background: "rgba(255, 255, 255, 0.02)", border: "1px solid var(--hairline)", padding: "1.5rem", borderRadius: "12px", textAlign: "left" }}>
+                        <h4 style={{ margin: "0 0 1rem 0", fontSize: "15px", fontWeight: 600, color: "var(--amber)" }}>⚙️ Global Application Settings</h4>
+                        
+                        <div className="form-group" style={{ marginBottom: "1.5rem" }}>
+                          <label className="form-label" style={{ display: "block", marginBottom: "6px", fontSize: "12px", color: "var(--slate)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                            Global Free Report Limit
+                          </label>
+                          <input 
+                            type="number" 
+                            className="form-input" 
+                            value={globalFreeLimit}
+                            onChange={(e) => setGlobalFreeLimit(Number(e.target.value))}
+                            min={1}
+                            style={{ maxWidth: "150px" }}
+                          />
+                          <p style={{ fontSize: "11px", color: "var(--slate)", marginTop: "6px" }}>
+                            Sets the number of free spreadsheet analysis workbooks a standard user can generate before they are blocked and prompted to upgrade to PRO.
+                          </p>
+                        </div>
+
+                        <button 
+                          type="button" 
+                          className="auth-submit-btn" 
+                          onClick={() => handleSaveFreeLimit(globalFreeLimit)}
+                          style={{ background: "var(--amber)", color: "#000000", fontWeight: 600, border: "none" }}
+                        >
+                          💾 Save System Settings
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </div>

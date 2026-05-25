@@ -305,3 +305,100 @@ export async function dbLogPayment(log: PaymentLog): Promise<void> {
     }
   }
 }
+
+// ----------------------------------------------------
+// 🛡️ ADMIN PORTAL DATABASE OPERATIONS
+// ----------------------------------------------------
+export async function dbGetAllUsers(): Promise<User[]> {
+  if (isSupabaseConfigured) {
+    try {
+      const { data, error } = await supabase
+        .from("users")
+        .select("*")
+        .order("username", { ascending: true });
+      if (error) throw error;
+      if (data) {
+        return data.map((d: any) => ({
+          username: d.username,
+          passwordHash: d.password_hash,
+          isPro: d.is_pro,
+          dateCreated: d.date_created,
+          name: d.name,
+          mobile: d.mobile,
+          email: d.email
+        }));
+      }
+    } catch (err) {
+      console.error("❌ Supabase get all users error, falling back to local database:", err);
+    }
+  }
+  
+  // Local cache fallback
+  const localDb = await openDB();
+  return new Promise((resolve, reject) => {
+    const transaction = localDb.transaction("users", "readonly");
+    const store = transaction.objectStore("users");
+    const request = store.getAll();
+    request.onsuccess = () => resolve(request.result || []);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+export async function dbGetAllPayments(): Promise<PaymentLog[]> {
+  if (isSupabaseConfigured) {
+    try {
+      const { data, error } = await supabase
+        .from("payments")
+        .select("*")
+        .order("id", { ascending: false });
+      if (error) throw error;
+      if (data) {
+        return data.map((d: any) => ({
+          id: d.id,
+          username: d.username,
+          gateway: d.gateway as any,
+          paymentId: d.payment_id,
+          orderId: d.order_id,
+          signature: d.signature,
+          amount: d.amount,
+          status: d.status
+        }));
+      }
+    } catch (err) {
+      console.error("❌ Supabase get all payments error:", err);
+    }
+  }
+  return [];
+}
+
+export async function dbApprovePayment(paymentId: string, username: string): Promise<void> {
+  // 1. Sync to Supabase Cloud
+  if (isSupabaseConfigured) {
+    try {
+      // Update payment status
+      const { error: pError } = await supabase
+        .from("payments")
+        .update({ status: "success" })
+        .eq("payment_id", paymentId);
+      if (pError) throw pError;
+      
+      // Update user role
+      const { error: uError } = await supabase
+        .from("users")
+        .update({ is_pro: true })
+        .eq("username", username);
+      if (uError) throw uError;
+      
+      console.log(`☁️ Supabase: Payment reference "${paymentId}" approved and upgraded user "${username}".`);
+    } catch (err) {
+      console.error("❌ Supabase payment approval error:", err);
+    }
+  }
+  
+  // 2. Replicate locally to cache
+  const userObj = await dbGetUser(username);
+  if (userObj) {
+    userObj.isPro = true;
+    await dbSaveUser(userObj);
+  }
+}
