@@ -604,7 +604,7 @@ export default function App() {
 
     } else {
       // Live Razorpay Mode
-      const razorpayKey = import.meta.env.VITE_RAZORPAY_KEY_ID || "";
+      const razorpayKey = import.meta.env.VITE_RAZORPAY_KEY_ID || "rzp_test_StUNrV1X2WAvV4";
       if (razorpayKey && typeof (window as any).Razorpay !== "undefined") {
         const options = {
           key: razorpayKey,
