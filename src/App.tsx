@@ -2914,9 +2914,28 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
 
       {/* Main Header / Navigation */}
       <header className="premium-header">
-        <div className="brand-section">
-          <h1>SheetCodeCrest</h1>
-          <p>Upload once. The app detects Shopify, Shiprocket, or generic data and builds the right workbook automatically.</p>
+        <div className="brand-section" style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+          <img 
+            src={theme === "dark" ? "/logo-dark.png" : "/logo-light.png"} 
+            alt="SheetCodeCrest Logo" 
+            style={{ 
+              height: "44px", 
+              width: "44px", 
+              borderRadius: "10px", 
+              objectFit: "contain",
+              transition: "transform 0.3s ease",
+              cursor: "pointer"
+            }} 
+            className="brand-logo"
+            onMouseEnter={(e) => e.currentTarget.style.transform = "scale(1.08)"}
+            onMouseLeave={(e) => e.currentTarget.style.transform = "scale(1)"}
+          />
+          <div>
+            <h1 style={{ margin: 0, display: "flex", alignItems: "center", gap: "8px" }}>
+              SheetCodeCrest
+            </h1>
+            <p style={{ margin: "2px 0 0 0" }}>Upload once. The app detects Shopify, Shiprocket, or generic data and builds the right workbook automatically.</p>
+          </div>
         </div>
         
         <div className="header-controls">
@@ -3717,8 +3736,9 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
         <div className="modal-overlay" onClick={() => setAuthModalOpen(false)}>
           <div className="modal-card" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3 className="modal-title">
-                {authTab === "login" ? "🔑 Sign In" : "📝 Create Account"}
+              <h3 className="modal-title" style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <img src="/logo-icon.png" alt="SheetCodeCrest Icon" style={{ height: "24px", width: "24px", borderRadius: "5px", objectFit: "contain" }} />
+                <span>{authTab === "login" ? "🔑 Sign In" : "📝 Create Account"}</span>
               </h3>
               <button 
                 type="button" 
@@ -3758,7 +3778,7 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
                       <input 
                         type="text" 
                         className="form-input" 
-                        placeholder="e.g. Omer DLS" 
+                        placeholder="e.g. John Doe" 
                         value={authName}
                         onChange={(e) => setAuthName(e.target.value)}
                         required 
@@ -3769,7 +3789,7 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
                       <input 
                         type="tel" 
                         className="form-input" 
-                        placeholder="e.g. +91 98765 43210" 
+                        placeholder="e.g. +91 99999 88888" 
                         value={authMobile}
                         onChange={(e) => setAuthMobile(e.target.value)}
                         required 
@@ -3780,7 +3800,7 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
                       <input 
                         type="email" 
                         className="form-input" 
-                        placeholder="e.g. omer@domain.com" 
+                        placeholder="e.g. customer@example.com" 
                         value={authEmail}
                         onChange={(e) => setAuthEmail(e.target.value)}
                         required 
@@ -3793,7 +3813,7 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
                   <input 
                     type="text" 
                     className="form-input" 
-                    placeholder="e.g. omer_dls" 
+                    placeholder="e.g. sheet_analyst" 
                     value={authUsername}
                     onChange={(e) => setAuthUsername(e.target.value)}
                     required 
