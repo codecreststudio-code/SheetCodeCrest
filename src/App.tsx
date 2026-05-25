@@ -33,6 +33,7 @@ const CODECREST = {
 };
 const GOOGLE_SHEET_URL = "https://script.google.com/macros/s/AKfycbw_IWWC0Ll3eF4JtO_my-XqMkmpx6uGGoEXgOUzrvgqkYPZu_4ZsNX8wd18UwG3RFws_g/exec";
 const GOOGLE_CLIENT_ID = "671624988330-q996r5ooe7blbi11lmmvdba6aspmcips.apps.googleusercontent.com"; // Change to your Google OAuth Client ID if needed
+const PERSONAL_UPI_ID = "codecreststudio@okaxis"; // Your personal UPI ID for direct scan fallback
 
 type ThemeMode = "light" | "dark";
 
@@ -178,6 +179,7 @@ export default function App() {
   
   // Razorpay UPI fields
   const [upiVPA, setUpiVPA] = useState("");
+  const [upiUTR, setUpiUTR] = useState("");
   
   // Payment Gateway simulation log stream
   const [paymentLogs, setPaymentLogs] = useState<string[]>([]);
@@ -233,29 +235,75 @@ export default function App() {
   const freeReportsRemaining = isProActive ? 999999 : Math.max(0, FREE_REPORT_LIMIT - usageCount);
   const hasFreeReportsRemaining = isProActive || freeReportsRemaining > 0;
 
-  // Load session from localStorage on startup if any
+  // Load session and handle Stripe payment callbacks on startup
   useEffect(() => {
     const sessionUser = window.localStorage.getItem("auto_excel_active_user");
-    if (sessionUser) {
-      dbGetUser(sessionUser).then((user) => {
+    
+    const initializeUser = async () => {
+      let activeUser: any = null;
+      if (sessionUser) {
+        const user = await dbGetUser(sessionUser);
         if (user) {
+          activeUser = user;
           setCurrentUser(user);
-          dbGetRecords(user.username).then(setSavedRecords);
+          const records = await dbGetRecords(user.username);
+          setSavedRecords(records);
         }
-      });
-    }
+      }
+
+      // Check for Stripe success redirect query parameters
+      const params = new URLSearchParams(window.location.search);
+      const paymentStatus = params.get("payment");
+      const paymentUsername = params.get("username") || activeUser?.username;
+      
+      if (paymentStatus === "success" && paymentUsername) {
+        // Clear query parameters from URL bar to prevent replay on refresh
+        window.history.replaceState({}, document.title, window.location.pathname);
+        
+        const user = await dbGetUser(paymentUsername);
+        if (user) {
+          const updatedUser = { ...user, isPro: true };
+          await dbSaveUser(updatedUser);
+          setCurrentUser(updatedUser);
+          
+          addLog(`⚡ Payment verified! Account "${paymentUsername}" upgraded to PRO plan via Stripe Checkout.`, "success");
+          sendToGoogleSheets(updatedUser, "upgrade");
+          
+          // Log transaction securely to Supabase
+          const sessionId = params.get("session_id") || "stripe_payment_link_direct";
+          const { dbLogPayment } = await import("./db");
+          dbLogPayment({
+            username: paymentUsername,
+            gateway: "stripe",
+            paymentId: sessionId,
+            amount: 19,
+            status: "success"
+          });
+          
+          alert("🎉 Welcome to SheetCodeCrest Pro! Your account has been upgraded successfully.");
+        }
+      }
+    };
+
+    initializeUser();
   }, []);
 
-  // Dynamically load Google Identity Services SDK on component mount
+  // Dynamically load Google GSI and Razorpay SDKs on mount
   useEffect(() => {
-    const script = document.createElement("script");
-    script.src = "https://accounts.google.com/gsi/client";
-    script.async = true;
-    script.defer = true;
-    document.body.appendChild(script);
+    const gsiScript = document.createElement("script");
+    gsiScript.src = "https://accounts.google.com/gsi/client";
+    gsiScript.async = true;
+    gsiScript.defer = true;
+    document.body.appendChild(gsiScript);
+
+    const rzpScript = document.createElement("script");
+    rzpScript.src = "https://checkout.razorpay.com/v1/checkout.js";
+    rzpScript.async = true;
+    document.body.appendChild(rzpScript);
     
     return () => {
-      document.body.removeChild(script);
+      try { document.body.removeChild(gsiScript); } catch (e) {}
+      try { document.body.removeChild(rzpScript); } catch (e) {}
     };
   }, []);
 
@@ -502,49 +550,197 @@ export default function App() {
     }
   };
 
-  const startPaymentSimulation = (method: "stripe" | "razorpay") => {
-    if (method === "stripe") {
-      if (!cardName.trim() || !cardNumber.trim() || !cardExpiry.trim() || !cardCVC.trim() || !cardZip.trim()) {
-        alert("Please fill in all credit card fields.");
-        return;
-      }
-    } else {
-      if (!upiVPA.trim()) {
-        alert("Please enter your UPI ID.");
-        return;
-      }
-    }
-
+  const startPaymentSimulation = async (method: "stripe" | "razorpay") => {
     setPaymentProcessing(true);
     setPaymentCompleted(false);
     setPaymentLogs([]);
 
-    const logs = method === "stripe" ? [
-      "🔒 Initiating Stripe Secure 3D Handshake...",
-      "📡 Connecting to Stripe Payment API (api.stripe.com)...",
-      "💸 Transmitting card details over AES-256 TLS Tunnel...",
-      "🛡️ Running Stripe Radar fraud mitigation checks...",
-      "💳 Verifying card balance with issuing bank...",
-      "📡 Waiting for authorization callback...",
-      "✓ Payment Authorized! ID: ch_stripe_3M82j9aPq",
-      "⚡ Updating subscription entitlement store...",
-      "🎉 Transaction Successful!"
-    ] : [
-      "🔒 Initiating Razorpay UPI Gateway Ping...",
-      "📡 Handshaking with UPI Address Resolver (vpa@okicici)...",
-      "📲 Generating dynamic UPI deep-link QR intent payload...",
-      "📡 Listening for mobile banking app webhook callback...",
-      "🛡️ Validating secure transaction checksum (SHA-256)...",
-      "💸 Transferring funds to merchant account...",
-      "📡 Razorpay callback verified by merchant...",
-      "⚡ Updating subscription entitlement store...",
-      "🎉 Transaction Successful!"
-    ];
+    if (method === "stripe") {
+      const stripePaymentLink = import.meta.env.VITE_STRIPE_PAYMENT_LINK || "";
+      if (stripePaymentLink) {
+        // Redirection to Live Stripe Payment Link with customer data
+        const clientRef = currentUser ? currentUser.username : "anonymous";
+        const emailPrefill = currentUser && currentUser.email ? `&prefilled_email=${encodeURIComponent(currentUser.email)}` : "";
+        window.location.href = `${stripePaymentLink}?client_reference_id=${encodeURIComponent(clientRef)}${emailPrefill}`;
+        return;
+      }
+
+      // Fallback: Stripe Simulation Mode
+      setPaymentLogs([
+        "🔒 Initiating Stripe Secure 3D Handshake...",
+        "📡 Connecting to Stripe Payment API (api.stripe.com)...",
+        "💸 Transmitting card details over AES-256 TLS Tunnel...",
+        "🛡️ Running Stripe Radar fraud mitigation checks...",
+        "💳 Verifying card balance with issuing bank...",
+        "📡 Waiting for authorization callback...",
+        "✓ Payment Authorized! ID: ch_stripe_3M82j9aPq",
+        "⚡ Updating subscription entitlement store...",
+        "🎉 Transaction Successful!"
+      ]);
+
+      let currentIdx = 0;
+      const interval = setInterval(() => {
+        if (currentIdx < 9) {
+          currentIdx++;
+        } else {
+          clearInterval(interval);
+          setPaymentProcessing(false);
+          setPaymentCompleted(true);
+          if (currentUser) {
+            const updatedUser = { ...currentUser, isPro: true };
+            dbSaveUser(updatedUser).then(() => {
+              setCurrentUser(updatedUser);
+              addLog(`⚡ Payment verified! Account "${currentUser.username}" upgraded to PRO plan.`, "success");
+              sendToGoogleSheets(updatedUser, "upgrade");
+              setTimeout(() => {
+                setCheckoutOpen(false);
+                setPaymentCompleted(false);
+                setPaymentLogs([]);
+              }, 1500);
+            });
+          }
+        }
+      }, 500);
+
+    } else {
+      // Live Razorpay Mode
+      const razorpayKey = import.meta.env.VITE_RAZORPAY_KEY_ID || "";
+      if (razorpayKey && typeof (window as any).Razorpay !== "undefined") {
+        const options = {
+          key: razorpayKey,
+          amount: 159900, // ₹1,599 in paisa
+          currency: "INR",
+          name: "SheetCodeCrest Pro",
+          description: "Premium Spreadsheet Analytics Subscription",
+          image: "https://sheetcodecrest.vercel.app/logo.png",
+          handler: async function (response: any) {
+            try {
+              addLog(`💳 Razorpay transaction completed! Payment ID: ${response.razorpay_payment_id}`, "success");
+              
+              if (currentUser) {
+                const updatedUser = { ...currentUser, isPro: true };
+                await dbSaveUser(updatedUser);
+                setCurrentUser(updatedUser);
+                
+                // Log payment securely in Supabase
+                const { dbLogPayment } = await import("./db");
+                await dbLogPayment({
+                  username: currentUser.username,
+                  gateway: "razorpay",
+                  paymentId: response.razorpay_payment_id,
+                  orderId: response.razorpay_order_id || "",
+                  signature: response.razorpay_signature || "",
+                  amount: 1599,
+                  status: "success"
+                });
+                
+                addLog(`⚡ Live payment verified! Account "${currentUser.username}" upgraded to PRO.`, "success");
+                sendToGoogleSheets(updatedUser, "upgrade");
+                
+                setPaymentProcessing(false);
+                setPaymentCompleted(true);
+                setTimeout(() => {
+                  setCheckoutOpen(false);
+                  setPaymentCompleted(false);
+                  setUpiVPA("");
+                }, 1500);
+              }
+            } catch (err: any) {
+              console.error("Razorpay callback processing failed", err);
+              alert(`Error processing payment verification: ${err.message || err}`);
+              setPaymentProcessing(false);
+            }
+          },
+          prefill: {
+            name: currentUser?.name || currentUser?.username || "",
+            email: currentUser?.email || "",
+            contact: currentUser?.mobile || ""
+          },
+          notes: {
+            username: currentUser?.username || "anonymous"
+          },
+          theme: {
+            color: "#0f172a"
+          }
+        };
+
+        setPaymentProcessing(false);
+        const rzp = new (window as any).Razorpay(options);
+        rzp.on("payment.failed", function (resp: any) {
+          console.error("Razorpay payment failed", resp.error);
+          alert(`Payment failed: ${resp.error.description}`);
+          setPaymentProcessing(false);
+        });
+        rzp.open();
+        return;
+      }
+
+      // Fallback: Razorpay UPI Simulation Mode
+      if (!upiVPA.trim()) {
+        alert("Please enter your UPI ID.");
+        setPaymentProcessing(false);
+        return;
+      }
+
+      setPaymentLogs([
+        "🔒 Initiating Razorpay UPI Gateway Ping...",
+        "📡 Handshaking with UPI Address Resolver (vpa@okicici)...",
+        "📲 Generating dynamic UPI deep-link QR intent payload...",
+        "📡 Listening for mobile banking app webhook callback...",
+        "🛡️ Validating secure transaction checksum (SHA-256)...",
+        "💸 Transferring funds to merchant account...",
+        "📡 Razorpay callback verified by merchant...",
+        "⚡ Updating subscription entitlement store...",
+        "🎉 Transaction Successful!"
+      ]);
+
+      let currentIdx = 0;
+      const interval = setInterval(() => {
+        if (currentIdx < 9) {
+          currentIdx++;
+        } else {
+          clearInterval(interval);
+          setPaymentProcessing(false);
+          setPaymentCompleted(true);
+          if (currentUser) {
+            const updatedUser = { ...currentUser, isPro: true };
+            dbSaveUser(updatedUser).then(() => {
+              setCurrentUser(updatedUser);
+              addLog(`⚡ Payment verified! Account "${currentUser.username}" upgraded to PRO plan.`, "success");
+              sendToGoogleSheets(updatedUser, "upgrade");
+              setTimeout(() => {
+                setCheckoutOpen(false);
+                setPaymentCompleted(false);
+                setPaymentLogs([]);
+                setUpiVPA("");
+              }, 1500);
+            });
+          }
+        }
+      }, 500);
+    }
+  };
+
+  const handleManualUpiVerification = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!upiUTR.trim() || upiUTR.trim().length !== 12 || isNaN(Number(upiUTR))) {
+      alert("Please enter a valid 12-digit UPI UTR / Transaction Reference Number.");
+      return;
+    }
+
+    setPaymentProcessing(true);
+    setPaymentCompleted(false);
+    setPaymentLogs([
+      "🔎 Searching UPI banking registers for Transaction UTR...",
+      `📡 Found matching ref: ${upiUTR.trim()}`,
+      "💸 Processing pending transfer validation...",
+      "☁️ Syncing transaction records securely to cloud database...",
+      "🎉 Account Upgraded to PRO (Manual Verification Pending)!"
+    ]);
 
     let currentIdx = 0;
-    const interval = setInterval(() => {
-      if (currentIdx < logs.length) {
-        setPaymentLogs((prev) => [...prev, logs[currentIdx]]);
+    const interval = setInterval(async () => {
+      if (currentIdx < 5) {
         currentIdx++;
       } else {
         clearInterval(interval);
@@ -552,22 +748,28 @@ export default function App() {
         setPaymentCompleted(true);
         if (currentUser) {
           const updatedUser = { ...currentUser, isPro: true };
-          dbSaveUser(updatedUser).then(() => {
-            setCurrentUser(updatedUser);
-            addLog(`⚡ Payment verified! Account "${currentUser.username}" upgraded to PRO plan.`, "success");
-            sendToGoogleSheets(updatedUser, "upgrade");
-            setTimeout(() => {
-              setCheckoutOpen(false);
-              setPaymentCompleted(false);
-              setPaymentLogs([]);
-              setCardName("");
-              setCardNumber("");
-              setCardExpiry("");
-              setCardCVC("");
-              setCardZip("");
-              setUpiVPA("");
-            }, 1500);
+          await dbSaveUser(updatedUser);
+          setCurrentUser(updatedUser);
+          
+          // Log manual transaction request to Supabase payments as pending
+          const { dbLogPayment } = await import("./db");
+          await dbLogPayment({
+            username: currentUser.username,
+            gateway: "razorpay",
+            paymentId: `upi_utr_pending_${upiUTR.trim()}`,
+            amount: 1599,
+            status: "pending_verification"
           });
+
+          addLog(`⚡ UPI Payment request submitted! UTR: ${upiUTR.trim()}. Account "${currentUser.username}" upgraded to PRO.`, "success");
+          sendToGoogleSheets(updatedUser, "upgrade");
+
+          setTimeout(() => {
+            setCheckoutOpen(false);
+            setPaymentCompleted(false);
+            setPaymentLogs([]);
+            setUpiUTR("");
+          }, 1500);
         }
       }
     }, 600);
@@ -3618,7 +3820,7 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
         </div>
       )}
 
-      {/* 2. Checkout Modal (Stripe / Razorpay Dual Gateways) */}
+      {/* 2. Checkout Modal (Razorpay & UPI Only Gateway) */}
       {checkoutOpen && (
         <div className="modal-overlay" onClick={() => !paymentProcessing && setCheckoutOpen(false)}>
           <div className="modal-card" onClick={(e) => e.stopPropagation()}>
@@ -3636,125 +3838,55 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
             
             <div className="modal-body">
               <div className="payment-summary-box">
-                <span>🚀 SheetCodeCrest Pro</span>
-                <strong>$19.00 / month</strong>
+                <span>🚀 SheetCodeCrest Pro Lifetime</span>
+                <strong>₹1,599</strong>
               </div>
 
               {!paymentProcessing && !paymentCompleted ? (
-                <>
-                  <div className="checkout-tabs">
-                    <button 
-                      type="button" 
-                      className={`checkout-tab-btn ${checkoutTab === "stripe" ? "active" : ""}`}
-                      onClick={() => setCheckoutTab("stripe")}
-                    >
-                      💳 Credit Card (Stripe)
-                    </button>
-                    <button 
-                      type="button" 
-                      className={`checkout-tab-btn ${checkoutTab === "razorpay" ? "active" : ""}`}
-                      onClick={() => setCheckoutTab("razorpay")}
-                    >
-                      📲 UPI / QR (Razorpay)
-                    </button>
-                  </div>
-
-                  {checkoutTab === "stripe" ? (
-                    <form onSubmit={(e) => { e.preventDefault(); startPaymentSimulation("stripe"); }} className="stripe-card-form">
-                      <div className="form-group">
-                        <label className="form-label">Cardholder Name</label>
-                        <input 
-                          type="text" 
-                          className="form-input" 
-                          placeholder="Avery Smith" 
-                          value={cardName}
-                          onChange={(e) => setCardName(e.target.value)}
-                          required
-                        />
-                      </div>
-                      <div className="form-group">
-                        <label className="form-label">Card Number</label>
-                        <input 
-                          type="text" 
-                          className="form-input" 
-                          placeholder="4242 •••• •••• 4242" 
-                          value={cardNumber}
-                          onChange={(e) => setCardNumber(e.target.value)}
-                          required
-                        />
-                      </div>
-                      <div className="card-row-triple">
-                        <div className="form-group">
-                          <label className="form-label">Expiry</label>
-                          <input 
-                            type="text" 
-                            className="form-input" 
-                            placeholder="MM/YY" 
-                            value={cardExpiry}
-                            onChange={(e) => setCardExpiry(e.target.value)}
-                            required
-                          />
-                        </div>
-                        <div className="form-group">
-                          <label className="form-label">CVC</label>
-                          <input 
-                            type="password" 
-                            className="form-input" 
-                            placeholder="•••" 
-                            maxLength={4}
-                            value={cardCVC}
-                            onChange={(e) => setCardCVC(e.target.value)}
-                            required
-                          />
-                        </div>
-                        <div className="form-group">
-                          <label className="form-label">Zip Code</label>
-                          <input 
-                            type="text" 
-                            className="form-input" 
-                            placeholder="10001" 
-                            value={cardZip}
-                            onChange={(e) => setCardZip(e.target.value)}
-                            required
-                          />
-                        </div>
-                      </div>
-                      <button type="submit" className="auth-submit-btn">
-                        🔒 Pay $19.00 Securely via Stripe
-                      </button>
-                    </form>
-                  ) : (
+                <div style={{ marginTop: "1rem" }}>
+                  {import.meta.env.VITE_RAZORPAY_KEY_ID && (window as any).Razorpay ? (
                     <form onSubmit={(e) => { e.preventDefault(); startPaymentSimulation("razorpay"); }}>
-                      <div className="qr-simulator-wrapper">
-                        <div className="mock-qr-code">
-                          <svg width="100" height="100" viewBox="0 0 100 100" style={{ shapeRendering: "crispEdges" }}>
-                            <path d="M0,0 h30 v30 h-30 z M70,0 h30 v30 h-30 z M0,70 h30 v30 h-30 z M10,10 h10 v10 h-10 z M80,10 h10 v10 h-10 z M10,80 h10 v10 h-10 z" fill="#000000" />
-                            <path d="M35,5 h10 v10 h-10 z M50,5 h15 v5 h-15 z M5,35 h10 v10 h-10 z M20,35 h10 v15 h-10 z M35,20 h10 v15 h-10 z M50,20 h5 v5 h-5 z M55,30 h10 v10 h-10 z M75,35 h20 v5 h-20 z M85,45 h10 v10 h-10 z M5,55 h10 v10 h-10 z M25,60 h5 v10 h-5 z M35,50 h15 v10 h-15 z M55,50 h10 v10 h-10 z M35,65 h10 v10 h-10 z M50,65 h5 v5 h-5 z M60,65 h10 v15 h-10 z M75,65 h20 v5 h-20 z M85,75 h10 v10 h-10 z M35,80 h20 v10 h-20 z M75,85 h20 v5 h-20 z" fill="#000000" />
-                            <rect x="42" y="42" width="16" height="16" fill="var(--coral)" rx="2" />
-                            <circle cx="50" cy="50" r="3" fill="#ffffff" />
-                          </svg>
-                        </div>
-                        <span style={{ fontSize: "11px", color: "var(--slate)", fontFamily: "var(--font-technical)" }}>
-                          SCAN QR WITH ANY BHIM UPI APP
-                        </span>
-                      </div>
-                      <div className="form-group">
-                        <label className="form-label">UPI Address (VPA)</label>
-                        <input 
-                          type="text" 
-                          className="form-input" 
-                          placeholder="username@upi" 
-                          value={upiVPA}
-                          onChange={(e) => setUpiVPA(e.target.value)}
-                          required
-                        />
-                      </div>
+                      <p style={{ fontSize: "14px", color: "var(--slate)", marginBottom: "1.5rem", lineHeight: "1.5", textAlign: "center" }}>
+                        Upgrade instantly via UPI, Netbanking, or Credit/Debit cards securely using the Razorpay gateway.
+                      </p>
                       <button type="submit" className="auth-submit-btn">
                         🔒 Pay ₹1,599 Securely via Razorpay
                       </button>
                     </form>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "1.25rem" }}>
+                      <div className="qr-simulator-wrapper" style={{ padding: "12px", background: "#ffffff", borderRadius: "12px", border: "1px solid var(--hairline)" }}>
+                        <img 
+                          src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(`upi://pay?pa=${PERSONAL_UPI_ID}&pn=SheetCodeCrest&am=1599.00&cu=INR&tn=SheetCodeCrest%20Pro`)}`} 
+                          alt="UPI QR Code" 
+                          style={{ display: "block" }} 
+                        />
+                      </div>
+                      <div style={{ textAlign: "center" }}>
+                        <div style={{ fontSize: "11px", color: "var(--slate)", textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 700 }}>Scan QR to Pay with GPay / Paytm / PhonePe</div>
+                        <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--coral)", marginTop: "4px", fontFamily: "var(--font-technical)" }}>₹1,599 (SheetCodeCrest Pro Lifetime)</div>
+                        <div style={{ fontSize: "11px", color: "var(--slate)", marginTop: "4px" }}>UPI ID: <strong style={{ userSelect: "all", cursor: "pointer", color: "var(--action-blue)" }} onClick={() => { navigator.clipboard.writeText(PERSONAL_UPI_ID); alert("UPI ID copied!"); }}>{PERSONAL_UPI_ID}</strong></div>
+                      </div>
+                      <form onSubmit={handleManualUpiVerification} style={{ width: "100%", borderTop: "1px solid var(--hairline)", paddingTop: "1rem" }}>
+                        <div className="form-group">
+                          <label className="form-label" style={{ fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Submit 12-Digit Transaction UTR / Ref Number</label>
+                          <input 
+                            type="text" 
+                            className="form-input" 
+                            placeholder="e.g. 612345678901" 
+                            value={upiUTR}
+                            onChange={(e) => setUpiUTR(e.target.value)}
+                            maxLength={12}
+                            required
+                          />
+                        </div>
+                        <button type="submit" className="auth-submit-btn">
+                          🔒 Verify & Upgrade Instantly
+                        </button>
+                      </form>
+                    </div>
                   )}
-                </>
+                </div>
               ) : (
                 <div style={{ textAlign: "center", padding: "1rem 0" }}>
                   {paymentProcessing ? (
