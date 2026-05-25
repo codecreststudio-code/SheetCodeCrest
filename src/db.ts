@@ -37,6 +37,24 @@ export interface PaymentLog {
   status: string;
 }
 
+export interface Plan {
+  id?: string;
+  name: string;
+  price: number;
+  billingPeriod: "monthly" | "yearly" | "lifetime" | "free";
+  features: string[];
+  isActive: boolean;
+  createdAt?: string;
+}
+
+export interface AdminLog {
+  id?: number;
+  action: string;
+  performedBy: string;
+  details?: string;
+  createdAt?: string;
+}
+
 const DB_NAME = "auto_excel_intel_db";
 const DB_VERSION = 1;
 
@@ -401,4 +419,194 @@ export async function dbApprovePayment(paymentId: string, username: string): Pro
     userObj.isPro = true;
     await dbSaveUser(userObj);
   }
+}
+
+// ----------------------------------------------------
+// 🗑️ USER MANAGEMENT (Delete, Update)
+// ----------------------------------------------------
+export async function dbDeleteUser(username: string): Promise<void> {
+  if (isSupabaseConfigured) {
+    try {
+      const { error } = await supabase
+        .from("users")
+        .delete()
+        .eq("username", username);
+      if (error) throw error;
+      console.log(`☁️ Supabase: User "${username}" deleted.`);
+    } catch (err) {
+      console.error("❌ Supabase delete user error:", err);
+    }
+  }
+  // Also delete from local cache
+  const localDb = await openDB();
+  await new Promise<void>((resolve, reject) => {
+    const transaction = localDb.transaction("users", "readwrite");
+    const store = transaction.objectStore("users");
+    const request = store.delete(username);
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error);
+  });
+}
+
+export async function dbUpdateUserFields(
+  username: string,
+  updates: Partial<Pick<User, "name" | "mobile" | "email" | "isPro">>
+): Promise<void> {
+  const user = await dbGetUser(username);
+  if (!user) throw new Error(`User "${username}" not found.`);
+  const updated = { ...user, ...updates };
+  await dbSaveUser(updated);
+}
+
+// ----------------------------------------------------
+// 💳 PAYMENT MANAGEMENT (Reject / Update Status)
+// ----------------------------------------------------
+export async function dbUpdatePaymentStatus(paymentId: string, status: string): Promise<void> {
+  if (isSupabaseConfigured) {
+    try {
+      const { error } = await supabase
+        .from("payments")
+        .update({ status })
+        .eq("payment_id", paymentId);
+      if (error) throw error;
+      console.log(`☁️ Supabase: Payment "${paymentId}" status updated to "${status}".`);
+    } catch (err) {
+      console.error("❌ Supabase update payment status error:", err);
+    }
+  }
+}
+
+// ----------------------------------------------------
+// 📦 PLANS CRUD
+// ----------------------------------------------------
+export async function dbGetPlans(): Promise<Plan[]> {
+  if (isSupabaseConfigured) {
+    try {
+      const { data, error } = await supabase
+        .from("plans")
+        .select("*")
+        .order("price", { ascending: true });
+      if (error) throw error;
+      if (data) {
+        return data.map((d: any) => ({
+          id: d.id,
+          name: d.name,
+          price: d.price,
+          billingPeriod: d.billing_period,
+          features: d.features || [],
+          isActive: d.is_active,
+          createdAt: d.created_at
+        }));
+      }
+    } catch (err) {
+      console.error("❌ Supabase get plans error:", err);
+    }
+  }
+  // Return default plans as fallback if no Supabase
+  return [
+    {
+      id: "free",
+      name: "Free",
+      price: 0,
+      billingPeriod: "free",
+      features: ["3 report generations", "Universal profiler", "Basic AI chat"],
+      isActive: true
+    },
+    {
+      id: "pro",
+      name: "Pro",
+      price: 1599,
+      billingPeriod: "monthly",
+      features: ["Unlimited reports", "All 3 analysis modes", "Full AI analyst", "Persistent history", "Priority support"],
+      isActive: true
+    }
+  ];
+}
+
+export async function dbSavePlan(plan: Plan): Promise<string> {
+  if (isSupabaseConfigured) {
+    try {
+      const payload: any = {
+        name: plan.name,
+        price: plan.price,
+        billing_period: plan.billingPeriod,
+        features: plan.features,
+        is_active: plan.isActive
+      };
+      if (plan.id && plan.id !== "free" && plan.id !== "pro") {
+        payload.id = plan.id;
+      }
+      const { data, error } = await supabase
+        .from("plans")
+        .upsert(payload)
+        .select("id")
+        .single();
+      if (error) throw error;
+      console.log(`☁️ Supabase: Plan "${plan.name}" saved.`);
+      return data?.id || plan.id || "";
+    } catch (err) {
+      console.error("❌ Supabase save plan error:", err);
+    }
+  }
+  return plan.id || Date.now().toString();
+}
+
+export async function dbDeletePlan(planId: string): Promise<void> {
+  if (isSupabaseConfigured) {
+    try {
+      const { error } = await supabase
+        .from("plans")
+        .delete()
+        .eq("id", planId);
+      if (error) throw error;
+      console.log(`☁️ Supabase: Plan "${planId}" deleted.`);
+    } catch (err) {
+      console.error("❌ Supabase delete plan error:", err);
+    }
+  }
+}
+
+// ----------------------------------------------------
+// 📋 ADMIN ACTIVITY LOG
+// ----------------------------------------------------
+export async function dbLogAdminAction(action: string, performedBy: string, details?: string): Promise<void> {
+  if (isSupabaseConfigured) {
+    try {
+      const { error } = await supabase
+        .from("admin_logs")
+        .insert({
+          action,
+          performed_by: performedBy,
+          details: details || null
+        });
+      if (error) throw error;
+    } catch (err) {
+      console.error("❌ Supabase admin log error:", err);
+    }
+  }
+}
+
+export async function dbGetAdminLogs(): Promise<AdminLog[]> {
+  if (isSupabaseConfigured) {
+    try {
+      const { data, error } = await supabase
+        .from("admin_logs")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(100);
+      if (error) throw error;
+      if (data) {
+        return data.map((d: any) => ({
+          id: d.id,
+          action: d.action,
+          performedBy: d.performed_by,
+          details: d.details,
+          createdAt: d.created_at
+        }));
+      }
+    } catch (err) {
+      console.error("❌ Supabase get admin logs error:", err);
+    }
+  }
+  return [];
 }

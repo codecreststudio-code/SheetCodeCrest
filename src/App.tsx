@@ -1,4 +1,17 @@
-import { useState, useRef, useCallback, useEffect, useMemo } from "react";
+﻿import { useState, useRef, useCallback, useEffect, useMemo } from "react";
+import {
+  hashPassword,
+  verifyPassword,
+  isLegacyPassword,
+  isValidUsername,
+  isValidPassword,
+  isValidEmail,
+  isValidMobile,
+  sanitizeText,
+  recordFailedAttempt,
+  clearFailedAttempts,
+  getLockoutSecondsRemaining,
+} from "./securityUtils";
 import * as XLSX from "xlsx";
 import {
   parseExcel,
@@ -15,6 +28,8 @@ import { mergeMultiSKU, computeAnalytics, AnalyticsResult } from "./analyticsUti
 import {
   User,
   SavedRecord,
+  Plan,
+  AdminLog,
   dbSaveUser,
   dbGetUser,
   dbSaveRecord,
@@ -22,7 +37,15 @@ import {
   dbDeleteRecord,
   dbGetAllUsers,
   dbGetAllPayments,
-  dbApprovePayment
+  dbApprovePayment,
+  dbDeleteUser,
+  dbUpdateUserFields,
+  dbUpdatePaymentStatus,
+  dbGetPlans,
+  dbSavePlan,
+  dbDeletePlan,
+  dbLogAdminAction,
+  dbGetAdminLogs,
 } from "./db";
 
 type AppMode = "universal" | "logistics" | "shopify";
@@ -114,8 +137,8 @@ const formatMessage = (text: string): string => {
   for (let line of lines) {
     const trimmed = line.trim();
     
-    // Match bullet point starting with • or - or * followed by spaces
-    const bulletMatch = trimmed.match(/^([•\-\*])\s+(.*)$/);
+    // Match bullet point starting with â€¢ or - or * followed by spaces
+    const bulletMatch = trimmed.match(/^([â€¢\-\*])\s+(.*)$/);
     
     if (bulletMatch) {
       const content = bulletMatch[2];
@@ -196,11 +219,39 @@ export default function App() {
 
   // Admin Portal State
   const [adminModalOpen, setAdminModalOpen] = useState(false);
-  const [adminTab, setAdminTab] = useState<"users" | "payments" | "config">("users");
+  const [adminTab, setAdminTab] = useState<"users" | "payments" | "plans" | "analytics" | "settings" | "activity">("users");
   const [adminUsers, setAdminUsers] = useState<User[]>([]);
   const [adminPayments, setAdminPayments] = useState<any[]>([]);
+  const [adminPlans, setAdminPlans] = useState<Plan[]>([]);
+  const [adminLogs, setAdminLogs] = useState<AdminLog[]>([]);
   const [adminSearch, setAdminSearch] = useState("");
   const [adminLoading, setAdminLoading] = useState(false);
+  const [adminPaymentFilter, setAdminPaymentFilter] = useState<"all" | "success" | "pending_verification" | "rejected" | "refunded">("all");
+  const [adminUserFilter, setAdminUserFilter] = useState<"all" | "pro" | "free">("all");
+
+  // Admin Edit User
+  const [adminEditUser, setAdminEditUser] = useState<User | null>(null);
+  const [adminEditUserName, setAdminEditUserName] = useState("");
+  const [adminEditUserEmail, setAdminEditUserEmail] = useState("");
+  const [adminEditUserMobile, setAdminEditUserMobile] = useState("");
+  const [adminEditUserIsPro, setAdminEditUserIsPro] = useState(false);
+  const [adminEditUserOpen, setAdminEditUserOpen] = useState(false);
+
+  // Admin Plans
+  const [adminEditPlan, setAdminEditPlan] = useState<Plan | null>(null);
+  const [adminPlanName, setAdminPlanName] = useState("");
+  const [adminPlanPrice, setAdminPlanPrice] = useState(0);
+  const [adminPlanPeriod, setAdminPlanPeriod] = useState<Plan["billingPeriod"]>("monthly");
+  const [adminPlanFeatureInput, setAdminPlanFeatureInput] = useState("");
+  const [adminPlanFeatures, setAdminPlanFeatures] = useState<string[]>([]);
+  const [adminPlanActive, setAdminPlanActive] = useState(true);
+  const [adminPlanModalOpen, setAdminPlanModalOpen] = useState(false);
+
+  // Admin Settings extras (feature flags)
+  const [adminFeatureAI, setAdminFeatureAI] = useState(true);
+  const [adminFeatureUPI, setAdminFeatureUPI] = useState(true);
+  const [adminFeatureGoogleLogin, setAdminFeatureGoogleLogin] = useState(true);
+  const [adminMaintenanceMode, setAdminMaintenanceMode] = useState(false);
   const [globalFreeLimit, setGlobalFreeLimit] = useState(() => {
     if (typeof window === "undefined") return 3;
     const stored = window.localStorage.getItem("sheetcodecrest_global_free_limit");
@@ -318,7 +369,7 @@ export default function App() {
 
   const sendToGoogleSheets = async (user: User, action: "register" | "login" | "upgrade") => {
     try {
-      addLog(`📡 Syncing "${user.username}" (${action}) details with Google Sheets...`, "info");
+      addLog(`ðŸ“¡ Syncing "${user.username}" (${action}) details with Google Sheets...`, "info");
       const payload = {
         action,
         username: user.username,
@@ -337,10 +388,10 @@ export default function App() {
         body: JSON.stringify(payload),
       });
       
-      addLog(`✓ Google Sheet Sync succeeded for "${user.username}" (${action})!`, "success");
+      addLog(`âœ“ Google Sheet Sync succeeded for "${user.username}" (${action})!`, "success");
     } catch (err: any) {
       console.error("Google Sheets sync failed", err);
-      addLog(`⚠️ Google Sheets Sync failed: ${err.message || err}`, "error");
+      addLog(`âš ï¸ Google Sheets Sync failed: ${err.message || err}`, "error");
     }
   };
 
@@ -401,22 +452,57 @@ export default function App() {
     const records = await dbGetRecords(user.username);
     setSavedRecords(records);
     
-    addLog(`👤 User "${user.username}" authenticated successfully via Live Google Sign-In!`, "info");
+    addLog(`ðŸ‘¤ User "${user.username}" authenticated successfully via Live Google Sign-In!`, "info");
     sendToGoogleSheets(user, isNew ? "register" : "login");
   };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError("");
-    if (!authUsername.trim() || !authPassword.trim()) {
+
+    const username = sanitizeText(authUsername).toLowerCase();
+    const password = authPassword;
+
+    if (!username || !password) {
       setAuthError("Please fill in all fields.");
       return;
     }
-    const user = await dbGetUser(authUsername.trim());
-    if (!user || user.passwordHash !== authPassword) {
-      setAuthError("Invalid username or password.");
+
+    // ðŸ”’ Brute-force lockout check
+    const lockoutSecs = getLockoutSecondsRemaining(username);
+    if (lockoutSecs > 0) {
+      const mins = Math.ceil(lockoutSecs / 60);
+      setAuthError(`Too many failed attempts. Please try again in ${mins} minute${mins !== 1 ? "s" : ""}.`);
       return;
     }
+
+    const user = await dbGetUser(username);
+    const passwordValid = user ? await verifyPassword(password, user.passwordHash) : false;
+
+    if (!user || !passwordValid) {
+      const isNowLocked = recordFailedAttempt(username);
+      if (isNowLocked) {
+        setAuthError("Too many failed attempts. Account locked for 5 minutes.");
+      } else {
+        setAuthError("Invalid username or password.");
+      }
+      return;
+    }
+
+    // âœ… Successful login â€” reset rate limit
+    clearFailedAttempts(username);
+
+    // ðŸ”„ Migrate legacy plain-text password to secure hash on first successful login
+    if (isLegacyPassword(user.passwordHash)) {
+      try {
+        const newHash = await hashPassword(password);
+        const migratedUser = { ...user, passwordHash: newHash };
+        await dbSaveUser(migratedUser);
+        user.passwordHash = newHash;
+        addLog(`ðŸ” Password security upgraded to SHA-256 hash for "${username}".`, "info");
+      } catch (_) {}
+    }
+
     setCurrentUser(user);
     window.localStorage.setItem("auto_excel_active_user", user.username);
     setAuthModalOpen(false);
@@ -427,30 +513,60 @@ export default function App() {
     setAuthEmail("");
     const records = await dbGetRecords(user.username);
     setSavedRecords(records);
-    addLog(`👤 User "${user.username}" logged in successfully. Plan: ${user.isPro ? "PRO" : "FREE"}`, "info");
+    addLog(`ðŸ‘¤ User "${user.username}" logged in successfully. Plan: ${user.isPro ? "PRO" : "FREE"}`, "info");
     sendToGoogleSheets(user, "login");
   };
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError("");
-    if (!authUsername.trim() || !authPassword.trim() || !authName.trim() || !authMobile.trim() || !authEmail.trim()) {
+
+    const username = sanitizeText(authUsername).toLowerCase();
+    const password = authPassword;
+    const name = sanitizeText(authName);
+    const mobile = sanitizeText(authMobile).replace(/\D/g, "");
+    const email = sanitizeText(authEmail).toLowerCase();
+
+    if (!username || !password || !name || !mobile || !email) {
       setAuthError("Please fill in all fields.");
       return;
     }
-    const existing = await dbGetUser(authUsername.trim());
-    if (existing) {
-      setAuthError("Username already exists.");
+
+    // ðŸ”’ Input validation
+    if (!isValidUsername(username)) {
+      setAuthError("Username must be 3â€“32 characters (letters, numbers, underscores, hyphens only).");
       return;
     }
+    if (!isValidPassword(password)) {
+      setAuthError("Password must be at least 6 characters.");
+      return;
+    }
+    if (!isValidEmail(email)) {
+      setAuthError("Please enter a valid email address.");
+      return;
+    }
+    if (!isValidMobile(mobile)) {
+      setAuthError("Please enter a valid 10-digit Indian mobile number.");
+      return;
+    }
+
+    const existing = await dbGetUser(username);
+    if (existing) {
+      setAuthError("Username already taken. Please choose a different one.");
+      return;
+    }
+
+    // ðŸ” Hash password before storing
+    const passwordHash = await hashPassword(password);
+
     const newUser: User = {
-      username: authUsername.trim(),
-      passwordHash: authPassword,
+      username,
+      passwordHash,
       isPro: false,
       dateCreated: new Date().toLocaleDateString(),
-      name: authName.trim(),
-      mobile: authMobile.trim(),
-      email: authEmail.trim()
+      name,
+      mobile,
+      email
     };
     await dbSaveUser(newUser);
     setCurrentUser(newUser);
@@ -462,13 +578,13 @@ export default function App() {
     setAuthMobile("");
     setAuthEmail("");
     setSavedRecords([]);
-    addLog(`👤 New account "${newUser.username}" created successfully.`, "info");
+    addLog(`ðŸ‘¤ New account "${newUser.username}" created securely (password hashed).`, "info");
     sendToGoogleSheets(newUser, "register");
   };
 
   const handleLogout = () => {
     if (currentUser) {
-      addLog(`👤 User "${currentUser.username}" logged out.`, "info");
+      addLog(`ðŸ‘¤ User "${currentUser.username}" logged out.`, "info");
     }
     setCurrentUser(null);
     window.localStorage.removeItem("auto_excel_active_user");
@@ -517,7 +633,7 @@ export default function App() {
     setFile({ name: rec.filename, size: rec.size } as File);
     setStep("done");
     setDashboardOpen(false);
-    addLog(`⚡ Loaded analysis for "${rec.filename}" from Local Database`, "success");
+    addLog(`âš¡ Loaded analysis for "${rec.filename}" from Local Database`, "success");
   };
 
   const handleDeleteRecord = async (id: number, e: React.MouseEvent) => {
@@ -540,14 +656,14 @@ export default function App() {
     if (razorpayKey && typeof (window as any).Razorpay !== "undefined") {
       const options = {
         key: razorpayKey,
-        amount: 159900, // ₹1,599 in paisa
+        amount: 159900, // â‚¹1,599 in paisa
         currency: "INR",
         name: "SheetCodeCrest Pro",
         description: "Premium Spreadsheet Analytics Subscription",
         image: "https://sheetcodecrest.vercel.app/logo.png",
         handler: async function (response: any) {
           try {
-            addLog(`💳 Razorpay transaction completed! Payment ID: ${response.razorpay_payment_id}`, "success");
+            addLog(`ðŸ’³ Razorpay transaction completed! Payment ID: ${response.razorpay_payment_id}`, "success");
             
             if (currentUser) {
               const updatedUser = { ...currentUser, isPro: true };
@@ -566,7 +682,7 @@ export default function App() {
                 status: "success"
               });
               
-              addLog(`⚡ Live payment verified! Account "${currentUser.username}" upgraded to PRO.`, "success");
+              addLog(`âš¡ Live payment verified! Account "${currentUser.username}" upgraded to PRO.`, "success");
               sendToGoogleSheets(updatedUser, "upgrade");
               
               setPaymentProcessing(false);
@@ -615,15 +731,15 @@ export default function App() {
     }
 
     setPaymentLogs([
-      "🔒 Initiating Razorpay UPI Gateway Ping...",
-      "📡 Handshaking with UPI Address Resolver (vpa@okicici)...",
-      "📲 Generating dynamic UPI deep-link QR intent payload...",
-      "📡 Listening for mobile banking app webhook callback...",
-      "🛡️ Validating secure transaction checksum (SHA-256)...",
-      "💸 Transferring funds to merchant account...",
-      "📡 Razorpay callback verified by merchant...",
-      "⚡ Updating subscription entitlement store...",
-      "🎉 Transaction Successful!"
+      "ðŸ”’ Initiating Razorpay UPI Gateway Ping...",
+      "ðŸ“¡ Handshaking with UPI Address Resolver (vpa@okicici)...",
+      "ðŸ“² Generating dynamic UPI deep-link QR intent payload...",
+      "ðŸ“¡ Listening for mobile banking app webhook callback...",
+      "ðŸ›¡ï¸ Validating secure transaction checksum (SHA-256)...",
+      "ðŸ’¸ Transferring funds to merchant account...",
+      "ðŸ“¡ Razorpay callback verified by merchant...",
+      "âš¡ Updating subscription entitlement store...",
+      "ðŸŽ‰ Transaction Successful!"
     ]);
 
     let currentIdx = 0;
@@ -638,7 +754,7 @@ export default function App() {
           const updatedUser = { ...currentUser, isPro: true };
           dbSaveUser(updatedUser).then(() => {
             setCurrentUser(updatedUser);
-            addLog(`⚡ Payment verified! Account "${currentUser.username}" upgraded to PRO plan.`, "success");
+            addLog(`âš¡ Payment verified! Account "${currentUser.username}" upgraded to PRO plan.`, "success");
             sendToGoogleSheets(updatedUser, "upgrade");
             setTimeout(() => {
               setCheckoutOpen(false);
@@ -662,11 +778,11 @@ export default function App() {
     setPaymentProcessing(true);
     setPaymentCompleted(false);
     setPaymentLogs([
-      "🔎 Searching UPI banking registers for Transaction UTR...",
-      `📡 Found matching ref: ${upiUTR.trim()}`,
-      "💸 Processing pending transfer validation...",
-      "☁️ Syncing transaction records securely to cloud database...",
-      "🎉 Account Upgraded to PRO (Manual Verification Pending)!"
+      "ðŸ”Ž Searching UPI banking registers for Transaction UTR...",
+      `ðŸ“¡ Found matching ref: ${upiUTR.trim()}`,
+      "ðŸ’¸ Processing pending transfer validation...",
+      "â˜ï¸ Syncing transaction records securely to cloud database...",
+      "ðŸŽ‰ Account Upgraded to PRO (Manual Verification Pending)!"
     ]);
 
     let currentIdx = 0;
@@ -692,7 +808,7 @@ export default function App() {
             status: "pending_verification"
           });
 
-          addLog(`⚡ UPI Payment request submitted! UTR: ${upiUTR.trim()}. Account "${currentUser.username}" upgraded to PRO.`, "success");
+          addLog(`âš¡ UPI Payment request submitted! UTR: ${upiUTR.trim()}. Account "${currentUser.username}" upgraded to PRO.`, "success");
           sendToGoogleSheets(updatedUser, "upgrade");
 
           setTimeout(() => {
@@ -707,19 +823,65 @@ export default function App() {
   };
 
   // ----------------------------------------------------
-  // 🛡️ ADMIN PANEL CONTROLLERS
+  // ðŸ›¡ï¸ ADMIN PANEL CONTROLLERS (Advanced)
   // ----------------------------------------------------
+  const logAdminAction = async (action: string, details?: string) => {
+    const by = currentUser?.username || "admin";
+    const entry: AdminLog = { action, performedBy: by, details, createdAt: new Date().toISOString() };
+    setAdminLogs(prev => [entry, ...prev].slice(0, 200));
+    await dbLogAdminAction(action, by, details);
+  };
+
   const loadAdminData = async () => {
     setAdminLoading(true);
     try {
-      const [users, payments] = await Promise.all([
+      const [users, payments, plans, logs] = await Promise.all([
         dbGetAllUsers(),
-        dbGetAllPayments()
+        dbGetAllPayments(),
+        dbGetPlans(),
+        dbGetAdminLogs()
       ]);
       setAdminUsers(users);
       setAdminPayments(payments);
+      setAdminPlans(plans);
+      setAdminLogs(logs);
     } catch (err) {
       console.error("Failed to load admin data", err);
+    } finally {
+      setAdminLoading(false);
+    }
+  };
+
+  // -- USER MANAGEMENT --
+  const openEditUser = (user: User) => {
+    setAdminEditUser(user);
+    setAdminEditUserName(user.name || "");
+    setAdminEditUserEmail(user.email || "");
+    setAdminEditUserMobile(user.mobile || "");
+    setAdminEditUserIsPro(user.isPro);
+    setAdminEditUserOpen(true);
+  };
+
+  const handleSaveEditUser = async () => {
+    if (!adminEditUser) return;
+    setAdminLoading(true);
+    try {
+      await dbUpdateUserFields(adminEditUser.username, {
+        name: adminEditUserName.trim(),
+        email: adminEditUserEmail.trim().toLowerCase(),
+        mobile: adminEditUserMobile.trim(),
+        isPro: adminEditUserIsPro
+      });
+      await logAdminAction("EDIT_USER", `Updated profile for user "${adminEditUser.username}"`);
+      if (currentUser && currentUser.username === adminEditUser.username) {
+        setCurrentUser(prev => prev ? { ...prev, name: adminEditUserName, email: adminEditUserEmail, mobile: adminEditUserMobile, isPro: adminEditUserIsPro } : prev);
+      }
+      setAdminEditUserOpen(false);
+      await loadAdminData();
+      addLog(`ðŸ›¡ï¸ Admin: User "${adminEditUser.username}" profile updated.`, "info");
+    } catch (err) {
+      console.error("Failed to save user edit", err);
+      alert("Failed to update user.");
     } finally {
       setAdminLoading(false);
     }
@@ -729,32 +891,43 @@ export default function App() {
     try {
       const updated = { ...targetUser, isPro: !targetUser.isPro };
       await dbSaveUser(updated);
-      addLog(`🛡️ Admin: Toggled PRO status for user "${targetUser.username}" to ${!targetUser.isPro}`, "info");
-      await loadAdminData(); // Reload list
-      
-      if (currentUser && currentUser.username === targetUser.username) {
-        setCurrentUser(updated);
-      }
+      await logAdminAction("TOGGLE_PRO", `Set isPro=${!targetUser.isPro} for "${targetUser.username}"`);
+      addLog(`ðŸ›¡ï¸ Admin: Toggled PRO for "${targetUser.username}" â†’ ${!targetUser.isPro}`, "info");
+      await loadAdminData();
+      if (currentUser && currentUser.username === targetUser.username) setCurrentUser(updated);
     } catch (err) {
       console.error("Failed to toggle PRO", err);
       alert("Failed to update user privilege.");
     }
   };
 
+  const handleDeleteUser = async (targetUser: User) => {
+    if (!confirm(`âš ï¸ PERMANENTLY delete user "${targetUser.username}"? This cannot be undone.`)) return;
+    setAdminLoading(true);
+    try {
+      await dbDeleteUser(targetUser.username);
+      await logAdminAction("DELETE_USER", `Deleted user "${targetUser.username}"`);
+      addLog(`ðŸ›¡ï¸ Admin: User "${targetUser.username}" deleted permanently.`, "error");
+      await loadAdminData();
+    } catch (err) {
+      console.error("Failed to delete user", err);
+      alert("Failed to delete user.");
+    } finally {
+      setAdminLoading(false);
+    }
+  };
+
+  // -- PAYMENT MANAGEMENT --
   const handleAdminApproveUpi = async (paymentId: string, username: string) => {
-    if (!confirm(`Are you sure you want to approve transaction "${paymentId}" and upgrade "${username}" to PRO?`)) return;
+    if (!confirm(`Approve transaction "${paymentId}" and upgrade "${username}" to PRO?`)) return;
     setAdminLoading(true);
     try {
       await dbApprovePayment(paymentId, username);
-      addLog(`🛡️ Admin approved payment: ${paymentId}. promoted "${username}" to PRO.`, "success");
-      
+      await logAdminAction("APPROVE_PAYMENT", `Approved payment ${paymentId} for "${username}"`);
+      addLog(`ðŸ›¡ï¸ Admin approved payment: ${paymentId}. Promoted "${username}" to PRO.`, "success");
       const userObj = await dbGetUser(username);
-      if (userObj) {
-        sendToGoogleSheets(userObj, "upgrade");
-      }
-      
-      await loadAdminData(); // Reload list
-      alert("🎉 UPI Payment Approved! User promoted to PRO successfully.");
+      if (userObj) sendToGoogleSheets(userObj, "upgrade");
+      await loadAdminData();
     } catch (err) {
       console.error("Failed to approve payment", err);
       alert("Failed to approve payment.");
@@ -763,15 +936,124 @@ export default function App() {
     }
   };
 
-  const handleSaveFreeLimit = (limit: number) => {
-    if (isNaN(limit) || limit < 1) {
-      alert("Please enter a valid limit number >= 1.");
-      return;
+  const handleAdminRejectPayment = async (paymentId: string, username: string) => {
+    if (!confirm(`Reject payment "${paymentId}" for "${username}"?`)) return;
+    setAdminLoading(true);
+    try {
+      await dbUpdatePaymentStatus(paymentId, "rejected");
+      await logAdminAction("REJECT_PAYMENT", `Rejected payment ${paymentId} for "${username}"`);
+      addLog(`ðŸ›¡ï¸ Admin rejected payment: ${paymentId} for "${username}".`, "error");
+      await loadAdminData();
+    } catch (err) {
+      console.error("Failed to reject payment", err);
+      alert("Failed to reject payment.");
+    } finally {
+      setAdminLoading(false);
     }
+  };
+
+  const handleAdminRefundPayment = async (paymentId: string, username: string) => {
+    if (!confirm(`Mark payment "${paymentId}" as REFUNDED and revoke PRO for "${username}"?`)) return;
+    setAdminLoading(true);
+    try {
+      await dbUpdatePaymentStatus(paymentId, "refunded");
+      await dbUpdateUserFields(username, { isPro: false });
+      await logAdminAction("REFUND_PAYMENT", `Refunded payment ${paymentId}, revoked PRO for "${username}"`);
+      addLog(`ðŸ›¡ï¸ Admin refunded payment: ${paymentId}, revoked PRO for "${username}".`, "error");
+      await loadAdminData();
+    } catch (err) {
+      console.error("Failed to refund payment", err);
+      alert("Failed to refund payment.");
+    } finally {
+      setAdminLoading(false);
+    }
+  };
+
+  // -- PLANS MANAGEMENT --
+  const openNewPlan = () => {
+    setAdminEditPlan(null);
+    setAdminPlanName("");
+    setAdminPlanPrice(0);
+    setAdminPlanPeriod("monthly");
+    setAdminPlanFeatures([]);
+    setAdminPlanFeatureInput("");
+    setAdminPlanActive(true);
+    setAdminPlanModalOpen(true);
+  };
+
+  const openEditPlan = (plan: Plan) => {
+    setAdminEditPlan(plan);
+    setAdminPlanName(plan.name);
+    setAdminPlanPrice(plan.price);
+    setAdminPlanPeriod(plan.billingPeriod);
+    setAdminPlanFeatures([...plan.features]);
+    setAdminPlanFeatureInput("");
+    setAdminPlanActive(plan.isActive);
+    setAdminPlanModalOpen(true);
+  };
+
+  const handleSavePlan = async () => {
+    if (!adminPlanName.trim()) { alert("Plan name is required."); return; }
+    setAdminLoading(true);
+    try {
+      const plan: Plan = {
+        id: adminEditPlan?.id,
+        name: adminPlanName.trim(),
+        price: adminPlanPrice,
+        billingPeriod: adminPlanPeriod,
+        features: adminPlanFeatures,
+        isActive: adminPlanActive
+      };
+      await dbSavePlan(plan);
+      await logAdminAction(adminEditPlan ? "EDIT_PLAN" : "CREATE_PLAN", `${adminEditPlan ? "Updated" : "Created"} plan "${plan.name}"`);
+      addLog(`ðŸ›¡ï¸ Admin: Plan "${plan.name}" ${adminEditPlan ? "updated" : "created"}.`, "info");
+      setAdminPlanModalOpen(false);
+      await loadAdminData();
+    } catch (err) {
+      console.error("Failed to save plan", err);
+      alert("Failed to save plan.");
+    } finally {
+      setAdminLoading(false);
+    }
+  };
+
+  const handleDeletePlan = async (plan: Plan) => {
+    if (!plan.id) return;
+    if (!confirm(`Delete plan "${plan.name}"? This cannot be undone.`)) return;
+    setAdminLoading(true);
+    try {
+      await dbDeletePlan(plan.id);
+      await logAdminAction("DELETE_PLAN", `Deleted plan "${plan.name}"`);
+      addLog(`ðŸ›¡ï¸ Admin: Plan "${plan.name}" deleted.`, "error");
+      await loadAdminData();
+    } catch (err) {
+      console.error("Failed to delete plan", err);
+      alert("Failed to delete plan.");
+    } finally {
+      setAdminLoading(false);
+    }
+  };
+
+  // -- SETTINGS --
+  const handleSaveFreeLimit = (limit: number) => {
+    if (isNaN(limit) || limit < 1) { alert("Please enter a valid limit >= 1."); return; }
     window.localStorage.setItem("sheetcodecrest_global_free_limit", String(limit));
     setGlobalFreeLimit(limit);
-    alert("⚙️ System settings updated successfully!");
+    logAdminAction("UPDATE_SETTINGS", `Set free report limit to ${limit}`);
+    addLog(`âš™ï¸ System setting updated: free limit = ${limit}`, "info");
   };
+
+  const handleSaveFeatureFlags = () => {
+    window.localStorage.setItem("sheetcc_flag_ai", String(adminFeatureAI));
+    window.localStorage.setItem("sheetcc_flag_upi", String(adminFeatureUPI));
+    window.localStorage.setItem("sheetcc_flag_google", String(adminFeatureGoogleLogin));
+    window.localStorage.setItem("sheetcc_flag_maintenance", String(adminMaintenanceMode));
+    logAdminAction("UPDATE_FLAGS", `AI=${adminFeatureAI}, UPI=${adminFeatureUPI}, Google=${adminFeatureGoogleLogin}, Maintenance=${adminMaintenanceMode}`);
+    addLog("âš™ï¸ Feature flags saved successfully.", "success");
+    alert("âœ… Feature flags saved!");
+  };
+
+
 
   const recordSuccessfulReport = useCallback(() => {
     setUsageCount((current) => {
@@ -848,7 +1130,7 @@ export default function App() {
     if (!f) return;
     if (!hasFreeReportsRemaining) {
       setError("Free report limit reached. Please purchase access from Codecrest Studio to continue generating analytics workbooks.");
-      setDetectionNotice("🔒 Free trial complete. Upgrade with Codecrest Studio to continue.");
+      setDetectionNotice("ðŸ”’ Free trial complete. Upgrade with Codecrest Studio to continue.");
       return;
     }
     setFile(f);
@@ -862,7 +1144,7 @@ export default function App() {
     try {
       addLog(`Reading file: ${f.name} (${(f.size / 1024).toFixed(1)} KB)`);
       const { data, headers: parsedHeaders, sheetName, originalRows, headerRow } = await parseExcel(f);
-      addLog(`✓ Excel parsed. Sheet: "${sheetName}" | Headers found at row ${headerRow + 1} | ${originalRows} rows total`, "success");
+      addLog(`âœ“ Excel parsed. Sheet: "${sheetName}" | Headers found at row ${headerRow + 1} | ${originalRows} rows total`, "success");
       
       setRawRows(data);
       setTableHeaders(parsedHeaders);
@@ -894,11 +1176,11 @@ export default function App() {
       setMode(targetMode);
 
       if (isShopify && !forceMode) {
-        setDetectionNotice(`🛍️ Shopify export auto-detected in the background (${shopifyScore}/8 schema match). Building customer, product, order, retargeting, COD, and geographic analytics.`);
+        setDetectionNotice(`ðŸ›ï¸ Shopify export auto-detected in the background (${shopifyScore}/8 schema match). Building customer, product, order, retargeting, COD, and geographic analytics.`);
       } else if (isShiprocket && !forceMode) {
-        setDetectionNotice(`🚀 Shiprocket logistics schema auto-detected in the background (${shiprocketScore}/5 schema match). Unlocking courier scorecards and RTO analysis.`);
+        setDetectionNotice(`ðŸš€ Shiprocket logistics schema auto-detected in the background (${shiprocketScore}/5 schema match). Unlocking courier scorecards and RTO analysis.`);
       } else if (!forceMode) {
-        setDetectionNotice("📊 Generic spreadsheet detected in the background. Building universal data quality, numeric, duplicate, and column profiling analytics.");
+        setDetectionNotice("ðŸ“Š Generic spreadsheet detected in the background. Building universal data quality, numeric, duplicate, and column profiling analytics.");
       }
 
       addLog(`Auto-detected Report Engine: ${targetMode === "shopify" ? "Shopify Growth Analytics" : targetMode === "logistics" ? "Shiprocket Logistics Optimizer" : "Universal Spreadsheet Profiler"}`);
@@ -911,8 +1193,8 @@ export default function App() {
         addLog("Preparing Shopify order, product, customer, and retargeting analytics...");
         const stats = analyzeShopifyData(data);
         setShopifyAnalytics(stats);
-        addLog(`✓ Shopify summary: ${stats.totalOrders.toLocaleString("en-IN")} orders | ${stats.totalCustomers.toLocaleString("en-IN")} customers | ${stats.productCount} products`, "success");
-        addLog(`✓ Revenue mapped: ₹${Math.round(stats.totalRevenue).toLocaleString("en-IN")} | Units sold: ${stats.totalUnits.toLocaleString("en-IN")}`, "success");
+        addLog(`âœ“ Shopify summary: ${stats.totalOrders.toLocaleString("en-IN")} orders | ${stats.totalCustomers.toLocaleString("en-IN")} customers | ${stats.productCount} products`, "success");
+        addLog(`âœ“ Revenue mapped: â‚¹${Math.round(stats.totalRevenue).toLocaleString("en-IN")} | Units sold: ${stats.totalUnits.toLocaleString("en-IN")}`, "success");
 
         addLog("Compiling Shopify workbook similar to your reference analytics files...");
         const shopifyWb = buildShopifyAnalyticsWorkbook(baseName, data);
@@ -924,24 +1206,24 @@ export default function App() {
         setDlUrl(newUrl);
         dlRef.current = newUrl;
         setOutName(`${baseName}_Shopify_Analytics_${dateString}.xlsx`);
-        addLog(`✓ Shopify report finalized with ${shopifyWb.SheetNames.length} sheets`, "success");
+        addLog(`âœ“ Shopify report finalized with ${shopifyWb.SheetNames.length} sheets`, "success");
 
-        const welcomeMsg = `👋 Hi! I mapped your Shopify export into a **growth analytics workbook** like your sample files.
+        const welcomeMsg = `ðŸ‘‹ Hi! I mapped your Shopify export into a **growth analytics workbook** like your sample files.
 
 Key outputs generated:
-• **Dashboard** for orders, revenue, customers, units, segments, and status mix
-• **Order Status Detail** similar to your order-product report
-• **Product Analysis** and **Product × Order Status** performance views
-• **Monthly Trends**, **COD Analysis**, **Geographic**, and **Discount Analysis**
-• **Customer Data**, **Segment Analysis**, and **Retargeting Lists**
-• **Top product-wise customer/order sheets**
+â€¢ **Dashboard** for orders, revenue, customers, units, segments, and status mix
+â€¢ **Order Status Detail** similar to your order-product report
+â€¢ **Product Analysis** and **Product Ã— Order Status** performance views
+â€¢ **Monthly Trends**, **COD Analysis**, **Geographic**, and **Discount Analysis**
+â€¢ **Customer Data**, **Segment Analysis**, and **Retargeting Lists**
+â€¢ **Top product-wise customer/order sheets**
 
 Initial read:
-• **${stats.totalOrders.toLocaleString("en-IN")} orders**
-• **${stats.totalCustomers.toLocaleString("en-IN")} customers**
-• **₹${Math.round(stats.totalRevenue).toLocaleString("en-IN")} revenue**
-• **${stats.totalUnits.toLocaleString("en-IN")} units sold**
-• Top product: **${stats.topProduct}**`;
+â€¢ **${stats.totalOrders.toLocaleString("en-IN")} orders**
+â€¢ **${stats.totalCustomers.toLocaleString("en-IN")} customers**
+â€¢ **â‚¹${Math.round(stats.totalRevenue).toLocaleString("en-IN")} revenue**
+â€¢ **${stats.totalUnits.toLocaleString("en-IN")} units sold**
+â€¢ Top product: **${stats.topProduct}**`;
         setChatHistory([{ sender: "analyst", text: welcomeMsg }]);
 
       } else if (targetMode === "logistics") {
@@ -952,14 +1234,14 @@ Initial read:
         setRawRows(merged); // For the table preview
         
         if (resolvedDups > 0) {
-          addLog(`✓ Consolidated ${resolvedDups} multi-item duplicate rows → ${merged.length} unique customer orders`, "success");
+          addLog(`âœ“ Consolidated ${resolvedDups} multi-item duplicate rows â†’ ${merged.length} unique customer orders`, "success");
         }
 
         addLog("Computing logistics speed scorecards and KPIs...");
         const stats = computeAnalytics(merged);
         setLogisticsAnalytics(stats);
-        addLog(`✓ Delivery success: ${(stats.deliveryRate * 100).toFixed(1)}% | RTO rate: ${(stats.rtoRate * 100).toFixed(1)}%`, "success");
-        addLog(`✓ Net shipping revenue: ₹${stats.totalRev.toLocaleString("en-IN")} | COD Collected: ₹${stats.totalCOD.toLocaleString("en-IN")}`, "success");
+        addLog(`âœ“ Delivery success: ${(stats.deliveryRate * 100).toFixed(1)}% | RTO rate: ${(stats.rtoRate * 100).toFixed(1)}%`, "success");
+        addLog(`âœ“ Net shipping revenue: â‚¹${stats.totalRev.toLocaleString("en-IN")} | COD Collected: â‚¹${stats.totalCOD.toLocaleString("en-IN")}`, "success");
 
         addLog("Compiling customized 7-sheet logistics analytical report...");
         const logisticsWb = buildLogisticsWorkbook(baseName, merged, resolvedDups, stats);
@@ -971,28 +1253,28 @@ Initial read:
         setDlUrl(newUrl);
         dlRef.current = newUrl;
         setOutName(`${baseName}_Logistics_Optimizer_${dateString}.xlsx`);
-        addLog(`✓ Report workbook finalized with ${logisticsWb.SheetNames.length} structured sheets`, "success");
+        addLog(`âœ“ Report workbook finalized with ${logisticsWb.SheetNames.length} structured sheets`, "success");
 
-        const welcomeMsg = `👋 Hi! I am your **Senior AI Data Analyst**. I have thoroughly audited your Shiprocket logistics dataset of **${stats.total} unique orders** (having resolved **${resolvedDups} multi-SKU duplicates**).
+        const welcomeMsg = `ðŸ‘‹ Hi! I am your **Senior AI Data Analyst**. I have thoroughly audited your Shiprocket logistics dataset of **${stats.total} unique orders** (having resolved **${resolvedDups} multi-SKU duplicates**).
 
 Here are my initial findings:
-• **Delivery Success Rate**: **${(stats.deliveryRate * 100).toFixed(1)}%** (${stats.delivered} delivered)
-• **RTO Return Rate**: **${(stats.rtoRate * 100).toFixed(1)}%** (${stats.rto} returned packages)
-• **Total Shipping Revenue**: **₹${stats.totalRev.toLocaleString("en-IN")}**
-• **COD Collected**: **₹${stats.totalCOD.toLocaleString("en-IN")}** (${((stats.payCounts["cod"]?.orders || 0) / stats.total * 100).toFixed(0)}% of orders)
-• **Freight Cost**: **₹${stats.totalFreight.toLocaleString("en-IN")}**
+â€¢ **Delivery Success Rate**: **${(stats.deliveryRate * 100).toFixed(1)}%** (${stats.delivered} delivered)
+â€¢ **RTO Return Rate**: **${(stats.rtoRate * 100).toFixed(1)}%** (${stats.rto} returned packages)
+â€¢ **Total Shipping Revenue**: **â‚¹${stats.totalRev.toLocaleString("en-IN")}**
+â€¢ **COD Collected**: **â‚¹${stats.totalCOD.toLocaleString("en-IN")}** (${((stats.payCounts["cod"]?.orders || 0) / stats.total * 100).toFixed(0)}% of orders)
+â€¢ **Freight Cost**: **â‚¹${stats.totalFreight.toLocaleString("en-IN")}**
 
 I have compiled a formula-friendly 7-sheet analytical workbook for your accounts team. Ask me any question about the data! E.g.:
-• *How can we reduce our shipping leakage?*
-• *Which couriers are performing the best/worst?*
-• *Which destinations present the highest RTO risk?*`;
+â€¢ *How can we reduce our shipping leakage?*
+â€¢ *Which couriers are performing the best/worst?*
+â€¢ *Which destinations present the highest RTO risk?*`;
         setChatHistory([{ sender: "analyst", text: welcomeMsg }]);
 
       } else {
         addLog("Initiating universal mathematical analysis on columns...");
         const profile = { ...analyzeData(data, parsedHeaders), sheetName, headerRow };
         setDataProfile(profile);
-        addLog(`✓ Generated profile for ${profile.totalColumns} columns and ${profile.totalRows} data rows`, "success");
+        addLog(`âœ“ Generated profile for ${profile.totalColumns} columns and ${profile.totalRows} data rows`, "success");
 
         addLog("Compiling 8-sheet statistical data summary workbook...");
         const genericWb = buildAnalyticsWorkbook(baseName, data, profile);
@@ -1004,16 +1286,16 @@ I have compiled a formula-friendly 7-sheet analytical workbook for your accounts
         setDlUrl(newUrl);
         dlRef.current = newUrl;
         setOutName(`${baseName}_Profiler_Summary_${dateString}.xlsx`);
-        addLog(`✓ Excel summary ready for download: ${genericWb.SheetNames.length} statistical sheets`, "success");
+        addLog(`âœ“ Excel summary ready for download: ${genericWb.SheetNames.length} statistical sheets`, "success");
 
-        const welcomeMsg = `👋 Hi! I am your **Senior AI Data Analyst**. I have mapped a deep statistical profile for your **${profile.totalRows} rows** across **${profile.totalColumns} columns**.
+        const welcomeMsg = `ðŸ‘‹ Hi! I am your **Senior AI Data Analyst**. I have mapped a deep statistical profile for your **${profile.totalRows} rows** across **${profile.totalColumns} columns**.
 
 I've automatically identified data types, column fill rates, and calculated mathematical variances (sum, average, standard deviation, min, max) for numeric fields.
 
 What would you like to investigate in this dataset? E.g.:
-• *Can you summarize the numeric fields for me?*
-• *Show me the columns with the most empty values.*
-• *What is the cardinality of unique keys in the table?*`;
+â€¢ *Can you summarize the numeric fields for me?*
+â€¢ *Show me the columns with the most empty values.*
+â€¢ *What is the cardinality of unique keys in the table?*`;
         setChatHistory([{ sender: "analyst", text: welcomeMsg }]);
       }
 
@@ -1035,20 +1317,20 @@ What would you like to investigate in this dataset? E.g.:
 
         if (targetMode === "shopify") {
           const stats = analyzeShopifyData(data);
-          newRecord.chatHistory = [{ sender: "analyst", text: `👋 Hi! I mapped your Shopify export into a **growth analytics workbook** like your sample files.\n\nKey outputs generated:\n• **Dashboard** for orders, revenue, customers, units, segments, and status mix\n• **Order Status Detail** similar to your order-product report\n• **Product Analysis** and **Product × Order Status** performance views\n• **Monthly Trends**, **COD Analysis**, **Geographic**, and **Discount Analysis**\n• **Customer Data**, **Segment Analysis**, and **Retargeting Lists**\n• **Top product-wise customer/order sheets**\n\nInitial read:\n• **${stats.totalOrders.toLocaleString("en-IN")} orders**\n• **${stats.totalCustomers.toLocaleString("en-IN")} customers**\n• **₹${Math.round(stats.totalRevenue).toLocaleString("en-IN")} revenue**\n• **${stats.totalUnits.toLocaleString("en-IN")} units sold**\n• Top product: **${stats.topProduct}**` }];
+          newRecord.chatHistory = [{ sender: "analyst", text: `ðŸ‘‹ Hi! I mapped your Shopify export into a **growth analytics workbook** like your sample files.\n\nKey outputs generated:\nâ€¢ **Dashboard** for orders, revenue, customers, units, segments, and status mix\nâ€¢ **Order Status Detail** similar to your order-product report\nâ€¢ **Product Analysis** and **Product Ã— Order Status** performance views\nâ€¢ **Monthly Trends**, **COD Analysis**, **Geographic**, and **Discount Analysis**\nâ€¢ **Customer Data**, **Segment Analysis**, and **Retargeting Lists**\nâ€¢ **Top product-wise customer/order sheets**\n\nInitial read:\nâ€¢ **${stats.totalOrders.toLocaleString("en-IN")} orders**\nâ€¢ **${stats.totalCustomers.toLocaleString("en-IN")} customers**\nâ€¢ **â‚¹${Math.round(stats.totalRevenue).toLocaleString("en-IN")} revenue**\nâ€¢ **${stats.totalUnits.toLocaleString("en-IN")} units sold**\nâ€¢ Top product: **${stats.topProduct}**` }];
         } else if (targetMode === "logistics") {
           const stats = computeAnalytics(mergeMultiSKU(data));
           const resolvedDups = data.length - mergeMultiSKU(data).length;
-          newRecord.chatHistory = [{ sender: "analyst", text: `👋 Hi! I am your **Senior AI Data Analyst**. I have thoroughly audited your Shiprocket logistics dataset of **${stats.total} unique orders** (having resolved **${resolvedDups} multi-SKU duplicates**).\n\nHere are my initial findings:\n• **Delivery Success Rate**: **${(stats.deliveryRate * 100).toFixed(1)}%** (${stats.delivered} delivered)\n• **RTO Return Rate**: **${(stats.rtoRate * 100).toFixed(1)}%** (${stats.rto} returned packages)\n• **Total Shipping Revenue**: **₹${stats.totalRev.toLocaleString("en-IN")}**\n• **COD Collected**: **₹${stats.totalCOD.toLocaleString("en-IN")}** (${((stats.payCounts["cod"]?.orders || 0) / stats.total * 100).toFixed(0)}% of orders)\n• **Freight Cost**: **₹${stats.totalFreight.toLocaleString("en-IN")}**\n\nI have compiled a formula-friendly 7-sheet analytical workbook for your accounts team. Ask me any question about the data! E.g.:\n• *How can we reduce our shipping leakage?*\n• *Which couriers are performing the best/worst?*\n• *Which destinations present the highest RTO risk?*` }];
+          newRecord.chatHistory = [{ sender: "analyst", text: `ðŸ‘‹ Hi! I am your **Senior AI Data Analyst**. I have thoroughly audited your Shiprocket logistics dataset of **${stats.total} unique orders** (having resolved **${resolvedDups} multi-SKU duplicates**).\n\nHere are my initial findings:\nâ€¢ **Delivery Success Rate**: **${(stats.deliveryRate * 100).toFixed(1)}%** (${stats.delivered} delivered)\nâ€¢ **RTO Return Rate**: **${(stats.rtoRate * 100).toFixed(1)}%** (${stats.rto} returned packages)\nâ€¢ **Total Shipping Revenue**: **â‚¹${stats.totalRev.toLocaleString("en-IN")}**\nâ€¢ **COD Collected**: **â‚¹${stats.totalCOD.toLocaleString("en-IN")}** (${((stats.payCounts["cod"]?.orders || 0) / stats.total * 100).toFixed(0)}% of orders)\nâ€¢ **Freight Cost**: **â‚¹${stats.totalFreight.toLocaleString("en-IN")}**\n\nI have compiled a formula-friendly 7-sheet analytical workbook for your accounts team. Ask me any question about the data! E.g.:\nâ€¢ *How can we reduce our shipping leakage?*\nâ€¢ *Which couriers are performing the best/worst?*\nâ€¢ *Which destinations present the highest RTO risk?*` }];
         } else {
           const profile = { ...analyzeData(data, parsedHeaders), sheetName, headerRow };
-          newRecord.chatHistory = [{ sender: "analyst", text: `👋 Hi! I am your **Senior AI Data Analyst**. I have mapped a deep statistical profile for your **${profile.totalRows} rows** across **${profile.totalColumns} columns**.\n\nI've automatically identified data types, column fill rates, and calculated mathematical variances (sum, average, standard deviation, min, max) for numeric fields.\n\nWhat would you like to investigate in this dataset? E.g.:\n• *Can you summarize the numeric fields for me?*\n• *Show me the columns with the most empty values.*\n• *What is the cardinality of unique keys in the table?*` }];
+          newRecord.chatHistory = [{ sender: "analyst", text: `ðŸ‘‹ Hi! I am your **Senior AI Data Analyst**. I have mapped a deep statistical profile for your **${profile.totalRows} rows** across **${profile.totalColumns} columns**.\n\nI've automatically identified data types, column fill rates, and calculated mathematical variances (sum, average, standard deviation, min, max) for numeric fields.\n\nWhat would you like to investigate in this dataset? E.g.:\nâ€¢ *Can you summarize the numeric fields for me?*\nâ€¢ *Show me the columns with the most empty values.*\nâ€¢ *What is the cardinality of unique keys in the table?*` }];
         }
 
         await dbSaveRecord(newRecord);
         const recs = await dbGetRecords(currentUser.username);
         setSavedRecords(recs);
-        addLog(`✓ Excel workbook auto-saved to secure Local Database (${(f.size / 1024).toFixed(1)} KB)`, "success");
+        addLog(`âœ“ Excel workbook auto-saved to secure Local Database (${(f.size / 1024).toFixed(1)} KB)`, "success");
       }
 
       recordSuccessfulReport();
@@ -1056,7 +1338,7 @@ What would you like to investigate in this dataset? E.g.:
     } catch (e: any) {
       console.error(e);
       setError(e.message || "Spreadsheet parsing error");
-      addLog(`✗ Processing error: ${e.message || e}`, "error");
+      addLog(`âœ— Processing error: ${e.message || e}`, "error");
       setStep("upload");
     }
   }, [addLog, hasFreeReportsRemaining, recordSuccessfulReport, currentUser]);
@@ -1088,8 +1370,8 @@ What would you like to investigate in this dataset? E.g.:
         const valB = b[sortConfig.key];
         if (valA == null) return 1;
         if (valB == null) return -1;
-        const numA = Number(String(valA).replace(/[,₹\s%]/g, ""));
-        const numB = Number(String(valB).replace(/[,₹\s%]/g, ""));
+        const numA = Number(String(valA).replace(/[,â‚¹\s%]/g, ""));
+        const numB = Number(String(valB).replace(/[,â‚¹\s%]/g, ""));
         if (!isNaN(numA) && !isNaN(numB)) {
           return sortConfig.direction === "asc" ? numA - numB : numB - numA;
         }
@@ -1127,12 +1409,12 @@ What would you like to investigate in this dataset? E.g.:
       .filter(([_, v]) => v.orders >= 5)
       .sort((a, b) => (b[1].rto / b[1].orders) - (a[1].rto / a[1].orders))[0];
     
-    return `### 💡 Proactive Logistics Action Plan (Built-in Business Intelligence)
+    return `### ðŸ’¡ Proactive Logistics Action Plan (Built-in Business Intelligence)
 
-1. **💸 Cash-on-Delivery Risk Exposure**: COD orders represent **${((stats.payCounts["cod"]?.orders || 0) / stats.total * 100).toFixed(0)}%** of overall shipments (amounting to **₹${stats.totalCOD.toLocaleString("en-IN")}**). To minimize failed deliveries, implement automated WhatsApp COD confirmations prior to dispatching.
-2. **🚚 Courier Scorecard Analysis**: Your primary shipping partner is **${topCouriers[0]?.[0] || "N/A"}** managing **${topCouriers[0]?.[1]?.orders || 0} orders** with a **${((topCouriers[0]?.[1]?.delivered / topCouriers[0]?.[1]?.orders) * 100).toFixed(1)}%** success rate. Monitor billing weight discrepancies closely to avoid surcharges.
-3. **⚠️ Regional Return-to-Origin Hotspot**: **${worstRtoState?.[0] || "N/A"}** is flagging a critical RTO return risk of **${((worstRtoState?.[1]?.rto / worstRtoState?.[1]?.orders) * 100).toFixed(1)}%** over ${worstRtoState?.[1]?.orders || 0} shipments. Consider restricting COD or requiring prepaid payment for high-value orders in this territory.
-4. **📦 Packaging Freight Waste**: The overall freight charges total **₹${stats.totalFreight.toLocaleString("en-IN")}**, representing **${(stats.totalFreight / stats.totalRev * 100).toFixed(1)}%** of sales. Review box sizes and volumetric weight brackets to reduce dead-weight costs.`;
+1. **ðŸ’¸ Cash-on-Delivery Risk Exposure**: COD orders represent **${((stats.payCounts["cod"]?.orders || 0) / stats.total * 100).toFixed(0)}%** of overall shipments (amounting to **â‚¹${stats.totalCOD.toLocaleString("en-IN")}**). To minimize failed deliveries, implement automated WhatsApp COD confirmations prior to dispatching.
+2. **ðŸšš Courier Scorecard Analysis**: Your primary shipping partner is **${topCouriers[0]?.[0] || "N/A"}** managing **${topCouriers[0]?.[1]?.orders || 0} orders** with a **${((topCouriers[0]?.[1]?.delivered / topCouriers[0]?.[1]?.orders) * 100).toFixed(1)}%** success rate. Monitor billing weight discrepancies closely to avoid surcharges.
+3. **âš ï¸ Regional Return-to-Origin Hotspot**: **${worstRtoState?.[0] || "N/A"}** is flagging a critical RTO return risk of **${((worstRtoState?.[1]?.rto / worstRtoState?.[1]?.orders) * 100).toFixed(1)}%** over ${worstRtoState?.[1]?.orders || 0} shipments. Consider restricting COD or requiring prepaid payment for high-value orders in this territory.
+4. **ðŸ“¦ Packaging Freight Waste**: The overall freight charges total **â‚¹${stats.totalFreight.toLocaleString("en-IN")}**, representing **${(stats.totalFreight / stats.totalRev * 100).toFixed(1)}%** of sales. Review box sizes and volumetric weight brackets to reduce dead-weight costs.`;
   }, [logisticsAnalytics]);
 
   // Offline pre-computed responses for high availability without API key
@@ -1141,28 +1423,28 @@ What would you like to investigate in this dataset? E.g.:
     if (mode === "shopify" && shopifyAnalytics) {
       const stats = shopifyAnalytics;
       if (q.includes("product") || q.includes("best") || q.includes("top")) {
-        return `### 🛍️ Shopify Product Performance
+        return `### ðŸ›ï¸ Shopify Product Performance
 * **Top product**: **${stats.topProduct}**
 * **Products analysed**: **${stats.productCount}**
 * **Units sold**: **${stats.totalUnits.toLocaleString("en-IN")}**
-* The downloaded workbook includes **Product Analysis**, **Product × Order Status**, and top product-wise customer/order sheets.`;
+* The downloaded workbook includes **Product Analysis**, **Product Ã— Order Status**, and top product-wise customer/order sheets.`;
       }
       if (q.includes("customer") || q.includes("segment") || q.includes("retarget")) {
         const topSegment = Object.entries(stats.segmentCounts).sort((a, b) => b[1] - a[1])[0];
-        return `### 👥 Customer Retargeting Summary
+        return `### ðŸ‘¥ Customer Retargeting Summary
 * **Unique customers**: **${stats.totalCustomers.toLocaleString("en-IN")}**
 * Largest segment: **${topSegment?.[0] || "N/A"}** (${(topSegment?.[1] || 0).toLocaleString("en-IN")} customers)
 * The workbook includes **Customer Data**, **Segment Analysis**, and export-ready **Retargeting Lists** for email/SMS campaigns.`;
       }
       if (q.includes("cod") || q.includes("payment")) {
-        return `### 💰 COD and Payment Analysis
+        return `### ðŸ’° COD and Payment Analysis
 * The Shopify workbook includes a dedicated **COD Analysis** sheet.
 * Use it to separate COD exposure from prepaid/online revenue, pending collection, delivered revenue, and cancelled/refunded revenue.`;
       }
-      return `### 📊 Shopify Growth Analytics Summary
+      return `### ðŸ“Š Shopify Growth Analytics Summary
 * **Orders**: **${stats.totalOrders.toLocaleString("en-IN")}**
 * **Customers**: **${stats.totalCustomers.toLocaleString("en-IN")}**
-* **Revenue**: **₹${Math.round(stats.totalRevenue).toLocaleString("en-IN")}**
+* **Revenue**: **â‚¹${Math.round(stats.totalRevenue).toLocaleString("en-IN")}**
 * **Top city**: **${stats.topCity}**
 * Download the workbook for dashboard, product, customer, retargeting, COD, geographic, and discount sheets.`;
     }
@@ -1176,54 +1458,54 @@ What would you like to investigate in this dataset? E.g.:
         .sort((a, b) => (b[1].rto / b[1].orders) - (a[1].rto / a[1].orders))[0];
 
       if (q.includes("rto") || q.includes("return") || q.includes("state") || q.includes("destination")) {
-        return `### ⚠️ Regional Return-to-Origin Hotspot Analysis (Offline Mode)
+        return `### âš ï¸ Regional Return-to-Origin Hotspot Analysis (Offline Mode)
 * **Worst Performer**: **${worstRtoState?.[0] || "N/A"}** has an RTO risk of **${((worstRtoState?.[1]?.rto / worstRtoState?.[1]?.orders) * 100).toFixed(1)}%** (${worstRtoState?.[1]?.rto} returned out of ${worstRtoState?.[1]?.orders} orders).
 * **Mitigation Strategy**: Implement strict address validation checks before shipping. We highly recommend asking for prepaid payments or holding COD shipments to this region until customer confirmation is received via WhatsApp.`;
       }
       if (q.includes("courier") || q.includes("delivery") || q.includes("partner") || q.includes("carrier")) {
-        return `### 🚚 Courier Scorecard Analysis (Offline Mode)
+        return `### ðŸšš Courier Scorecard Analysis (Offline Mode)
 * **Primary Courier**: **${topCouriers[0]?.[0] || "N/A"}** handles **${topCouriers[0]?.[1]?.orders || 0} orders** with a delivery success rate of **${((topCouriers[0]?.[1]?.delivered / topCouriers[0]?.[1]?.orders) * 100).toFixed(1)}%**.
 * **Secondary Courier**: **${topCouriers[1]?.[0] || "N/A"}** handles **${topCouriers[1]?.[1]?.orders || 0} orders** with a success rate of **${((topCouriers[1]?.[1]?.delivered / topCouriers[1]?.[1]?.orders) * 100).toFixed(1)}%**.
 * **Recommendation**: Divert shipments away from low-performing couriers to maximize client satisfaction and minimize duplicate shipping charges on return freights.`;
       }
       if (q.includes("save") || q.includes("cost") || q.includes("leakage") || q.includes("money") || q.includes("freight")) {
-        return `### 💸 Shipping Cost & Profit Leakage Audit (Offline Mode)
-* **Freight Expense**: You spent **₹${stats.totalFreight.toLocaleString("en-IN")}** representing **${(stats.totalFreight / stats.totalRev * 100).toFixed(1)}%** of shipping revenues.
+        return `### ðŸ’¸ Shipping Cost & Profit Leakage Audit (Offline Mode)
+* **Freight Expense**: You spent **â‚¹${stats.totalFreight.toLocaleString("en-IN")}** representing **${(stats.totalFreight / stats.totalRev * 100).toFixed(1)}%** of shipping revenues.
 * **Dead-Weight Issues**: Ensure package dimensions are perfectly reported inside Shiprocket. Minor differences can double volumetric charges.
 * **COD Return Loss**: RTO return freights charge full delivery and return rates without sales completion, leading to major cash leakage. Prioritize pre-confirming COD orders!`;
       }
       if (q.includes("cod") || q.includes("cash")) {
-        return `### 💳 Cash-on-Delivery Risk Exposure (Offline Mode)
-* **COD Share**: COD shipments represent **${((stats.payCounts["cod"]?.orders || 0) / stats.total * 100).toFixed(0)}%** of overall orders, totaling **₹${stats.totalCOD.toLocaleString("en-IN")}**.
+        return `### ðŸ’³ Cash-on-Delivery Risk Exposure (Offline Mode)
+* **COD Share**: COD shipments represent **${((stats.payCounts["cod"]?.orders || 0) / stats.total * 100).toFixed(0)}%** of overall orders, totaling **â‚¹${stats.totalCOD.toLocaleString("en-IN")}**.
 * **Critical Risk**: COD orders are 3x more likely to result in an RTO status compared to prepaid orders.
-* **Senior Recommendation**: Incentivise customers with a small discount (e.g., ₹50 off) to switch to prepaid UPI at checkout to mitigate failed delivery losses.`;
+* **Senior Recommendation**: Incentivise customers with a small discount (e.g., â‚¹50 off) to switch to prepaid UPI at checkout to mitigate failed delivery losses.`;
       }
-      return `### 📊 Logistics Audit Summary (Offline Mode)
+      return `### ðŸ“Š Logistics Audit Summary (Offline Mode)
 * We analyzed **${stats.total} unique customer orders**.
 * Overall **Delivery Success** stands at **${(stats.deliveryRate * 100).toFixed(1)}%** and **RTO Rate** at **${(stats.rtoRate * 100).toFixed(1)}%**.
-* Total shipping revenue processed: **₹${stats.totalRev.toLocaleString("en-IN")}**.
+* Total shipping revenue processed: **â‚¹${stats.totalRev.toLocaleString("en-IN")}**.
 * Enter your Claude API Key above for a live, deep cognitive audit on other columns or customized business strategies!`;
     } else if (mode === "universal" && dataProfile) {
       const prof = dataProfile;
       const numCols = prof.columns.filter(c => c.type === "numeric");
       if (q.includes("numeric") || q.includes("sum") || q.includes("average") || q.includes("math") || q.includes("stats")) {
-        return `### 📊 Numeric Columns Summary (Offline Mode)
+        return `### ðŸ“Š Numeric Columns Summary (Offline Mode)
 We analyzed **${numCols.length} numeric columns** in the spreadsheet.
-${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLocaleString("en-IN")}**, Average = **₹${(c.avg || 0).toLocaleString("en-IN")}**, Standard Deviation = **±${(c.stddev || 0).toFixed(1)}**`).join("\n")}
+${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **â‚¹${(c.sum || 0).toLocaleString("en-IN")}**, Average = **â‚¹${(c.avg || 0).toLocaleString("en-IN")}**, Standard Deviation = **Â±${(c.stddev || 0).toFixed(1)}**`).join("\n")}
 * These fields are formula-friendly and ready for direct calculation in the exported Excel file!`;
       }
       if (q.includes("duplicate") || q.includes("double") || q.includes("matching")) {
-        return `### 📋 Duplicate Rows Profiling (Offline Mode)
+        return `### ðŸ“‹ Duplicate Rows Profiling (Offline Mode)
 * We scanned the entire spreadsheet and identified **${prof.duplicateRows} duplicate rows**.
 * Removing duplicate entries or merging them by a unique key (such as Order ID or Email) will instantly improve reporting cleanliness.`;
       }
       if (q.includes("clean") || q.includes("missing") || q.includes("empty") || q.includes("null") || q.includes("type")) {
-        return `### 🧬 Data Quality Profile (Offline Mode)
+        return `### ðŸ§¬ Data Quality Profile (Offline Mode)
 * **Spreadsheet size**: **${prof.totalRows} rows** by **${prof.totalColumns} columns**.
 * Columns like **${prof.columns.slice(0, 3).map(c => c.name).join(", ")}** have been audited for fill rates.
 * You can check the *Data Quality & Type Profiling* table below for the exact fill rate percentage for each of the fields.`;
       }
-      return `### 📊 Spreadsheet Profiler Overview (Offline Mode)
+      return `### ðŸ“Š Spreadsheet Profiler Overview (Offline Mode)
 * We analyzed **${prof.totalRows} data rows** across **${prof.totalColumns} columns**.
 * **Numeric Fields** found: ${numCols.map(c => c.name).join(", ") || "None"}.
 * Enter your Claude API Key above to unlock live, customized AI conversations about any of these columns!`;
@@ -1264,8 +1546,8 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
         const stats = shopifyAnalytics;
         const topStatuses = Object.entries(stats.statusCounts).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([k, v]) => `${k}: ${v}`).join(", ");
         const topSegments = Object.entries(stats.segmentCounts).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([k, v]) => `${k}: ${v}`).join(", ");
-        dataSummary = `File: ${file?.name} | Shopify orders: ${stats.totalOrders} | Customers: ${stats.totalCustomers} | Revenue: ₹${stats.totalRevenue.toFixed(0)} | Units: ${stats.totalUnits} | Products: ${stats.productCount} | Top product: ${stats.topProduct} | Top city: ${stats.topCity} | Statuses: ${topStatuses} | Segments: ${topSegments}`;
-        systemPrompt = `You are a senior Shopify growth analyst. Use the provided Shopify export summary to answer with concise, practical ecommerce recommendations. Prioritize product performance, customer segments, retargeting, COD/payment risk, discount leakage, city/state demand, and order status issues. Use ₹ for currency and bold the most important metrics. Current data context: ${dataSummary}`;
+        dataSummary = `File: ${file?.name} | Shopify orders: ${stats.totalOrders} | Customers: ${stats.totalCustomers} | Revenue: â‚¹${stats.totalRevenue.toFixed(0)} | Units: ${stats.totalUnits} | Products: ${stats.productCount} | Top product: ${stats.topProduct} | Top city: ${stats.topCity} | Statuses: ${topStatuses} | Segments: ${topSegments}`;
+        systemPrompt = `You are a senior Shopify growth analyst. Use the provided Shopify export summary to answer with concise, practical ecommerce recommendations. Prioritize product performance, customer segments, retargeting, COD/payment risk, discount leakage, city/state demand, and order status issues. Use â‚¹ for currency and bold the most important metrics. Current data context: ${dataSummary}`;
       } else if (mode === "logistics" && logisticsAnalytics) {
         const stats = logisticsAnalytics;
         const topStatus = Object.entries(stats.statusCounts).sort((a, b) => b[1].orders - a[1].orders).slice(0, 4).map(([k, v]) => `${k}: ${v.orders}`).join(", ");
@@ -1273,8 +1555,8 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
         const topCouriers = Object.entries(stats.courierCounts).sort((a, b) => b[1].orders - a[1].orders).slice(0, 4).map(([k, v]) => `${k}: ${v.orders} (del:${(v.delivered/v.orders*100).toFixed(0)}%)`).join(", ");
         const topNDR = Object.entries(stats.ndrCounts).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, v]) => `${k}(${v})`).join(", ");
 
-        dataSummary = `File: ${file?.name} | Total orders: ${stats.total} | Delivery rate: ${(stats.deliveryRate*100).toFixed(1)}% | RTO rate: ${(stats.rtoRate*100).toFixed(1)}% | Revenue: ₹${stats.totalRev.toFixed(0)} | COD: ₹${stats.totalCOD} | Freight: ₹${stats.totalFreight} | Statuses: ${topStatus} | Top States: ${topStates} | Couriers: ${topCouriers} | NDR Reasons: ${topNDR}`;
-        systemPrompt = `You are a Senior AI Data Analyst. You are auditing a Shiprocket logistics dataset. Provide highly advanced, concise, actionable, and mathematically accurate insights. Address the user's specific question directly using the statistical summary provided. Use ₹ for currency. Bold key stats. Keep paragraphs short and use bullet points for clarity. Current data context: ${dataSummary}`;
+        dataSummary = `File: ${file?.name} | Total orders: ${stats.total} | Delivery rate: ${(stats.deliveryRate*100).toFixed(1)}% | RTO rate: ${(stats.rtoRate*100).toFixed(1)}% | Revenue: â‚¹${stats.totalRev.toFixed(0)} | COD: â‚¹${stats.totalCOD} | Freight: â‚¹${stats.totalFreight} | Statuses: ${topStatus} | Top States: ${topStates} | Couriers: ${topCouriers} | NDR Reasons: ${topNDR}`;
+        systemPrompt = `You are a Senior AI Data Analyst. You are auditing a Shiprocket logistics dataset. Provide highly advanced, concise, actionable, and mathematically accurate insights. Address the user's specific question directly using the statistical summary provided. Use â‚¹ for currency. Bold key stats. Keep paragraphs short and use bullet points for clarity. Current data context: ${dataSummary}`;
       } else if (mode === "universal" && dataProfile) {
         const prof = dataProfile;
         const colList = prof.columns.slice(0, 8).map(c => `${c.name} (${c.type}, fill:${((c.nonEmptyCount/c.count)*100).toFixed(0)}%, unique:${c.uniqueCount}${c.type === 'numeric' ? `, avg:${c.avg?.toFixed(1)}, stddev:${c.stddev?.toFixed(1)}` : ''})`).join("; ");
@@ -2907,7 +3189,7 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
           }
         }
 
-        /* 🚀 PREMIUM FORMULABOT-STYLE HERO & LANDING PAGE STYLES */
+        /* ðŸš€ PREMIUM FORMULABOT-STYLE HERO & LANDING PAGE STYLES */
         .landing-hero {
           text-align: center;
           padding: 4rem 1.5rem 3rem 1.5rem;
@@ -3158,7 +3440,7 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
 
       {/* Announcement Bar */}
       <div className="announcement-bar">
-        ⚡ Security Verified: Client-Side Secure Sandbox Active. No data leaves your machine.
+        âš¡ Security Verified: Client-Side Secure Sandbox Active. No data leaves your machine.
         <a href="https://cohere.com" target="_blank" rel="noopener noreferrer">Learn more</a>
       </div>
 
@@ -3196,13 +3478,13 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
             aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
             title={theme === "dark" ? "Light mode" : "Dark mode"}
           >
-            {theme === "dark" ? "☀" : "☾"}
+            {theme === "dark" ? "â˜€" : "â˜¾"}
           </button>
 
           {currentUser ? (
             <div className="user-hub-widget">
               <span className="user-info-text">
-                <span className="user-icon-bullet">👤</span>
+                <span className="user-icon-bullet">ðŸ‘¤</span>
                 <strong>{currentUser.username}</strong>
                 <span className={`plan-badge ${currentUser.isPro ? "pro" : "free"}`}>
                   {currentUser.isPro ? "Pro" : "Free"}
@@ -3218,7 +3500,7 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
                   }}
                   style={{ borderColor: "var(--amber)", color: "var(--amber)", fontWeight: 600 }}
                 >
-                  🛡️ Admin Panel
+                  ðŸ›¡ï¸ Admin Panel
                 </button>
               )}
               <button 
@@ -3226,7 +3508,7 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
                 className="header-btn" 
                 onClick={() => setDashboardOpen(true)}
               >
-                🎛️ Dashboard
+                ðŸŽ›ï¸ Dashboard
               </button>
               {!currentUser.isPro && (
                 <button 
@@ -3235,7 +3517,7 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
                   onClick={() => setCheckoutOpen(true)}
                   style={{ borderColor: "var(--coral)", color: "var(--coral)" }}
                 >
-                  ⚡ Upgrade
+                  âš¡ Upgrade
                 </button>
               )}
               <button 
@@ -3243,7 +3525,7 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
                 className="header-btn" 
                 onClick={handleLogout}
               >
-                🚪 Sign Out
+                ðŸšª Sign Out
               </button>
             </div>
           ) : (
@@ -3256,7 +3538,7 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
                 setAuthModalOpen(true);
               }}
             >
-              🔑 Sign In / Register
+              ðŸ”‘ Sign In / Register
             </button>
           )}
         </div>
@@ -3265,14 +3547,14 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
       {/* Auto-detected notices */}
       {detectionNotice && (
         <div className="toast-badge">
-          <span>✨</span> {detectionNotice}
+          <span>âœ¨</span> {detectionNotice}
         </div>
       )}
 
       {/* Error state */}
       {error && (
         <div className="section-card" style={{ borderLeft: "4px solid var(--error)", background: "rgba(239, 68, 68, 0.08)" }}>
-          <div style={{ color: "var(--error)", fontWeight: 600, fontSize: "0.9rem" }}>⚠️ Spreadsheet Error</div>
+          <div style={{ color: "var(--error)", fontWeight: 600, fontSize: "0.9rem" }}>âš ï¸ Spreadsheet Error</div>
           <div style={{ color: "var(--ink)", fontSize: "0.85rem", marginTop: "4px", opacity: 0.9 }}>{error}</div>
         </div>
       )}
@@ -3304,7 +3586,7 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
                 style={{ display: "none" }} 
                 onChange={onFileChange} 
               />
-              <span className="upload-icon">📂</span>
+              <span className="upload-icon">ðŸ“‚</span>
               <h2 className="upload-title">
                 Drop your spreadsheet here
               </h2>
@@ -3330,7 +3612,7 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
                         onClick={() => setCheckoutOpen(true)}
                         style={{ padding: "10px 20px", fontSize: "13px", borderRadius: "30px", flex: "none" }}
                       >
-                        ⚡ Upgrade to Pro ($19/mo)
+                        âš¡ Upgrade to Pro ($19/mo)
                       </button>
                     ) : (
                       <button
@@ -3343,7 +3625,7 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
                         }}
                         style={{ padding: "10px 20px", fontSize: "13px", borderRadius: "30px", flex: "none" }}
                       >
-                        🔑 Sign In to Upgrade
+                        ðŸ”‘ Sign In to Upgrade
                       </button>
                     )}
                     <a className="icon-only" href={CODECREST.website} target="_blank" rel="noopener noreferrer" aria-label="Open Codecrest Studio website" title="Website" style={{ width: "40px", height: "40px" }}>
@@ -3369,7 +3651,7 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
                   onClick={() => setMockupTabActive("shopify")}
                   style={{ background: "transparent", border: "none", cursor: "pointer", outline: "none" }}
                 >
-                  📊 Shopify Store Sales
+                  ðŸ“Š Shopify Store Sales
                 </button>
                 <button 
                   type="button"
@@ -3377,7 +3659,7 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
                   onClick={() => setMockupTabActive("logistics")}
                   style={{ background: "transparent", border: "none", cursor: "pointer", outline: "none" }}
                 >
-                  🚚 Courier Shipments
+                  ðŸšš Courier Shipments
                 </button>
                 <button 
                   type="button"
@@ -3385,7 +3667,7 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
                   onClick={() => setMockupTabActive("universal")}
                   style={{ background: "transparent", border: "none", cursor: "pointer", outline: "none" }}
                 >
-                  📋 Universal Profiling
+                  ðŸ“‹ Universal Profiling
                 </button>
               </div>
               <div className="mockup-body">
@@ -3407,28 +3689,28 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
                           <td>Aman Sharma</td>
                           <td>Mumbai, MH</td>
                           <td><span className="mockup-badge delivered">Delivered</span></td>
-                          <td>₹1,899.00</td>
+                          <td>â‚¹1,899.00</td>
                         </tr>
                         <tr>
                           <td>#1002-B</td>
                           <td>Sarah Jones</td>
                           <td>Bangalore, KA</td>
                           <td><span className="mockup-badge delivered">Delivered</span></td>
-                          <td>₹2,450.00</td>
+                          <td>â‚¹2,450.00</td>
                         </tr>
                         <tr>
                           <td>#1003-C</td>
                           <td>Vikram Singh</td>
                           <td>Delhi, NCR</td>
                           <td><span className="mockup-badge rto">RTO Returned</span></td>
-                          <td>₹1,299.00</td>
+                          <td>â‚¹1,299.00</td>
                         </tr>
                         <tr>
                           <td>#1004-D</td>
                           <td>Rohan Verma</td>
                           <td>Pune, MH</td>
                           <td><span className="mockup-badge delivered">Delivered</span></td>
-                          <td>₹999.00</td>
+                          <td>â‚¹999.00</td>
                         </tr>
                       </tbody>
                     </table>
@@ -3528,7 +3810,7 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
                     <>
                       <div className="mockup-card-right">
                         <div style={{ fontSize: "10px", fontWeight: 700, color: "var(--slate)", textTransform: "uppercase" }}>Store Revenue Share</div>
-                        <div style={{ fontSize: "16px", fontWeight: 700, marginTop: "4px", color: "var(--ink)" }}>₹4.82 Lakhs</div>
+                        <div style={{ fontSize: "16px", fontWeight: 700, marginTop: "4px", color: "var(--ink)" }}>â‚¹4.82 Lakhs</div>
                         <div className="mockup-chart-row">
                           <div className="mockup-chart-bar" style={{ height: "40%" }}></div>
                           <div className="mockup-chart-bar" style={{ height: "70%" }}></div>
@@ -3538,7 +3820,7 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
                         </div>
                       </div>
                       <div className="mockup-card-right" style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                        <span style={{ fontSize: "18px" }}>🧠</span>
+                        <span style={{ fontSize: "18px" }}>ðŸ§ </span>
                         <div style={{ fontSize: "10.5px", color: "var(--slate)", lineHeight: "1.4" }}>
                           <strong>Avery Smith:</strong> "SKU consolidated. Found 14 duplicate order ID items. Delivery rate is at 78.4%."
                         </div>
@@ -3560,7 +3842,7 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
                         </div>
                       </div>
                       <div className="mockup-card-right" style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                        <span style={{ fontSize: "18px" }}>🧠</span>
+                        <span style={{ fontSize: "18px" }}>ðŸ§ </span>
                         <div style={{ fontSize: "10.5px", color: "var(--slate)", lineHeight: "1.4" }}>
                           <strong>Avery Smith:</strong> "Logistics audit: Delhivery has 92% SLA fill rate. Bluedart COD RTO risk is high at 21%."
                         </div>
@@ -3582,7 +3864,7 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
                         </div>
                       </div>
                       <div className="mockup-card-right" style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                        <span style={{ fontSize: "18px" }}>🧠</span>
+                        <span style={{ fontSize: "18px" }}>ðŸ§ </span>
                         <div style={{ fontSize: "10.5px", color: "var(--slate)", lineHeight: "1.4" }}>
                           <strong>Avery Smith:</strong> "Data Quality profile complete. 12 columns mapped. Detected 6 missing cells in discount_code."
                         </div>
@@ -3601,22 +3883,22 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
             
             <div className="features-grid">
               <div className="feature-item-card">
-                <div className="feature-icon-wrapper">🛍️</div>
+                <div className="feature-icon-wrapper">ðŸ›ï¸</div>
                 <h4 className="feature-title-card">Shopify Sales Consolidator</h4>
                 <p className="feature-desc-card">Automatically consolidates order rows, calculates geographical performance, filters COD risk status, and groups repeat buyers for retargeting campaigns.</p>
               </div>
               <div className="feature-item-card">
-                <div className="feature-icon-wrapper">🚚</div>
+                <div className="feature-icon-wrapper">ðŸšš</div>
                 <h4 className="feature-title-card">Logistics Optimizer</h4>
                 <p className="feature-desc-card">Upload Shiprocket or courier sheets to consolidate multiple item packages, highlight shipping cost leakages, and rank courier company RTO risks.</p>
               </div>
               <div className="feature-item-card">
-                <div className="feature-icon-wrapper">📊</div>
+                <div className="feature-icon-wrapper">ðŸ“Š</div>
                 <h4 className="feature-title-card">Universal Data Profiler</h4>
                 <p className="feature-desc-card">Instantly calculates column fill rates, auto-detects date/numerical types, performs average and standard deviation computations, and outputs an interactive grid editor.</p>
               </div>
               <div className="feature-item-card">
-                <div className="feature-icon-wrapper">🧠</div>
+                <div className="feature-icon-wrapper">ðŸ§ </div>
                 <h4 className="feature-title-card">Conversational AI Analyst</h4>
                 <p className="feature-desc-card">Connect your own Anthropic Claude key or run offline to query Avery, your business data analyst, directly inside the app without writing formulas or scripts.</p>
               </div>
@@ -3675,8 +3957,8 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
                 </div>
                 <div className="kpi-card success">
                   <div className="kpi-label">Revenue</div>
-                  <div className="kpi-value">₹{(shopifyAnalytics.totalRevenue / 1e5).toFixed(2)}L</div>
-                  <div className="kpi-sub">AOV: ₹{(shopifyAnalytics.totalRevenue / Math.max(shopifyAnalytics.totalOrders, 1)).toFixed(0)}</div>
+                  <div className="kpi-value">â‚¹{(shopifyAnalytics.totalRevenue / 1e5).toFixed(2)}L</div>
+                  <div className="kpi-sub">AOV: â‚¹{(shopifyAnalytics.totalRevenue / Math.max(shopifyAnalytics.totalOrders, 1)).toFixed(0)}</div>
                 </div>
                 <div className="kpi-card">
                   <div className="kpi-label">Customers</div>
@@ -3692,7 +3974,7 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
 
               <div className="chart-row">
                 <div className="section-card">
-                  <h3 className="card-title">🧾 Order Status Mix</h3>
+                  <h3 className="card-title">ðŸ§¾ Order Status Mix</h3>
                   {Object.entries(shopifyAnalytics.statusCounts)
                     .sort((a, b) => b[1] - a[1])
                     .slice(0, 6)
@@ -3715,7 +3997,7 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
                     })}
                 </div>
                 <div className="section-card">
-                  <h3 className="card-title">👥 Customer Segments</h3>
+                  <h3 className="card-title">ðŸ‘¥ Customer Segments</h3>
                   {Object.entries(shopifyAnalytics.segmentCounts)
                     .sort((a, b) => b[1] - a[1])
                     .map(([segmentName, count]) => {
@@ -3760,8 +4042,8 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
                 </div>
                 <div className="kpi-card success">
                   <div className="kpi-label">Total Shipping Value</div>
-                  <div className="kpi-value">₹{(logisticsAnalytics.totalRev / 1e5).toFixed(2)}L</div>
-                  <div className="kpi-sub">Avg order value: ₹{(logisticsAnalytics.totalRev / logisticsAnalytics.total).toFixed(0)}</div>
+                  <div className="kpi-value">â‚¹{(logisticsAnalytics.totalRev / 1e5).toFixed(2)}L</div>
+                  <div className="kpi-sub">Avg order value: â‚¹{(logisticsAnalytics.totalRev / logisticsAnalytics.total).toFixed(0)}</div>
                 </div>
                 <div className="kpi-card success">
                   <div className="kpi-label">Delivery Success</div>
@@ -3781,7 +4063,7 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
               <div className="chart-row">
                 {/* Visual Bar Breakdown: Status share */}
                 <div className="section-card">
-                  <h3 className="card-title">📦 Package Status distribution</h3>
+                  <h3 className="card-title">ðŸ“¦ Package Status distribution</h3>
                   {Object.entries(logisticsAnalytics.statusCounts)
                     .sort((a, b) => b[1].orders - a[1].orders)
                     .slice(0, 4)
@@ -3806,7 +4088,7 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
 
                 {/* Courier scorecards */}
                 <div className="section-card">
-                  <h3 className="card-title">🚚 Courier Company Efficiency</h3>
+                  <h3 className="card-title">ðŸšš Courier Company Efficiency</h3>
                   {Object.entries(logisticsAnalytics.courierCounts)
                     .sort((a, b) => b[1].orders - a[1].orders)
                     .slice(0, 4)
@@ -3841,7 +4123,7 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
                 const trends: Record<string, number> = {};
                 rawRows.forEach((r) => {
                   const d = new Date(r[dateCol]);
-                  const rev = Number(String(r[revenueCol] ?? "").replace(/[,₹\s%]/g, ""));
+                  const rev = Number(String(r[revenueCol] ?? "").replace(/[,â‚¹\s%]/g, ""));
                   if (!isNaN(d.getTime()) && !isNaN(rev)) {
                     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
                     trends[key] = (trends[key] || 0) + rev;
@@ -3854,7 +4136,7 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
 
                 return (
                   <div className="section-card">
-                    <h3 className="card-title">📈 Monthly Shipping Revenue Trend</h3>
+                    <h3 className="card-title">ðŸ“ˆ Monthly Shipping Revenue Trend</h3>
                     <div className="trend-chart-svg">
                       {monthlyData.map(([month, val]) => {
                         const pct = (val / maxVal) * 100;
@@ -3865,7 +4147,7 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
                               style={{ height: `${Math.max(10, pct)}%` }}
                             >
                               <span className="trend-chart-tip">
-                                ₹{Math.round(val/1000)}K
+                                â‚¹{Math.round(val/1000)}K
                               </span>
                             </div>
                             <span style={{ fontSize: "0.75rem", color: "var(--slate)" }}>{month}</span>
@@ -3888,7 +4170,7 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
 
                 return (
                   <div className="section-card" style={{ borderLeft: "4px solid #ef4444" }}>
-                    <h3 className="card-title" style={{ color: "#ef4444" }}>⚠️ Regional return hotspot alerts</h3>
+                    <h3 className="card-title" style={{ color: "#ef4444" }}>âš ï¸ Regional return hotspot alerts</h3>
                     <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                       {highRtoStatesList.map(([stateName, detail]: [string, any]) => {
                         const rtoPercent = (detail.rto / detail.orders) * 100;
@@ -3935,7 +4217,7 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
               {/* Numeric Summaries Scorecard */}
               {dataProfile.columns.filter((c) => c.type === "numeric").length > 0 && (
                 <div className="section-card">
-                  <h3 className="card-title">📊 Numeric Columns aggregation</h3>
+                  <h3 className="card-title">ðŸ“Š Numeric Columns aggregation</h3>
                   <div className="premium-table-wrapper">
                     <table className="premium-table">
                       <thead>
@@ -3958,7 +4240,7 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
                               <td>{col.sum ? col.sum.toLocaleString("en-IN", { maximumFractionDigits: 1 }) : "-"}</td>
                               <td>{col.avg ? col.avg.toLocaleString("en-IN", { maximumFractionDigits: 1 }) : "-"}</td>
                               <td>{col.median ? col.median.toLocaleString("en-IN", { maximumFractionDigits: 1 }) : "-"}</td>
-                              <td>{col.stddev ? `±${col.stddev.toFixed(1)}` : "-"}</td>
+                              <td>{col.stddev ? `Â±${col.stddev.toFixed(1)}` : "-"}</td>
                               <td style={{ fontSize: "0.75rem", color: "var(--slate)" }}>
                                 {col.min} to {col.max}
                               </td>
@@ -3972,7 +4254,7 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
 
               {/* Data Quality & Cardinality Details */}
               <div className="section-card">
-                <h3 className="card-title">🧬 Data Quality & Type Profiling</h3>
+                <h3 className="card-title">ðŸ§¬ Data Quality & Type Profiling</h3>
                 <div className="premium-table-wrapper">
                   <table className="premium-table">
                     <thead>
@@ -4019,7 +4301,7 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
           {/* AI Audit & Strategy Assistant - Conversational Chat Console */}
           <div className="section-card ai-insights-card">
             <h3 className="card-title" style={{ fontSize: "1.15rem", fontWeight: 700, display: "flex", alignItems: "center", gap: "8px" }}>
-              <span>🧠</span> Avery Smith — Senior AI Data Analyst
+              <span>ðŸ§ </span> Avery Smith â€” Senior AI Data Analyst
             </h3>
             
             <div className="ai-key-input-row">
@@ -4031,14 +4313,14 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
                 onChange={(e) => setCustomApiKey(e.target.value)}
               />
               <span style={{ fontSize: "0.75rem", color: "var(--slate)", fontWeight: 500 }}>
-                {customApiKey ? "⚡ API Key Connected" : "🔌 Running in Intelligent Offline Mode"}
+                {customApiKey ? "âš¡ API Key Connected" : "ðŸ”Œ Running in Intelligent Offline Mode"}
               </span>
             </div>
 
             <div className="chat-container">
               <div className="chat-header">
                 <span className="chat-header-title">
-                  💬 Direct Chat with Avery
+                  ðŸ’¬ Direct Chat with Avery
                 </span>
                 <span className="chat-header-status">
                   <span className="chat-pulse"></span>
@@ -4050,7 +4332,7 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
                 {chatHistory.map((msg, idx) => (
                   <div key={idx} className={`chat-message ${msg.sender}`}>
                     <div style={{ fontWeight: 700, marginBottom: "6px", fontSize: "0.75rem", opacity: 0.8 }}>
-                      {msg.sender === "analyst" ? "🧠 AVERY (SENIOR ANALYST)" : "👤 YOU (BUSINESS OWNER)"}
+                      {msg.sender === "analyst" ? "ðŸ§  AVERY (SENIOR ANALYST)" : "ðŸ‘¤ YOU (BUSINESS OWNER)"}
                     </div>
                     <div dangerouslySetInnerHTML={{ 
                       __html: formatMessage(msg.text)
@@ -4068,21 +4350,21 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
                       onClick={() => handleChatSubmit(undefined, "Which products are performing best and what should we retarget?")}
                       disabled={aiLoading}
                     >
-                      🛍️ Product Winners
+                      ðŸ›ï¸ Product Winners
                     </button>
                     <button 
                       className="chat-suggestion-chip" 
                       onClick={() => handleChatSubmit(undefined, "Summarize customer segments and retargeting priorities.")}
                       disabled={aiLoading}
                     >
-                      👥 Retargeting Priorities
+                      ðŸ‘¥ Retargeting Priorities
                     </button>
                     <button 
                       className="chat-suggestion-chip" 
                       onClick={() => handleChatSubmit(undefined, "Analyze COD/payment risk and discount leakage.")}
                       disabled={aiLoading}
                     >
-                      💰 COD & Discount Risk
+                      ðŸ’° COD & Discount Risk
                     </button>
                   </>
                 ) : mode === "logistics" ? (
@@ -4092,21 +4374,21 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
                       onClick={() => handleChatSubmit(undefined, "How can we reduce shipping cost leakage? Outline 3 main areas.")}
                       disabled={aiLoading}
                     >
-                      💸 Cost Leakage Advice
+                      ðŸ’¸ Cost Leakage Advice
                     </button>
                     <button 
                       className="chat-suggestion-chip" 
                       onClick={() => handleChatSubmit(undefined, "Which states represent the highest RTO risk and how do we solve them?")}
                       disabled={aiLoading}
                     >
-                      ⚠️ Highest RTO Risks
+                      âš ï¸ Highest RTO Risks
                     </button>
                     <button 
                       className="chat-suggestion-chip" 
                       onClick={() => handleChatSubmit(undefined, "Can you analyze our courier scorecard and suggest who to prioritize?")}
                       disabled={aiLoading}
                     >
-                      🚚 Courier Performance Summary
+                      ðŸšš Courier Performance Summary
                     </button>
                   </>
                 ) : (
@@ -4116,21 +4398,21 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
                       onClick={() => handleChatSubmit(undefined, "Please summarize the numeric columns and their key averages.")}
                       disabled={aiLoading}
                     >
-                      📊 Summarize Numeric Fields
+                      ðŸ“Š Summarize Numeric Fields
                     </button>
                     <button 
                       className="chat-suggestion-chip" 
                       onClick={() => handleChatSubmit(undefined, "Show me a quality audit of the dataset including missing values.")}
                       disabled={aiLoading}
                     >
-                      🧬 Column Fill Rates & Quality
+                      ðŸ§¬ Column Fill Rates & Quality
                     </button>
                     <button 
                       className="chat-suggestion-chip" 
                       onClick={() => handleChatSubmit(undefined, "Explain the duplicate rows profile and why clean rows matter.")}
                       disabled={aiLoading}
                     >
-                      📋 Duplicate Rows Audit
+                      ðŸ“‹ Duplicate Rows Audit
                     </button>
                   </>
                 )}
@@ -4154,7 +4436,7 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
 
           {/* SPREADSHEET INTERACTIVE VIEWER DATA GRID (Common to both modes) */}
           <div className="section-card">
-            <h3 className="card-title">📋 Interactive In-Browser Data Grid</h3>
+            <h3 className="card-title">ðŸ“‹ Interactive In-Browser Data Grid</h3>
             <div className="grid-header-tools">
               <input 
                 type="text" 
@@ -4174,7 +4456,7 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
                   <tr>
                     {tableHeaders.slice(0, 8).map((header) => (
                       <th key={header} onClick={() => handleSort(header)}>
-                        {header} {sortConfig?.key === header ? (sortConfig.direction === "asc" ? "▲" : "▼") : ""}
+                        {header} {sortConfig?.key === header ? (sortConfig.direction === "asc" ? "â–²" : "â–¼") : ""}
                       </th>
                     ))}
                   </tr>
@@ -4227,13 +4509,13 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
               download={outName} 
               className="btn-primary"
             >
-              📥 Download Polished Excel Report (.xlsx)
+              ðŸ“¥ Download Polished Excel Report (.xlsx)
             </a>
             <button 
               onClick={reset} 
               className="btn-secondary"
             >
-              🔄 Upload New File
+              ðŸ”„ Upload New File
             </button>
           </div>
         </>
@@ -4242,7 +4524,7 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
       {/* Footer disclaimer */}
       <footer style={{ marginTop: "3rem", borderTop: "1px solid var(--hairline)", paddingTop: "1.5rem", textAlign: "center", fontSize: "0.75rem", color: "var(--slate)" }}>
         <div>
-          SheetCodeCrest • Runs completely in the browser for secure data privacy.
+          SheetCodeCrest â€¢ Runs completely in the browser for secure data privacy.
         </div>
         <div style={{ marginTop: "0.4rem" }}>
           Created and developed by <strong style={{ color: "var(--ink)" }}>Codecrest_studio</strong>
@@ -4267,14 +4549,14 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
             <div className="modal-header">
               <h3 className="modal-title" style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                 <img src="/logo-icon.png" alt="SheetCodeCrest Icon" style={{ height: "24px", width: "24px", borderRadius: "5px", objectFit: "contain" }} />
-                <span>{authTab === "login" ? "🔑 Sign In" : "📝 Create Account"}</span>
+                <span>{authTab === "login" ? "ðŸ”‘ Sign In" : "ðŸ“ Create Account"}</span>
               </h3>
               <button 
                 type="button" 
                 className="modal-close-btn" 
                 onClick={() => setAuthModalOpen(false)}
               >
-                ✕
+                âœ•
               </button>
             </div>
             <div className="auth-tabs">
@@ -4296,7 +4578,7 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
             <div className="modal-body">
               {authError && (
                 <div style={{ color: "var(--error)", marginBottom: "1rem", fontSize: "13px", fontWeight: 600 }}>
-                  ⚠️ {authError}
+                  âš ï¸ {authError}
                 </div>
               )}
               <form onSubmit={authTab === "login" ? handleLogin : handleSignup}>
@@ -4353,14 +4635,14 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
                   <input 
                     type="password" 
                     className="form-input" 
-                    placeholder="••••••••" 
+                    placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢" 
                     value={authPassword}
                     onChange={(e) => setAuthPassword(e.target.value)}
                     required 
                   />
                 </div>
                 <button type="submit" className="auth-submit-btn">
-                  {authTab === "login" ? "🔑 Sign In" : "📝 Register"}
+                  {authTab === "login" ? "ðŸ”‘ Sign In" : "ðŸ“ Register"}
                 </button>
 
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "center", margin: "1.25rem 0", gap: "10px" }}>
@@ -4383,21 +4665,21 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
         <div className="modal-overlay" onClick={() => !paymentProcessing && setCheckoutOpen(false)}>
           <div className="modal-card" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3 className="modal-title">⚡ Upgrade to Pro Member</h3>
+              <h3 className="modal-title">âš¡ Upgrade to Pro Member</h3>
               <button 
                 type="button" 
                 className="modal-close-btn" 
                 onClick={() => !paymentProcessing && setCheckoutOpen(false)}
                 disabled={paymentProcessing}
               >
-                ✕
+                âœ•
               </button>
             </div>
             
             <div className="modal-body">
               <div className="payment-summary-box">
-                <span>🚀 SheetCodeCrest Pro Lifetime</span>
-                <strong>₹1,599</strong>
+                <span>ðŸš€ SheetCodeCrest Pro Lifetime</span>
+                <strong>â‚¹1,599</strong>
               </div>
 
               {!paymentProcessing && !paymentCompleted ? (
@@ -4408,7 +4690,7 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
                         Upgrade instantly via UPI, Netbanking, or Credit/Debit cards securely using the Razorpay gateway.
                       </p>
                       <button type="submit" className="auth-submit-btn">
-                        🔒 Pay ₹1,599 Securely via Razorpay
+                        ðŸ”’ Pay â‚¹1,599 Securely via Razorpay
                       </button>
                     </form>
                   ) : (
@@ -4422,7 +4704,7 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
                       </div>
                       <div style={{ textAlign: "center" }}>
                         <div style={{ fontSize: "11px", color: "var(--slate)", textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 700 }}>Scan QR to Pay with GPay / Paytm / PhonePe</div>
-                        <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--coral)", marginTop: "4px", fontFamily: "var(--font-technical)" }}>₹1,599 (SheetCodeCrest Pro Lifetime)</div>
+                        <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--coral)", marginTop: "4px", fontFamily: "var(--font-technical)" }}>â‚¹1,599 (SheetCodeCrest Pro Lifetime)</div>
                         <div style={{ fontSize: "11px", color: "var(--slate)", marginTop: "4px" }}>UPI ID: <strong style={{ userSelect: "all", cursor: "pointer", color: "var(--action-blue)" }} onClick={() => { navigator.clipboard.writeText(PERSONAL_UPI_ID); alert("UPI ID copied!"); }}>{PERSONAL_UPI_ID}</strong></div>
                       </div>
                       <form onSubmit={handleManualUpiVerification} style={{ width: "100%", borderTop: "1px solid var(--hairline)", paddingTop: "1rem" }}>
@@ -4439,7 +4721,7 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
                           />
                         </div>
                         <button type="submit" className="auth-submit-btn">
-                          🔒 Verify & Upgrade Instantly
+                          ðŸ”’ Verify & Upgrade Instantly
                         </button>
                       </form>
                     </div>
@@ -4465,7 +4747,7 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
                     </>
                   ) : (
                     <>
-                      <span style={{ fontSize: "3rem", display: "block", marginBottom: "1rem" }}>🎉</span>
+                      <span style={{ fontSize: "3rem", display: "block", marginBottom: "1rem" }}>ðŸŽ‰</span>
                       <div style={{ fontWeight: 700, fontSize: "18px", color: "var(--deep-green)", marginBottom: "0.5rem" }}>
                         Upgrade Completed Successfully!
                       </div>
@@ -4491,228 +4773,570 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
         </div>
       )}
 
-      {/* 🛡️ Secure Admin Panel Modal */}
+      {/* ðŸ›¡ï¸ Secure Admin Panel Modal â€” Advanced */}
       {adminModalOpen && (
         <div className="modal-overlay" onClick={() => !adminLoading && setAdminModalOpen(false)}>
-          <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "750px", width: "95%" }}>
-            <div className="modal-header" style={{ borderColor: "var(--amber)" }}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "900px", width: "97%", maxHeight: "92vh", display: "flex", flexDirection: "column" }}>
+            {/* Header */}
+            <div className="modal-header" style={{ borderColor: "var(--amber)", flexShrink: 0 }}>
               <h3 className="modal-title" style={{ display: "flex", alignItems: "center", gap: "8px", color: "var(--amber)" }}>
-                <span>🛡️</span> SheetCodeCrest Admin Console
+                <span>ðŸ›¡ï¸</span> SheetCodeCrest Admin Console
+                <span style={{ fontSize: "10px", background: "rgba(245,158,11,0.15)", color: "var(--amber)", padding: "2px 8px", borderRadius: "20px", fontWeight: 500, marginLeft: "4px" }}>
+                  SUPER ADMIN
+                </span>
               </h3>
-              <button 
-                type="button" 
-                className="modal-close-btn" 
-                onClick={() => !adminLoading && setAdminModalOpen(false)}
-                disabled={adminLoading}
-              >
-                ✕
-              </button>
-            </div>
-            
-            <div className="modal-body" style={{ padding: "1.5rem" }}>
-              {/* Admin Tabs */}
-              <div className="checkout-tabs" style={{ marginBottom: "1.25rem" }}>
-                <button 
-                  type="button" 
-                  className={`checkout-tab-btn ${adminTab === "users" ? "active" : ""}`}
-                  onClick={() => { setAdminTab("users"); setAdminSearch(""); }}
-                  style={{ flex: 1, borderColor: adminTab === "users" ? "var(--amber)" : "transparent" }}
-                >
-                  👤 Users ({adminUsers.length})
-                </button>
-                <button 
-                  type="button" 
-                  className={`checkout-tab-btn ${adminTab === "payments" ? "active" : ""}`}
-                  onClick={() => { setAdminTab("payments"); setAdminSearch(""); }}
-                  style={{ flex: 1, borderColor: adminTab === "payments" ? "var(--amber)" : "transparent" }}
-                >
-                  💳 Transactions ({adminPayments.length})
-                </button>
-                <button 
-                  type="button" 
-                  className={`checkout-tab-btn ${adminTab === "config" ? "active" : ""}`}
-                  onClick={() => { setAdminTab("config"); setAdminSearch(""); }}
-                  style={{ flex: 1, borderColor: adminTab === "config" ? "var(--amber)" : "transparent" }}
-                >
-                  ⚙️ Settings
-                </button>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <button
+                  type="button"
+                  onClick={() => loadAdminData()}
+                  disabled={adminLoading}
+                  title="Refresh data"
+                  style={{ background: "rgba(255,255,255,0.06)", border: "1px solid var(--hairline)", borderRadius: "6px", padding: "4px 8px", cursor: "pointer", color: "var(--slate)", fontSize: "14px" }}
+                >ðŸ”„</button>
+                <button type="button" className="modal-close-btn" onClick={() => !adminLoading && setAdminModalOpen(false)} disabled={adminLoading}>âœ•</button>
               </div>
+            </div>
 
+            {/* Tab Navigation */}
+            <div style={{ display: "flex", gap: "2px", padding: "0 1.5rem", background: "rgba(0,0,0,0.2)", flexShrink: 0, overflowX: "auto", borderBottom: "1px solid var(--hairline)" }}>
+              {(["users","payments","plans","analytics","settings","activity"] as const).map((tab) => {
+                const labels: Record<string, string> = {
+                  users: `ðŸ‘¤ Users (${adminUsers.length})`,
+                  payments: `ðŸ’³ Payments (${adminPayments.length})`,
+                  plans: `ðŸ“¦ Plans (${adminPlans.length})`,
+                  analytics: "ðŸ“Š Analytics",
+                  settings: "âš™ï¸ Settings",
+                  activity: `ðŸ”” Activity (${adminLogs.length})`
+                };
+                return (
+                  <button
+                    key={tab}
+                    type="button"
+                    onClick={() => { setAdminTab(tab); setAdminSearch(""); }}
+                    style={{
+                      padding: "10px 14px",
+                      fontSize: "12px",
+                      fontWeight: 600,
+                      background: "transparent",
+                      border: "none",
+                      borderBottom: `2px solid ${adminTab === tab ? "var(--amber)" : "transparent"}`,
+                      color: adminTab === tab ? "var(--amber)" : "var(--slate)",
+                      cursor: "pointer",
+                      whiteSpace: "nowrap",
+                      transition: "all 0.2s"
+                    }}
+                  >{labels[tab]}</button>
+                );
+              })}
+            </div>
+
+            {/* Body */}
+            <div style={{ flex: 1, overflowY: "auto", padding: "1.5rem" }}>
               {adminLoading ? (
-                <div style={{ textAlign: "center", padding: "3rem 0" }}>
-                  <div style={{ display: "inline-block", width: "35px", height: "35px", border: "3px solid var(--hairline)", borderTopColor: "var(--amber)", borderRadius: "50%", animation: "spin 1s linear infinite" }}></div>
-                  <div style={{ marginTop: "1rem", fontSize: "14px", color: "var(--slate)", fontWeight: 500 }}>Syncing active database records...</div>
+                <div style={{ textAlign: "center", padding: "4rem 0" }}>
+                  <div style={{ display: "inline-block", width: "36px", height: "36px", border: "3px solid var(--hairline)", borderTopColor: "var(--amber)", borderRadius: "50%", animation: "spin 1s linear infinite" }} />
+                  <div style={{ marginTop: "1rem", fontSize: "13px", color: "var(--slate)" }}>Syncing database records...</div>
                 </div>
               ) : (
                 <>
-                  {/* Search Bar for Users and Payments */}
-                  {adminTab !== "config" && (
-                    <div className="form-group" style={{ marginBottom: "1rem" }}>
-                      <input 
-                        type="text" 
-                        className="form-input" 
-                        placeholder={adminTab === "users" ? "🔍 Search users by username, name, email, phone..." : "🔍 Search payments by username or reference ID..."}
-                        value={adminSearch}
-                        onChange={(e) => setAdminSearch(e.target.value)}
-                        style={{ background: "rgba(255, 255, 255, 0.03)" }}
-                      />
+                  {/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ TAB: USERS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+                  {adminTab === "users" && (
+                    <div>
+                      {/* Search + Filter Row */}
+                      <div style={{ display: "flex", gap: "8px", marginBottom: "1rem", flexWrap: "wrap" }}>
+                        <input
+                          type="text"
+                          className="form-input"
+                          placeholder="ðŸ” Search by username, name, email, mobile..."
+                          value={adminSearch}
+                          onChange={(e) => setAdminSearch(e.target.value)}
+                          style={{ flex: 1, minWidth: "200px" }}
+                        />
+                        {(["all","pro","free"] as const).map(f => (
+                          <button key={f} type="button" onClick={() => setAdminUserFilter(f)}
+                            style={{ padding: "6px 12px", borderRadius: "6px", fontSize: "11px", fontWeight: 600, cursor: "pointer", border: "1px solid", borderColor: adminUserFilter === f ? "var(--amber)" : "var(--hairline)", background: adminUserFilter === f ? "rgba(245,158,11,0.15)" : "transparent", color: adminUserFilter === f ? "var(--amber)" : "var(--slate)" }}>
+                            {f.toUpperCase()}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* User Table */}
+                      <div style={{ border: "1px solid var(--hairline)", borderRadius: "10px", overflow: "hidden" }}>
+                        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
+                          <thead>
+                            <tr style={{ background: "rgba(255,255,255,0.04)", borderBottom: "1px solid var(--hairline)" }}>
+                              {["Username","Name","Email","Mobile","Plan","Joined","Actions"].map(h => (
+                                <th key={h} style={{ padding: "10px 12px", textAlign: "left", fontWeight: 600, color: "var(--slate)", whiteSpace: "nowrap" }}>{h}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {adminUsers
+                              .filter(u => {
+                                const q = adminSearch.toLowerCase();
+                                const matchQ = !q || u.username.toLowerCase().includes(q) || (u.name||"").toLowerCase().includes(q) || (u.email||"").toLowerCase().includes(q) || (u.mobile||"").includes(q);
+                                const matchPlan = adminUserFilter === "all" || (adminUserFilter === "pro" ? u.isPro : !u.isPro);
+                                return matchQ && matchPlan;
+                              })
+                              .map((user, i) => (
+                                <tr key={user.username} style={{ borderBottom: "1px solid var(--hairline)", background: i % 2 === 0 ? "transparent" : "rgba(255,255,255,0.015)" }}>
+                                  <td style={{ padding: "10px 12px", fontWeight: 700 }}>
+                                    <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                                      <span style={{ width: "28px", height: "28px", borderRadius: "50%", background: user.isPro ? "rgba(245,158,11,0.2)" : "rgba(100,116,139,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px", flexShrink: 0 }}>
+                                        {(user.name || user.username)[0].toUpperCase()}
+                                      </span>
+                                      {user.username}
+                                    </div>
+                                  </td>
+                                  <td style={{ padding: "10px 12px", color: "var(--slate)" }}>{user.name || "â€”"}</td>
+                                  <td style={{ padding: "10px 12px", color: "var(--slate)", maxWidth: "160px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user.email || "â€”"}</td>
+                                  <td style={{ padding: "10px 12px", color: "var(--slate)" }}>{user.mobile || "â€”"}</td>
+                                  <td style={{ padding: "10px 12px" }}>
+                                    <span className={`plan-badge ${user.isPro ? "pro" : "free"}`} style={{ fontSize: "9px", padding: "2px 6px" }}>
+                                      {user.isPro ? "PRO" : "FREE"}
+                                    </span>
+                                  </td>
+                                  <td style={{ padding: "10px 12px", color: "var(--slate)", whiteSpace: "nowrap" }}>{user.dateCreated}</td>
+                                  <td style={{ padding: "10px 12px" }}>
+                                    <div style={{ display: "flex", gap: "4px", flexWrap: "nowrap" }}>
+                                      <button type="button" onClick={() => openEditUser(user)}
+                                        style={{ padding: "4px 8px", borderRadius: "5px", fontSize: "10px", fontWeight: 600, cursor: "pointer", border: "1px solid #3b82f6", background: "rgba(59,130,246,0.1)", color: "#3b82f6" }}>
+                                        âœï¸ Edit
+                                      </button>
+                                      <button type="button" onClick={() => handleToggleUserPro(user)}
+                                        style={{ padding: "4px 8px", borderRadius: "5px", fontSize: "10px", fontWeight: 600, cursor: "pointer", border: `1px solid ${user.isPro ? "#ef4444" : "#10b981"}`, background: user.isPro ? "rgba(239,68,68,0.1)" : "rgba(16,185,129,0.1)", color: user.isPro ? "#ef4444" : "#10b981" }}>
+                                        {user.isPro ? "Revoke" : "Grant"}
+                                      </button>
+                                      <button type="button" onClick={() => handleDeleteUser(user)}
+                                        style={{ padding: "4px 8px", borderRadius: "5px", fontSize: "10px", fontWeight: 600, cursor: "pointer", border: "1px solid #ef4444", background: "rgba(239,68,68,0.08)", color: "#ef4444" }}>
+                                        ðŸ—‘ï¸
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              ))}
+                          </tbody>
+                        </table>
+                        {adminUsers.filter(u => {
+                          const q = adminSearch.toLowerCase();
+                          return (!q || u.username.toLowerCase().includes(q) || (u.name||"").toLowerCase().includes(q)) && (adminUserFilter === "all" || (adminUserFilter === "pro" ? u.isPro : !u.isPro));
+                        }).length === 0 && (
+                          <div style={{ padding: "2rem", textAlign: "center", color: "var(--slate)", fontSize: "13px" }}>No users match your search/filter.</div>
+                        )}
+                      </div>
+
+                      {/* Edit User Drawer */}
+                      {adminEditUserOpen && adminEditUser && (
+                        <div style={{ position: "fixed", top: 0, right: 0, width: "380px", height: "100vh", background: "var(--glass-bg)", backdropFilter: "blur(24px)", borderLeft: "1px solid var(--hairline)", zIndex: 9999, padding: "2rem", display: "flex", flexDirection: "column", gap: "1rem", overflowY: "auto" }}>
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.5rem" }}>
+                            <h4 style={{ margin: 0, fontSize: "16px", fontWeight: 700, color: "var(--amber)" }}>âœï¸ Edit User</h4>
+                            <button type="button" onClick={() => setAdminEditUserOpen(false)} style={{ background: "none", border: "none", color: "var(--slate)", fontSize: "18px", cursor: "pointer" }}>âœ•</button>
+                          </div>
+                          <div style={{ padding: "10px 14px", background: "rgba(255,255,255,0.04)", borderRadius: "8px", fontSize: "13px", fontWeight: 600 }}>
+                            @{adminEditUser.username}
+                          </div>
+                          <div className="form-group">
+                            <label className="form-label">Full Name</label>
+                            <input className="form-input" type="text" value={adminEditUserName} onChange={e => setAdminEditUserName(e.target.value)} placeholder="Full name" />
+                          </div>
+                          <div className="form-group">
+                            <label className="form-label">Email Address</label>
+                            <input className="form-input" type="email" value={adminEditUserEmail} onChange={e => setAdminEditUserEmail(e.target.value)} placeholder="Email" />
+                          </div>
+                          <div className="form-group">
+                            <label className="form-label">Mobile Number</label>
+                            <input className="form-input" type="tel" value={adminEditUserMobile} onChange={e => setAdminEditUserMobile(e.target.value)} placeholder="Mobile" />
+                          </div>
+                          <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "12px", background: "rgba(255,255,255,0.04)", borderRadius: "8px" }}>
+                            <input type="checkbox" id="edit-ispro" checked={adminEditUserIsPro} onChange={e => setAdminEditUserIsPro(e.target.checked)} style={{ width: "16px", height: "16px", accentColor: "var(--amber)" }} />
+                            <label htmlFor="edit-ispro" style={{ fontSize: "13px", fontWeight: 600, cursor: "pointer" }}>
+                              PRO Membership Active
+                            </label>
+                          </div>
+                          <div style={{ display: "flex", gap: "8px", marginTop: "auto" }}>
+                            <button type="button" onClick={() => setAdminEditUserOpen(false)} style={{ flex: 1, padding: "10px", border: "1px solid var(--hairline)", borderRadius: "8px", background: "transparent", color: "var(--slate)", cursor: "pointer", fontWeight: 600 }}>Cancel</button>
+                            <button type="button" onClick={handleSaveEditUser} style={{ flex: 2, padding: "10px", border: "none", borderRadius: "8px", background: "var(--amber)", color: "#000", cursor: "pointer", fontWeight: 700, fontSize: "13px" }}>ðŸ’¾ Save Changes</button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
 
-                  {/* TAB 1: USERS DIRECTORY */}
-                  {adminTab === "users" && (
-                    <div className="records-list-wrapper" style={{ maxHeight: "350px", overflowY: "auto" }}>
-                      {adminUsers.filter((u) => 
-                        u.username.toLowerCase().includes(adminSearch.toLowerCase()) ||
-                        (u.name || "").toLowerCase().includes(adminSearch.toLowerCase()) ||
-                        (u.email || "").toLowerCase().includes(adminSearch.toLowerCase()) ||
-                        (u.mobile || "").toLowerCase().includes(adminSearch.toLowerCase())
-                      ).length > 0 ? (
-                        adminUsers.filter((u) => 
-                          u.username.toLowerCase().includes(adminSearch.toLowerCase()) ||
-                          (u.name || "").toLowerCase().includes(adminSearch.toLowerCase()) ||
-                          (u.email || "").toLowerCase().includes(adminSearch.toLowerCase()) ||
-                          (u.mobile || "").toLowerCase().includes(adminSearch.toLowerCase())
-                        ).map((user) => (
-                          <div className="record-item-row" key={user.username} style={{ padding: "12px", gap: "10px", alignItems: "center" }}>
-                            <div className="record-info-left" style={{ textAlign: "left" }}>
-                              <div style={{ fontWeight: 700, fontSize: "14px", display: "flex", alignItems: "center", gap: "8px" }}>
-                                <span>{user.username}</span>
-                                <span className={`plan-badge ${user.isPro ? "pro" : "free"}`} style={{ fontSize: "8.5px", padding: "1px 5px" }}>
-                                  {user.isPro ? "PRO" : "FREE"}
-                                </span>
+                  {/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ TAB: PAYMENTS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+                  {adminTab === "payments" && (
+                    <div>
+                      {/* Stats row */}
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "10px", marginBottom: "1rem" }}>
+                        {[
+                          { label: "Total Revenue", value: `â‚¹${adminPayments.filter(p => p.status === "success").reduce((s: number, p: any) => s + (p.amount || 0), 0).toLocaleString()}`, color: "#10b981" },
+                          { label: "Successful", value: adminPayments.filter(p => p.status === "success").length, color: "#10b981" },
+                          { label: "Pending", value: adminPayments.filter(p => p.status === "pending_verification").length, color: "#f59e0b" },
+                          { label: "Rejected/Refunded", value: adminPayments.filter(p => ["rejected","refunded"].includes(p.status)).length, color: "#ef4444" },
+                        ].map(s => (
+                          <div key={s.label} style={{ padding: "12px", borderRadius: "8px", background: "rgba(255,255,255,0.03)", border: "1px solid var(--hairline)", textAlign: "center" }}>
+                            <div style={{ fontSize: "20px", fontWeight: 700, color: s.color }}>{s.value}</div>
+                            <div style={{ fontSize: "10px", color: "var(--slate)", marginTop: "2px" }}>{s.label}</div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Search + Status filter */}
+                      <div style={{ display: "flex", gap: "8px", marginBottom: "1rem", flexWrap: "wrap" }}>
+                        <input type="text" className="form-input" placeholder="ðŸ” Search by username or payment ID..." value={adminSearch} onChange={(e) => setAdminSearch(e.target.value)} style={{ flex: 1, minWidth: "200px" }} />
+                        {(["all","pending_verification","success","rejected","refunded"] as const).map(f => (
+                          <button key={f} type="button" onClick={() => setAdminPaymentFilter(f)}
+                            style={{ padding: "6px 10px", borderRadius: "6px", fontSize: "10px", fontWeight: 600, cursor: "pointer", border: "1px solid", whiteSpace: "nowrap",
+                              borderColor: adminPaymentFilter === f ? "var(--amber)" : "var(--hairline)",
+                              background: adminPaymentFilter === f ? "rgba(245,158,11,0.15)" : "transparent",
+                              color: adminPaymentFilter === f ? "var(--amber)" : "var(--slate)"
+                            }}>
+                            {f === "all" ? "ALL" : f === "pending_verification" ? "PENDING" : f.toUpperCase()}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Payment Table */}
+                      <div style={{ border: "1px solid var(--hairline)", borderRadius: "10px", overflow: "hidden" }}>
+                        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
+                          <thead>
+                            <tr style={{ background: "rgba(255,255,255,0.04)", borderBottom: "1px solid var(--hairline)" }}>
+                              {["Transaction ID","User","Gateway","Amount","Status","Actions"].map(h => (
+                                <th key={h} style={{ padding: "10px 12px", textAlign: "left", fontWeight: 600, color: "var(--slate)", whiteSpace: "nowrap" }}>{h}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {adminPayments
+                              .filter(p => {
+                                const q = adminSearch.toLowerCase();
+                                const matchQ = !q || p.username.toLowerCase().includes(q) || p.paymentId.toLowerCase().includes(q);
+                                const matchF = adminPaymentFilter === "all" || p.status === adminPaymentFilter;
+                                return matchQ && matchF;
+                              })
+                              .map((pay, i) => {
+                                const statusColors: Record<string, string> = { success: "#10b981", pending_verification: "#f59e0b", rejected: "#ef4444", refunded: "#8b5cf6" };
+                                const sc = statusColors[pay.status] || "var(--slate)";
+                                return (
+                                  <tr key={pay.id || pay.paymentId} style={{ borderBottom: "1px solid var(--hairline)", background: i % 2 === 0 ? "transparent" : "rgba(255,255,255,0.015)" }}>
+                                    <td style={{ padding: "10px 12px", fontFamily: "monospace", fontSize: "11px", maxWidth: "180px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{pay.paymentId}</td>
+                                    <td style={{ padding: "10px 12px", fontWeight: 700 }}>{pay.username}</td>
+                                    <td style={{ padding: "10px 12px", color: "var(--slate)", textTransform: "uppercase", fontSize: "11px" }}>{pay.gateway}</td>
+                                    <td style={{ padding: "10px 12px", fontWeight: 600, color: "#10b981" }}>â‚¹{(pay.amount || 0).toLocaleString()}</td>
+                                    <td style={{ padding: "10px 12px" }}>
+                                      <span style={{ padding: "2px 8px", borderRadius: "20px", fontSize: "9px", fontWeight: 700, background: `${sc}22`, color: sc, letterSpacing: "0.05em" }}>
+                                        {pay.status === "pending_verification" ? "PENDING" : pay.status.toUpperCase()}
+                                      </span>
+                                    </td>
+                                    <td style={{ padding: "10px 12px" }}>
+                                      <div style={{ display: "flex", gap: "4px", flexWrap: "nowrap" }}>
+                                        {pay.status === "pending_verification" && (
+                                          <button type="button" onClick={() => handleAdminApproveUpi(pay.paymentId, pay.username)}
+                                            style={{ padding: "4px 8px", borderRadius: "5px", fontSize: "10px", fontWeight: 700, cursor: "pointer", border: "1px solid #10b981", background: "rgba(16,185,129,0.1)", color: "#10b981", whiteSpace: "nowrap" }}>
+                                            âœ… Approve
+                                          </button>
+                                        )}
+                                        {pay.status === "pending_verification" && (
+                                          <button type="button" onClick={() => handleAdminRejectPayment(pay.paymentId, pay.username)}
+                                            style={{ padding: "4px 8px", borderRadius: "5px", fontSize: "10px", fontWeight: 700, cursor: "pointer", border: "1px solid #ef4444", background: "rgba(239,68,68,0.1)", color: "#ef4444", whiteSpace: "nowrap" }}>
+                                            âŒ Reject
+                                          </button>
+                                        )}
+                                        {pay.status === "success" && (
+                                          <button type="button" onClick={() => handleAdminRefundPayment(pay.paymentId, pay.username)}
+                                            style={{ padding: "4px 8px", borderRadius: "5px", fontSize: "10px", fontWeight: 600, cursor: "pointer", border: "1px solid #8b5cf6", background: "rgba(139,92,246,0.1)", color: "#8b5cf6", whiteSpace: "nowrap" }}>
+                                            â†©ï¸ Refund
+                                          </button>
+                                        )}
+                                      </div>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                          </tbody>
+                        </table>
+                        {adminPayments.filter(p => (adminPaymentFilter === "all" || p.status === adminPaymentFilter)).length === 0 && (
+                          <div style={{ padding: "2rem", textAlign: "center", color: "var(--slate)", fontSize: "13px" }}>No payment records match your filter.</div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ TAB: PLANS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+                  {adminTab === "plans" && (
+                    <div>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+                        <div style={{ fontSize: "13px", color: "var(--slate)" }}>Manage subscription plans. Changes appear in the checkout modal for new users.</div>
+                        <button type="button" onClick={openNewPlan}
+                          style={{ padding: "8px 16px", borderRadius: "8px", background: "var(--amber)", color: "#000", border: "none", fontWeight: 700, fontSize: "12px", cursor: "pointer" }}>
+                          + New Plan
+                        </button>
+                      </div>
+                      <div style={{ display: "grid", gap: "12px" }}>
+                        {adminPlans.map(plan => (
+                          <div key={plan.id || plan.name} style={{ padding: "1.25rem", borderRadius: "12px", border: `1px solid ${plan.isActive ? "var(--amber)" : "var(--hairline)"}`, background: plan.isActive ? "rgba(245,158,11,0.04)" : "rgba(255,255,255,0.02)", position: "relative" }}>
+                            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: "8px" }}>
+                              <div>
+                                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
+                                  <span style={{ fontWeight: 700, fontSize: "16px" }}>{plan.name}</span>
+                                  <span style={{ fontSize: "9px", padding: "2px 7px", borderRadius: "20px", fontWeight: 700, background: plan.isActive ? "rgba(16,185,129,0.15)" : "rgba(100,116,139,0.15)", color: plan.isActive ? "#10b981" : "#64748b" }}>
+                                    {plan.isActive ? "ACTIVE" : "INACTIVE"}
+                                  </span>
+                                </div>
+                                <div style={{ fontSize: "22px", fontWeight: 800, color: plan.price === 0 ? "#10b981" : "var(--amber)", marginBottom: "8px" }}>
+                                  {plan.price === 0 ? "Free" : `â‚¹${plan.price.toLocaleString()}`}
+                                  {plan.price > 0 && <span style={{ fontSize: "12px", fontWeight: 400, color: "var(--slate)", marginLeft: "4px" }}>/{plan.billingPeriod}</span>}
+                                </div>
+                                <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                                  {plan.features.map((f, i) => (
+                                    <span key={i} style={{ fontSize: "10px", padding: "2px 8px", borderRadius: "20px", background: "rgba(255,255,255,0.06)", color: "var(--slate)" }}>âœ“ {f}</span>
+                                  ))}
+                                </div>
                               </div>
-                              <div className="record-meta-text" style={{ display: "flex", flexWrap: "wrap", gap: "8px", fontSize: "11px", marginTop: "4px" }}>
-                                <span>👤 {user.name || "N/A"}</span>
-                                <span>•</span>
-                                <span>📧 {user.email || "N/A"}</span>
-                                <span>•</span>
-                                <span>📞 {user.mobile || "N/A"}</span>
-                                <span>•</span>
-                                <span>📅 {user.dateCreated}</span>
+                              <div style={{ display: "flex", gap: "6px" }}>
+                                <button type="button" onClick={() => openEditPlan(plan)}
+                                  style={{ padding: "6px 14px", borderRadius: "7px", fontSize: "11px", fontWeight: 600, cursor: "pointer", border: "1px solid #3b82f6", background: "rgba(59,130,246,0.1)", color: "#3b82f6" }}>
+                                  âœï¸ Edit
+                                </button>
+                                <button type="button" onClick={() => handleDeletePlan(plan)}
+                                  style={{ padding: "6px 10px", borderRadius: "7px", fontSize: "11px", fontWeight: 600, cursor: "pointer", border: "1px solid #ef4444", background: "rgba(239,68,68,0.08)", color: "#ef4444" }}>
+                                  ðŸ—‘ï¸
+                                </button>
                               </div>
-                            </div>
-                            <div className="record-item-actions">
-                              <button
-                                type="button"
-                                className="record-load-btn"
-                                onClick={() => handleToggleUserPro(user)}
-                                style={{
-                                  background: user.isPro ? "rgba(239, 68, 68, 0.1)" : "rgba(16, 185, 129, 0.1)",
-                                  color: user.isPro ? "#ef4444" : "#10b981",
-                                  borderColor: user.isPro ? "#ef4444" : "#10b981",
-                                  fontSize: "11px"
-                                }}
-                              >
-                                {user.isPro ? "Revoke PRO" : "Grant PRO"}
-                              </button>
                             </div>
                           </div>
-                        ))
-                      ) : (
-                        <div style={{ padding: "2rem", textAlign: "center", color: "var(--slate)" }}>
-                          No users found matching query.
-                        </div>
-                      )}
-                    </div>
-                  )}
+                        ))}
+                        {adminPlans.length === 0 && (
+                          <div style={{ padding: "3rem", textAlign: "center", color: "var(--slate)", fontSize: "13px", border: "1px dashed var(--hairline)", borderRadius: "12px" }}>
+                            No plans configured yet. Click <strong>+ New Plan</strong> to get started.
+                          </div>
+                        )}
+                      </div>
 
-                  {/* TAB 2: TRANSACTION LOGS */}
-                  {adminTab === "payments" && (
-                    <div className="records-list-wrapper" style={{ maxHeight: "350px", overflowY: "auto" }}>
-                      {adminPayments.filter((p) => 
-                        p.username.toLowerCase().includes(adminSearch.toLowerCase()) ||
-                        p.paymentId.toLowerCase().includes(adminSearch.toLowerCase())
-                      ).length > 0 ? (
-                        adminPayments.filter((p) => 
-                          p.username.toLowerCase().includes(adminSearch.toLowerCase()) ||
-                          p.paymentId.toLowerCase().includes(adminSearch.toLowerCase())
-                        ).map((pay) => {
-                          const isPending = pay.status === "pending_verification";
-                          return (
-                            <div className="record-item-row" key={pay.id || pay.paymentId} style={{ padding: "12px", gap: "10px", alignItems: "center" }}>
-                              <div className="record-info-left" style={{ textAlign: "left" }}>
-                                <div style={{ fontWeight: 700, fontSize: "14px", display: "flex", flexWrap: "wrap", alignItems: "center", gap: "8px" }}>
-                                  <span style={{ fontSize: "12px", fontFamily: "var(--font-technical)", background: "rgba(255, 255, 255, 0.05)", padding: "2px 6px", borderRadius: "4px" }}>
-                                    {pay.paymentId}
-                                  </span>
-                                  <span className={`plan-badge ${pay.status === "success" ? "pro" : "free"}`} style={{ 
-                                    fontSize: "8.5px", 
-                                    padding: "1px 5px",
-                                    background: isPending ? "rgba(245, 158, 11, 0.15)" : undefined,
-                                    color: isPending ? "#f59e0b" : undefined
-                                  }}>
-                                    {pay.status.toUpperCase()}
-                                  </span>
-                                </div>
-                                <div className="record-meta-text" style={{ fontSize: "11px", marginTop: "6px" }}>
-                                  <span>👤 Account: <strong>{pay.username}</strong></span>
-                                  <span>•</span>
-                                  <span>💳 Gateway: {pay.gateway.toUpperCase()}</span>
-                                  <span>•</span>
-                                  <span>💰 Amount: ₹{pay.amount.toLocaleString()}</span>
-                                </div>
-                              </div>
-                              <div className="record-item-actions">
-                                {isPending && (
-                                  <button
-                                    type="button"
-                                    className="record-load-btn"
-                                    onClick={() => handleAdminApproveUpi(pay.paymentId, pay.username)}
-                                    style={{
-                                      background: "rgba(245, 158, 11, 0.1)",
-                                      color: "#f59e0b",
-                                      borderColor: "#f59e0b",
-                                      fontSize: "11px",
-                                      fontWeight: 600
-                                    }}
-                                  >
-                                    Approve UPI
-                                  </button>
-                                )}
-                              </div>
+                      {/* Plan Edit/Create Modal */}
+                      {adminPlanModalOpen && (
+                        <div style={{ position: "fixed", top: 0, right: 0, width: "420px", height: "100vh", background: "var(--glass-bg)", backdropFilter: "blur(24px)", borderLeft: "1px solid var(--hairline)", zIndex: 9999, padding: "2rem", display: "flex", flexDirection: "column", gap: "1rem", overflowY: "auto" }}>
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                            <h4 style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "var(--amber)" }}>
+                              {adminEditPlan ? "âœï¸ Edit Plan" : "âž• New Plan"}
+                            </h4>
+                            <button type="button" onClick={() => setAdminPlanModalOpen(false)} style={{ background: "none", border: "none", color: "var(--slate)", fontSize: "18px", cursor: "pointer" }}>âœ•</button>
+                          </div>
+                          <div className="form-group">
+                            <label className="form-label">Plan Name *</label>
+                            <input className="form-input" type="text" value={adminPlanName} onChange={e => setAdminPlanName(e.target.value)} placeholder="e.g. Pro, Enterprise, Startup..." />
+                          </div>
+                          <div className="form-group">
+                            <label className="form-label">Price (â‚¹) â€” set 0 for free</label>
+                            <input className="form-input" type="number" min={0} value={adminPlanPrice} onChange={e => setAdminPlanPrice(Number(e.target.value))} />
+                          </div>
+                          <div className="form-group">
+                            <label className="form-label">Billing Period</label>
+                            <select className="form-input" value={adminPlanPeriod} onChange={e => setAdminPlanPeriod(e.target.value as Plan["billingPeriod"])}
+                              style={{ appearance: "none", cursor: "pointer" }}>
+                              {(["free","monthly","yearly","lifetime"] as const).map(p => (
+                                <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="form-group">
+                            <label className="form-label">Features (add one at a time)</label>
+                            <div style={{ display: "flex", gap: "6px" }}>
+                              <input className="form-input" type="text" value={adminPlanFeatureInput} onChange={e => setAdminPlanFeatureInput(e.target.value)}
+                                onKeyDown={e => { if (e.key === "Enter" && adminPlanFeatureInput.trim()) { setAdminPlanFeatures(prev => [...prev, adminPlanFeatureInput.trim()]); setAdminPlanFeatureInput(""); e.preventDefault(); }}}
+                                placeholder="Type feature, press Enter..." />
+                              <button type="button" onClick={() => { if (adminPlanFeatureInput.trim()) { setAdminPlanFeatures(prev => [...prev, adminPlanFeatureInput.trim()]); setAdminPlanFeatureInput(""); }}}
+                                style={{ padding: "0 12px", borderRadius: "8px", border: "none", background: "var(--amber)", color: "#000", fontWeight: 700, cursor: "pointer", fontSize: "18px" }}>+</button>
                             </div>
-                          );
-                        })
-                      ) : (
-                        <div style={{ padding: "2rem", textAlign: "center", color: "var(--slate)" }}>
-                          No transaction records found matching query.
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginTop: "8px" }}>
+                              {adminPlanFeatures.map((f, i) => (
+                                <span key={i} style={{ fontSize: "11px", padding: "3px 8px", borderRadius: "20px", background: "rgba(245,158,11,0.12)", color: "var(--amber)", display: "flex", alignItems: "center", gap: "5px" }}>
+                                  {f}
+                                  <button type="button" onClick={() => setAdminPlanFeatures(prev => prev.filter((_, j) => j !== i))}
+                                    style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", padding: 0, fontSize: "12px", lineHeight: 1 }}>âœ•</button>
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                          <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "12px", background: "rgba(255,255,255,0.04)", borderRadius: "8px" }}>
+                            <input type="checkbox" id="plan-active" checked={adminPlanActive} onChange={e => setAdminPlanActive(e.target.checked)} style={{ width: "16px", height: "16px", accentColor: "var(--amber)" }} />
+                            <label htmlFor="plan-active" style={{ fontSize: "13px", fontWeight: 600, cursor: "pointer" }}>Plan is Active (visible to users)</label>
+                          </div>
+                          <div style={{ display: "flex", gap: "8px", marginTop: "auto" }}>
+                            <button type="button" onClick={() => setAdminPlanModalOpen(false)} style={{ flex: 1, padding: "10px", border: "1px solid var(--hairline)", borderRadius: "8px", background: "transparent", color: "var(--slate)", cursor: "pointer", fontWeight: 600 }}>Cancel</button>
+                            <button type="button" onClick={handleSavePlan} style={{ flex: 2, padding: "10px", border: "none", borderRadius: "8px", background: "var(--amber)", color: "#000", cursor: "pointer", fontWeight: 700, fontSize: "13px" }}>
+                              ðŸ’¾ {adminEditPlan ? "Save Changes" : "Create Plan"}
+                            </button>
+                          </div>
                         </div>
                       )}
                     </div>
                   )}
 
-                  {/* TAB 3: SYSTEM CONFIG */}
-                  {adminTab === "config" && (
-                    <div style={{ padding: "1rem 0" }}>
-                      <div className="subscription-card" style={{ background: "rgba(255, 255, 255, 0.02)", border: "1px solid var(--hairline)", padding: "1.5rem", borderRadius: "12px", textAlign: "left" }}>
-                        <h4 style={{ margin: "0 0 1rem 0", fontSize: "15px", fontWeight: 600, color: "var(--amber)" }}>⚙️ Global Application Settings</h4>
-                        
-                        <div className="form-group" style={{ marginBottom: "1.5rem" }}>
-                          <label className="form-label" style={{ display: "block", marginBottom: "6px", fontSize: "12px", color: "var(--slate)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                            Global Free Report Limit
-                          </label>
-                          <input 
-                            type="number" 
-                            className="form-input" 
-                            value={globalFreeLimit}
-                            onChange={(e) => setGlobalFreeLimit(Number(e.target.value))}
-                            min={1}
-                            style={{ maxWidth: "150px" }}
-                          />
-                          <p style={{ fontSize: "11px", color: "var(--slate)", marginTop: "6px" }}>
-                            Sets the number of free spreadsheet analysis workbooks a standard user can generate before they are blocked and prompted to upgrade to PRO.
-                          </p>
-                        </div>
+                  {/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ TAB: ANALYTICS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+                  {adminTab === "analytics" && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+                      {/* KPI Cards */}
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: "12px" }}>
+                        {[
+                          { icon: "ðŸ‘¤", label: "Total Users", value: adminUsers.length, color: "#3b82f6" },
+                          { icon: "âš¡", label: "PRO Users", value: adminUsers.filter(u => u.isPro).length, color: "#f59e0b" },
+                          { icon: "ðŸ†“", label: "Free Users", value: adminUsers.filter(u => !u.isPro).length, color: "#64748b" },
+                          { icon: "ðŸ’°", label: "Total Revenue", value: `â‚¹${adminPayments.filter(p => p.status === "success").reduce((s: number, p: any) => s + (p.amount || 0), 0).toLocaleString()}`, color: "#10b981" },
+                          { icon: "ðŸ’³", label: "Transactions", value: adminPayments.length, color: "#8b5cf6" },
+                          { icon: "â³", label: "Pending", value: adminPayments.filter(p => p.status === "pending_verification").length, color: "#ef4444" },
+                        ].map(card => (
+                          <div key={card.label} style={{ padding: "1.25rem", borderRadius: "12px", background: "rgba(255,255,255,0.03)", border: "1px solid var(--hairline)", textAlign: "center" }}>
+                            <div style={{ fontSize: "28px", marginBottom: "6px" }}>{card.icon}</div>
+                            <div style={{ fontSize: "24px", fontWeight: 800, color: card.color }}>{card.value}</div>
+                            <div style={{ fontSize: "11px", color: "var(--slate)", marginTop: "4px", fontWeight: 500 }}>{card.label}</div>
+                          </div>
+                        ))}
+                      </div>
 
-                        <button 
-                          type="button" 
-                          className="auth-submit-btn" 
-                          onClick={() => handleSaveFreeLimit(globalFreeLimit)}
-                          style={{ background: "var(--amber)", color: "#000000", fontWeight: 600, border: "none" }}
-                        >
-                          💾 Save System Settings
+                      {/* Plan Distribution Chart (CSS bars) */}
+                      <div style={{ padding: "1.25rem", borderRadius: "12px", background: "rgba(255,255,255,0.02)", border: "1px solid var(--hairline)" }}>
+                        <h4 style={{ margin: "0 0 1rem 0", fontSize: "13px", fontWeight: 700, color: "var(--slate)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Plan Distribution</h4>
+                        {[
+                          { label: "PRO Users", count: adminUsers.filter(u => u.isPro).length, color: "#f59e0b" },
+                          { label: "Free Users", count: adminUsers.filter(u => !u.isPro).length, color: "#3b82f6" },
+                        ].map(bar => (
+                          <div key={bar.label} style={{ marginBottom: "12px" }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", marginBottom: "4px" }}>
+                              <span style={{ color: bar.color, fontWeight: 600 }}>{bar.label}</span>
+                              <span style={{ color: "var(--slate)" }}>{bar.count} ({adminUsers.length ? Math.round(bar.count / adminUsers.length * 100) : 0}%)</span>
+                            </div>
+                            <div style={{ height: "8px", borderRadius: "4px", background: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
+                              <div style={{ height: "100%", width: `${adminUsers.length ? (bar.count / adminUsers.length * 100) : 0}%`, background: bar.color, borderRadius: "4px", transition: "width 0.6s ease" }} />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Recent Signups */}
+                      <div style={{ padding: "1.25rem", borderRadius: "12px", background: "rgba(255,255,255,0.02)", border: "1px solid var(--hairline)" }}>
+                        <h4 style={{ margin: "0 0 1rem 0", fontSize: "13px", fontWeight: 700, color: "var(--slate)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Recent Signups</h4>
+                        {adminUsers.slice(0, 8).map(u => (
+                          <div key={u.username} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "8px 0", borderBottom: "1px solid var(--hairline)" }}>
+                            <span style={{ width: "32px", height: "32px", borderRadius: "50%", background: u.isPro ? "rgba(245,158,11,0.2)" : "rgba(100,116,139,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "13px", fontWeight: 700, flexShrink: 0 }}>{(u.name || u.username)[0].toUpperCase()}</span>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontWeight: 600, fontSize: "13px" }}>{u.username} {u.name && <span style={{ color: "var(--slate)", fontWeight: 400, fontSize: "11px" }}>({u.name})</span>}</div>
+                              <div style={{ fontSize: "11px", color: "var(--slate)" }}>{u.dateCreated}</div>
+                            </div>
+                            <span className={`plan-badge ${u.isPro ? "pro" : "free"}`} style={{ fontSize: "9px", padding: "2px 6px" }}>{u.isPro ? "PRO" : "FREE"}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ TAB: SETTINGS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+                  {adminTab === "settings" && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem", maxWidth: "580px" }}>
+                      {/* Free Limit */}
+                      <div style={{ padding: "1.25rem", borderRadius: "12px", border: "1px solid var(--hairline)", background: "rgba(255,255,255,0.02)" }}>
+                        <h4 style={{ margin: "0 0 1rem 0", fontSize: "14px", fontWeight: 700, color: "var(--amber)" }}>ðŸ“Š Usage Limits</h4>
+                        <div className="form-group">
+                          <label className="form-label">Global Free Report Limit</label>
+                          <input type="number" className="form-input" value={globalFreeLimit} onChange={(e) => setGlobalFreeLimit(Number(e.target.value))} min={1} style={{ maxWidth: "160px" }} />
+                          <p style={{ fontSize: "11px", color: "var(--slate)", marginTop: "6px" }}>Number of free report generations allowed before users are prompted to upgrade.</p>
+                        </div>
+                        <button type="button" onClick={() => handleSaveFreeLimit(globalFreeLimit)}
+                          style={{ padding: "8px 18px", borderRadius: "8px", background: "var(--amber)", color: "#000", border: "none", fontWeight: 700, fontSize: "12px", cursor: "pointer" }}>
+                          ðŸ’¾ Save Limit
                         </button>
+                      </div>
+
+                      {/* Feature Flags */}
+                      <div style={{ padding: "1.25rem", borderRadius: "12px", border: "1px solid var(--hairline)", background: "rgba(255,255,255,0.02)" }}>
+                        <h4 style={{ margin: "0 0 1rem 0", fontSize: "14px", fontWeight: 700, color: "var(--amber)" }}>ðŸš© Feature Flags</h4>
+                        {[
+                          { id: "feat-ai", label: "AI Analyst Chat", desc: "Enable the Avery AI chat assistant for all users", value: adminFeatureAI, onChange: setAdminFeatureAI },
+                          { id: "feat-upi", label: "UPI Manual Fallback", desc: "Allow users to pay via UPI QR code + UTR manual entry", value: adminFeatureUPI, onChange: setAdminFeatureUPI },
+                          { id: "feat-google", label: "Google Sign-In", desc: "Allow authentication via Google OAuth", value: adminFeatureGoogleLogin, onChange: setAdminFeatureGoogleLogin },
+                          { id: "feat-maint", label: "ðŸ”´ Maintenance Mode", desc: "Show maintenance banner across the app for all users", value: adminMaintenanceMode, onChange: setAdminMaintenanceMode },
+                        ].map(flag => (
+                          <div key={flag.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px", marginBottom: "8px", borderRadius: "8px", background: "rgba(255,255,255,0.03)", border: "1px solid var(--hairline)" }}>
+                            <div>
+                              <div style={{ fontWeight: 600, fontSize: "13px" }}>{flag.label}</div>
+                              <div style={{ fontSize: "11px", color: "var(--slate)", marginTop: "2px" }}>{flag.desc}</div>
+                            </div>
+                            <label style={{ position: "relative", display: "inline-block", width: "44px", height: "24px", flexShrink: 0 }}>
+                              <input type="checkbox" checked={flag.value} onChange={e => flag.onChange(e.target.checked)} style={{ opacity: 0, width: 0, height: 0 }} />
+                              <span style={{
+                                position: "absolute", inset: 0, borderRadius: "12px", cursor: "pointer", transition: "0.3s",
+                                background: flag.value ? "var(--amber)" : "rgba(100,116,139,0.3)"
+                              }}>
+                                <span style={{
+                                  position: "absolute", top: "3px", left: flag.value ? "23px" : "3px",
+                                  width: "18px", height: "18px", borderRadius: "50%", background: "#fff",
+                                  transition: "0.3s", boxShadow: "0 1px 4px rgba(0,0,0,0.4)"
+                                }} />
+                              </span>
+                            </label>
+                          </div>
+                        ))}
+                        <button type="button" onClick={handleSaveFeatureFlags}
+                          style={{ marginTop: "8px", padding: "8px 18px", borderRadius: "8px", background: "var(--amber)", color: "#000", border: "none", fontWeight: 700, fontSize: "12px", cursor: "pointer" }}>
+                          ðŸ’¾ Save Feature Flags
+                        </button>
+                      </div>
+
+                      {/* Danger Zone */}
+                      <div style={{ padding: "1.25rem", borderRadius: "12px", border: "1px solid rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.04)" }}>
+                        <h4 style={{ margin: "0 0 1rem 0", fontSize: "14px", fontWeight: 700, color: "#ef4444" }}>âš ï¸ Danger Zone</h4>
+                        <p style={{ fontSize: "12px", color: "var(--slate)", margin: "0 0 12px 0" }}>These actions are irreversible. Use with extreme caution.</p>
+                        <button type="button"
+                          onClick={() => { if (confirm("Clear all admin activity logs? This cannot be undone.")) { setAdminLogs([]); addLog("âš ï¸ Admin: Activity logs cleared.", "error"); }}}
+                          style={{ padding: "8px 16px", borderRadius: "8px", background: "rgba(239,68,68,0.1)", color: "#ef4444", border: "1px solid #ef4444", fontWeight: 700, fontSize: "12px", cursor: "pointer" }}>
+                          ðŸ—‘ï¸ Clear Activity Logs
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ TAB: ACTIVITY LOG â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+                  {adminTab === "activity" && (
+                    <div>
+                      <div style={{ marginBottom: "1rem", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <div style={{ fontSize: "13px", color: "var(--slate)" }}>
+                          Real-time log of all admin actions performed in this console.
+                        </div>
+                        <button type="button" onClick={() => loadAdminData()}
+                          style={{ padding: "6px 12px", borderRadius: "6px", fontSize: "11px", fontWeight: 600, cursor: "pointer", border: "1px solid var(--hairline)", background: "transparent", color: "var(--slate)" }}>
+                          ðŸ”„ Refresh
+                        </button>
+                      </div>
+                      <div style={{ border: "1px solid var(--hairline)", borderRadius: "10px", overflow: "hidden" }}>
+                        {adminLogs.length > 0 ? (
+                          <div style={{ maxHeight: "440px", overflowY: "auto" }}>
+                            {adminLogs.map((log, i) => {
+                              const actionColors: Record<string, string> = {
+                                DELETE_USER: "#ef4444", DELETE_PLAN: "#ef4444", REJECT_PAYMENT: "#ef4444", REFUND_PAYMENT: "#8b5cf6",
+                                APPROVE_PAYMENT: "#10b981", TOGGLE_PRO: "#f59e0b", GRANT_PRO: "#10b981",
+                                EDIT_USER: "#3b82f6", CREATE_PLAN: "#10b981", EDIT_PLAN: "#3b82f6",
+                                UPDATE_SETTINGS: "#64748b", UPDATE_FLAGS: "#64748b"
+                              };
+                              const color = actionColors[log.action] || "var(--slate)";
+                              return (
+                                <div key={i} style={{ padding: "12px 16px", borderBottom: i < adminLogs.length - 1 ? "1px solid var(--hairline)" : "none", display: "flex", gap: "12px", alignItems: "flex-start" }}>
+                                  <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: color, marginTop: "5px", flexShrink: 0 }} />
+                                  <div style={{ flex: 1, minWidth: 0 }}>
+                                    <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                                      <span style={{ fontWeight: 700, fontSize: "11px", color: color, letterSpacing: "0.05em", fontFamily: "monospace" }}>{log.action}</span>
+                                      <span style={{ fontSize: "11px", color: "var(--slate)" }}>by <strong>{log.performedBy}</strong></span>
+                                      {log.createdAt && <span style={{ fontSize: "10px", color: "var(--slate)", marginLeft: "auto" }}>{new Date(log.createdAt).toLocaleString()}</span>}
+                                    </div>
+                                    {log.details && <div style={{ fontSize: "11px", color: "var(--slate)", marginTop: "3px" }}>{log.details}</div>}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <div style={{ padding: "3rem", textAlign: "center", color: "var(--slate)", fontSize: "13px" }}>
+                            No admin actions logged yet. Actions you take in this console will appear here.
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
@@ -4723,18 +5347,19 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
         </div>
       )}
 
+
       {/* 3. Dashboard Modal (Profile + Saved Spreadsheets History) */}
       {dashboardOpen && (
         <div className="modal-overlay" onClick={() => setDashboardOpen(false)}>
           <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "640px" }}>
             <div className="modal-header">
-              <h3 className="modal-title">🎛️ Account & Analytics Dashboard</h3>
+              <h3 className="modal-title">ðŸŽ›ï¸ Account & Analytics Dashboard</h3>
               <button 
                 type="button" 
                 className="modal-close-btn" 
                 onClick={() => setDashboardOpen(false)}
               >
-                ✕
+                âœ•
               </button>
             </div>
             <div className="modal-body">
@@ -4758,7 +5383,7 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
                             onClick={() => { setDashboardOpen(false); setCheckoutOpen(true); }}
                             style={{ fontSize: "10px", padding: "3px 8px", borderColor: "var(--coral)", color: "var(--coral)" }}
                           >
-                            ⚡ Upgrade
+                            âš¡ Upgrade
                           </button>
                         )}
                       </div>
@@ -4767,7 +5392,7 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
 
                   <div style={{ marginTop: "1.5rem" }}>
                     <h4 style={{ margin: "0 0 10px 0", fontSize: "14px", fontFamily: "var(--font-display)", fontWeight: 600, borderBottom: "1px solid var(--hairline)", paddingBottom: "6px", textAlign: "left" }}>
-                      📁 Saved Spreadsheets & Analytics
+                      ðŸ“ Saved Spreadsheets & Analytics
                     </h4>
                     <div className="records-list-wrapper">
                       {savedRecords.length > 0 ? (
@@ -4788,9 +5413,9 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
                                 }}>
                                   {rec.mode.toUpperCase()}
                                 </span>
-                                <span>•</span>
+                                <span>â€¢</span>
                                 <span>{(rec.size / 1024).toFixed(1)} KB</span>
-                                <span>•</span>
+                                <span>â€¢</span>
                                 <span>{rec.timestamp}</span>
                               </div>
                             </div>
@@ -4800,7 +5425,7 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
                                 className="record-load-btn"
                                 onClick={() => loadRecord(rec)}
                               >
-                                ⚡ Load Viewer
+                                âš¡ Load Viewer
                               </button>
                               <button
                                 type="button"
@@ -4808,7 +5433,7 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
                                 onClick={(e) => handleDeleteRecord(rec.id!, e)}
                                 title="Delete saved spreadsheet"
                               >
-                                🗑️
+                                ðŸ—‘ï¸
                               </button>
                             </div>
                           </div>
