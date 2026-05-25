@@ -32,7 +32,7 @@ const CODECREST = {
   website: "https://codecreststudio.vercel.app/",
 };
 const GOOGLE_SHEET_URL = "https://script.google.com/macros/s/AKfycbw_IWWC0Ll3eF4JtO_my-XqMkmpx6uGGoEXgOUzrvgqkYPZu_4ZsNX8wd18UwG3RFws_g/exec";
-const GOOGLE_CLIENT_ID = "1036069904712-nb3gqp4b2b2r1o583nslcr5n1c7eb167.apps.googleusercontent.com"; // Change to your Google OAuth Client ID if needed
+const GOOGLE_CLIENT_ID = "671624988330-q996r5ooe7blbi11lmmvdba6aspmcips.apps.googleusercontent.com"; // Change to your Google OAuth Client ID if needed
 
 type ThemeMode = "light" | "dark";
 
