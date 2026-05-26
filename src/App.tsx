@@ -1,4 +1,4 @@
-﻿import { useState, useRef, useCallback, useEffect, useMemo } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import {
   hashPassword,
   verifyPassword,
@@ -58,71 +58,35 @@ const CODECREST = {
   email: "codecreststudio@gmail.com",
   website: "https://codecreststudio.vercel.app/",
 };
-const GOOGLE_SHEET_URL = "https://script.google.com/macros/s/AKfycbw_IWWC0Ll3eF4JtO_my-XqMkmpx6uGGoEXgOUzrvgqkYPZu_4ZsNX8wd18UwG3RFws_g/exec";
 const GOOGLE_CLIENT_ID = "671624988330-q996r5ooe7blbi11lmmvdba6aspmcips.apps.googleusercontent.com"; // Change to your Google OAuth Client ID if needed
 const PERSONAL_UPI_ID = "codecreststudio@okaxis"; // Your personal UPI ID for direct scan fallback
 
 type ThemeMode = "light" | "dark";
 
-const API_PROXY_URL = "http://localhost:5001/api/chat";
+const API_PROXY_URL = import.meta.env.VITE_PROXY_URL
+  ? `${import.meta.env.VITE_PROXY_URL}/api/chat`
+  : "http://localhost:5001/api/chat";
 
-const getClaudeKey = () => {
-  const windowKey = typeof window !== "undefined" && (window as any).CLAUDE_API_KEY ? (window as any).CLAUDE_API_KEY : "";
-  const envKey = (import.meta as any).env?.VITE_CLAUDE_API_KEY || "";
-  return String(windowKey || envKey || "").trim();
-};
+const GOOGLE_SHEET_PROXY_URL = import.meta.env.VITE_PROXY_URL
+  ? `${import.meta.env.VITE_PROXY_URL}/api/sync-sheet`
+  : "http://localhost:5001/api/sync-sheet";
 
 const api = async (messages: any[], system: string) => {
   try {
-    const key = getClaudeKey();
-    if (!key) {
-      console.log("No browser API key found, trying secure backend proxy...");
-      try {
-        const res = await fetch(API_PROXY_URL, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ messages, system, model: "claude-sonnet-4-20250514" }),
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (data.error) throw new Error(data.error);
-          return data.content?.[0]?.text || data.result || "";
-        }
-        const txt = await res.text();
-        throw new Error(`Proxy status ${res.status}: ${txt}`);
-      } catch (proxyErr: any) {
-        console.warn("Backend proxy failed/unavailable:", proxyErr);
-        throw new Error(`No Claude API key configured. Set VITE_CLAUDE_API_KEY in .env or provide it via browser settings. (Proxy error: ${proxyErr.message || proxyErr})`);
-      }
-    }
-
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-      "x-api-key": key,
-      "anthropic-version": "2023-06-01",
-      "anthropic-dangerous-direct-browser-access": "true",
-    };
-
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
+    const res = await fetch(API_PROXY_URL, {
       method: "POST",
-      headers,
-      body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 1000,
-        system,
-        messages,
-      }),
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages, system, model: "claude-sonnet-4-20250514" }),
     });
-
-    if (!res.ok) {
-      const txt = await res.text();
-      throw new Error(`AI API error ${res.status}: ${txt}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      return data.content?.[0]?.text || data.result || "";
     }
-
-    const data = await res.json();
-    return data.content?.[0]?.text || data.result || "";
+    const txt = await res.text();
+    throw new Error(`Secure proxy status ${res.status}: ${txt}`);
   } catch (err: any) {
-    console.error("api error", err);
+    console.error("Secure AI request failed:", err);
     return `Error: ${err.message || err}`;
   }
 };
@@ -490,7 +454,7 @@ export default function App() {
         timestamp: new Date().toLocaleString()
       };
       
-      await fetch(GOOGLE_SHEET_URL, {
+      await fetch(GOOGLE_SHEET_PROXY_URL, {
         method: "POST",
         headers: {
           "Content-Type": "text/plain;charset=utf-8",
@@ -1884,11 +1848,7 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
     setChatHistory(prev => [...prev, { sender: "user", text: question }]);
     setAiLoading(true);
 
-    // Bind custom key to window if supplied custom
-    if (customApiKey.trim()) {
-      (window as any).CLAUDE_API_KEY = customApiKey.trim();
-    }
-    const hasKey = !!getClaudeKey();
+    const hasKey = true;
 
     if (!hasKey) {
       // Offline fallback delay for better UX

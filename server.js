@@ -117,6 +117,38 @@ const server = http.createServer(async (req, res) => {
         res.end(JSON.stringify({ error: err.message || "Internal server error" }));
       }
     });
+  } else if (req.method === "POST" && req.url === "/api/sync-sheet") {
+    let bodyStr = "";
+    req.on("data", (chunk) => {
+      bodyStr += chunk;
+    });
+
+    req.on("end", async () => {
+      try {
+        const GOOGLE_SHEET_URL = process.env.GOOGLE_SHEET_URL;
+        if (!GOOGLE_SHEET_URL) {
+          throw new Error("Google Sheets sync URL not configured on the backend server.");
+        }
+
+        console.log("📡 Proxying Google Sheets sync request securely...");
+
+        const response = await fetch(GOOGLE_SHEET_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "text/plain;charset=utf-8",
+          },
+          body: bodyStr
+        });
+
+        const dataText = await response.text();
+        res.writeHead(response.status, { "Content-Type": "text/plain" });
+        res.end(dataText);
+      } catch (err) {
+        console.error("❌ Proxy Sheet Sync Error:", err.message);
+        res.writeHead(500, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: err.message || "Internal server error" }));
+      }
+    });
   } else {
     // Route not found
     res.writeHead(404, { "Content-Type": "application/json" });
