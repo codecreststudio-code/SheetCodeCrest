@@ -1,4 +1,12 @@
 import * as XLSX from "xlsx";
+import {
+  computeColumnStatsAndOutliers,
+  computePearsonCorrelation,
+  forecastSeries,
+  groupTimeSeries,
+  ForecastResult,
+  OutlierDetail
+} from "./utils/mathEngine";
 
 export type DataRow = Record<string, any>;
 
@@ -19,6 +27,15 @@ export type ColumnProfile = {
   stddev?: number;
   min?: number;
   max?: number;
+
+  // Phase 2 Advanced Statistical Properties
+  q1?: number;
+  q3?: number;
+  iqr?: number;
+  lowerBound?: number;
+  upperBound?: number;
+  outliers?: number[];
+  outliersList?: OutlierDetail[];
 };
 
 export type DataProfile = {
@@ -30,6 +47,10 @@ export type DataProfile = {
   headerRow?: number;
   columns: ColumnProfile[];
   topDuplicateRows: Array<{ row: string; count: number }>;
+
+  // Phase 2 Analytical Heatmap & Predictions
+  correlations?: Record<string, Record<string, number>>;
+  forecasts?: Record<string, ForecastResult>;
 };
 
 function normalizeHeader(header: any) {
@@ -229,6 +250,29 @@ export function analyzeData(data: DataRow[], headers: string[]): DataProfile {
     const stddev = numericValues.length
       ? Math.sqrt(numericValues.reduce((acc, val) => acc + Math.pow(val - avg!, 2), 0) / numericValues.length)
       : undefined;
+
+    // Advanced Phase 2: Compute IQR and Z-Score Outliers
+    let q1: number | undefined;
+    let q3: number | undefined;
+    let iqr: number | undefined;
+    let lowerBound: number | undefined;
+    let upperBound: number | undefined;
+    let outliers: number[] | undefined;
+    let outliersList: OutlierDetail[] | undefined;
+
+    if (type === "numeric" && numericValues.length > 0) {
+      const stats = computeColumnStatsAndOutliers(numericValues, values);
+      if (stats) {
+        q1 = stats.q1;
+        q3 = stats.q3;
+        iqr = stats.iqr;
+        lowerBound = stats.lowerBound;
+        upperBound = stats.upperBound;
+        outliers = stats.outliers;
+        outliersList = stats.outliersList;
+      }
+    }
+
     return {
       name: header,
       type,
@@ -244,6 +288,13 @@ export function analyzeData(data: DataRow[], headers: string[]): DataProfile {
       stddev,
       min,
       max,
+      q1,
+      q3,
+      iqr,
+      lowerBound,
+      upperBound,
+      outliers,
+      outliersList
     };
   });
 
@@ -257,6 +308,102 @@ export function analyzeData(data: DataRow[], headers: string[]): DataProfile {
     .slice(0, 10);
   const duplicateRows = topDuplicateRows.reduce((sum, item) => sum + item.count - 1, 0);
 
+  // Advanced Phase 2: Compute Pearson Correlation Matrix
+  const correlations: Record<string, Record<string, number>> = {};
+  const numericColumnNames = columnStats
+    .filter((c) => c.type === "numeric" && c.nonEmptyCount > 1)
+    .map((c) => c.name);
+
+  numericColumnNames.forEach((col1) => {
+    correlations[col1] = {};
+    numericColumnNames.forEach((col2) => {
+      if (col1 === col2) {
+        correlations[col1][col2] = 1.0;
+      } else {
+        const x: number[] = [];
+        const y: number[] = [];
+        data.forEach((row) => {
+          const val1 = Number(String(row[col1] ?? "").replace(/[,₹\s%]/g, ""));
+          const val2 = Number(String(row[col2] ?? "").replace(/[,₹\s%]/g, ""));
+          if (!Number.isNaN(val1) && !Number.isNaN(val2) && row[col1] !== null && row[col2] !== null) {
+            x.push(val1);
+            y.push(val2);
+          }
+        });
+        if (x.length > 1) {
+          correlations[col1][col2] = computePearsonCorrelation(x, y);
+        } else {
+          correlations[col1][col2] = 0;
+        }
+      }
+    });
+  });
+
+  // Advanced Phase 2: Compute Holt-Winters Forecasting
+  const forecasts: Record<string, ForecastResult> = {};
+  const findHeaderByPatterns = (hdrs: string[], patterns: RegExp[]) => {
+    const norm = (s: string) => s.toLowerCase();
+    for (const p of patterns) {
+      const found = hdrs.find((h) => p.test(norm(h)));
+      if (found) return found;
+    }
+    return null;
+  };
+  const dateHeader = findHeaderByPatterns(headers, [/date|created|ordered|timestamp|time|ship/]);
+
+  if (dateHeader && numericColumnNames.length > 0) {
+    const dates = data.map((row) => row[dateHeader]);
+    numericColumnNames.forEach((numCol) => {
+      const vals = data.map((row) => {
+        const raw = row[numCol];
+        if (raw === null || raw === undefined) return 0;
+        const n = Number(String(raw).replace(/[,₹\s%]/g, ""));
+        return Number.isFinite(n) ? n : 0;
+      });
+
+      const grouped = groupTimeSeries(dates, vals);
+      if (grouped.values.length >= 3) {
+        const forecastSteps = 3;
+        const result = forecastSeries(grouped.values, forecastSteps);
+
+        const lastLabel = grouped.labels[grouped.labels.length - 1];
+        const futureLabels: string[] = [];
+
+        for (let i = 1; i <= forecastSteps; i++) {
+          if (lastLabel && lastLabel.includes("-W")) {
+            const [yearStr, weekStr] = lastLabel.split("-W");
+            const w = parseInt(weekStr) + i;
+            futureLabels.push(`${yearStr}-W${String(w).padStart(2, "0")}`);
+          } else if (lastLabel && lastLabel.includes("-")) {
+            const parts = lastLabel.split("-");
+            if (parts.length === 2) {
+              const yr = parseInt(parts[0]);
+              let mo = parseInt(parts[1]) + i;
+              const yAdd = Math.floor((mo - 1) / 12);
+              mo = ((mo - 1) % 12) + 1;
+              futureLabels.push(`${yr + yAdd}-${String(mo).padStart(2, "0")}`);
+            } else {
+              const dObj = new Date(lastLabel);
+              dObj.setDate(dObj.getDate() + i);
+              futureLabels.push(dObj.toISOString().split("T")[0]);
+            }
+          } else {
+            futureLabels.push(`Projection +${i}`);
+          }
+        }
+
+        forecasts[numCol] = {
+          labels: [...grouped.labels, ...futureLabels],
+          historicalValues: grouped.values,
+          forecastValues: [...grouped.values, ...result.forecast],
+          confidenceLower: [...grouped.values, ...result.lower],
+          confidenceUpper: [...grouped.values, ...result.upper],
+          model: result.model
+        };
+      }
+    });
+  }
+
   return {
     totalRows,
     totalColumns: headers.length,
@@ -264,6 +411,8 @@ export function analyzeData(data: DataRow[], headers: string[]): DataProfile {
     headers,
     columns: columnStats,
     topDuplicateRows,
+    correlations,
+    forecasts
   };
 }
 

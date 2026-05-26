@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "vite",
+    "proxy": "node server.js",
     "build": "vite build",
     "preview": "vite preview",
     "validate:samples": "npx tsc --module commonjs --target ES2020 --lib ES2020,DOM --types node --outDir .tmp --noEmit false src/excelAnalytics.ts && node scripts/validate-samples.js"

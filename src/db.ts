@@ -24,6 +24,18 @@ export interface SavedRecord {
   outName: string;
   chatHistory: any[];
   timestamp: string;
+  comments?: Array<{ id: string; author: string; text: string; timestamp: string }>;
+  versions?: Array<{
+    timestamp: string;
+    filename: string;
+    size: number;
+    rawRows: any[];
+    tableHeaders: string[];
+    dataProfile: any | null;
+    logisticsAnalytics: any | null;
+    shopifyAnalytics: any | null;
+    outName: string;
+  }>;
 }
 
 export interface PaymentLog {
@@ -44,6 +56,11 @@ export interface Plan {
   billingPeriod: "monthly" | "yearly" | "lifetime" | "free";
   features: string[];
   isActive: boolean;
+  description?: string;       // Short tagline shown under the plan name
+  highlighted?: boolean;      // Show a "Recommended" badge on this plan
+  color?: string;             // Accent hex color for the plan card
+  maxReports?: number;        // 0 = unlimited; >0 = capped per period
+  sortOrder?: number;         // Display ordering (lower = first)
   createdAt?: string;
 }
 
@@ -180,7 +197,9 @@ export async function dbSaveRecord(record: SavedRecord): Promise<number> {
         shopify_analytics: record.shopifyAnalytics,
         out_name: record.outName,
         chat_history: record.chatHistory,
-        timestamp: record.timestamp
+        timestamp: record.timestamp,
+        comments: record.comments || [],
+        versions: record.versions || []
       };
 
       if (record.id) {
@@ -215,6 +234,53 @@ export async function dbSaveRecord(record: SavedRecord): Promise<number> {
   });
 }
 
+export async function dbGetRecordById(id: number): Promise<SavedRecord | null> {
+  // 1. Try to fetch from Supabase Cloud if configured
+  if (isSupabaseConfigured) {
+    try {
+      const { data, error } = await supabase
+        .from("records")
+        .select("*")
+        .eq("id", id)
+        .maybeSingle();
+
+      if (error) throw error;
+
+      if (data) {
+        return {
+          id: data.id,
+          username: data.username,
+          filename: data.filename,
+          size: data.size,
+          mode: data.mode as any,
+          rawRows: data.raw_rows,
+          tableHeaders: data.table_headers,
+          dataProfile: data.data_profile,
+          logisticsAnalytics: data.logistics_analytics,
+          shopifyAnalytics: data.shopify_analytics,
+          outName: data.out_name,
+          chatHistory: data.chat_history || [],
+          timestamp: data.timestamp,
+          comments: data.comments || [],
+          versions: data.versions || []
+        };
+      }
+    } catch (err) {
+      console.error("❌ Supabase record by ID fetch error, falling back to local cache:", err);
+    }
+  }
+
+  // 2. Fallback to Local Cache (IndexedDB)
+  const localDb = await openDB();
+  return new Promise((resolve, reject) => {
+    const transaction = localDb.transaction("records", "readonly");
+    const store = transaction.objectStore("records");
+    const request = store.get(id);
+    request.onsuccess = () => resolve(request.result || null);
+    request.onerror = () => reject(request.error);
+  });
+}
+
 export async function dbGetRecords(username: string): Promise<SavedRecord[]> {
   // 1. Try to fetch from Supabase Cloud if configured
   if (isSupabaseConfigured) {
@@ -241,7 +307,9 @@ export async function dbGetRecords(username: string): Promise<SavedRecord[]> {
           shopifyAnalytics: d.shopify_analytics,
           outName: d.out_name,
           chatHistory: d.chat_history,
-          timestamp: d.timestamp
+          timestamp: d.timestamp,
+          comments: d.comments || [],
+          versions: d.versions || []
         }));
 
         // Replicate to local Cache for offline viewing speed
@@ -485,7 +553,7 @@ export async function dbGetPlans(): Promise<Plan[]> {
       const { data, error } = await supabase
         .from("plans")
         .select("*")
-        .order("price", { ascending: true });
+        .order("sort_order", { ascending: true });
       if (error) throw error;
       if (data) {
         return data.map((d: any) => ({
@@ -495,6 +563,11 @@ export async function dbGetPlans(): Promise<Plan[]> {
           billingPeriod: d.billing_period,
           features: d.features || [],
           isActive: d.is_active,
+          description: d.description || "",
+          highlighted: d.highlighted || false,
+          color: d.color || "#f59e0b",
+          maxReports: d.max_reports ?? 0,
+          sortOrder: d.sort_order ?? 99,
           createdAt: d.created_at
         }));
       }
@@ -502,23 +575,41 @@ export async function dbGetPlans(): Promise<Plan[]> {
       console.error("❌ Supabase get plans error:", err);
     }
   }
+  // LocalStorage fallback
+  try {
+    const stored = localStorage.getItem("sheetcc_plans_local");
+    if (stored) {
+      const plans = JSON.parse(stored) as Plan[];
+      if (plans.length > 0) return plans.sort((a, b) => (a.sortOrder ?? 99) - (b.sortOrder ?? 99));
+    }
+  } catch (e) {}
   // Return default plans as fallback if no Supabase
   return [
     {
       id: "free",
       name: "Free",
       price: 0,
-      billingPeriod: "free",
+      billingPeriod: "free" as const,
       features: ["3 report generations", "Universal profiler", "Basic AI chat"],
-      isActive: true
+      isActive: true,
+      description: "Get started for free",
+      highlighted: false,
+      color: "#3b82f6",
+      maxReports: 3,
+      sortOrder: 0
     },
     {
       id: "pro",
       name: "Pro",
       price: 1599,
-      billingPeriod: "monthly",
+      billingPeriod: "monthly" as const,
       features: ["Unlimited reports", "All 3 analysis modes", "Full AI analyst", "Persistent history", "Priority support"],
-      isActive: true
+      isActive: true,
+      description: "Everything you need to scale",
+      highlighted: true,
+      color: "#f59e0b",
+      maxReports: 0,
+      sortOrder: 1
     }
   ];
 }
@@ -531,7 +622,12 @@ export async function dbSavePlan(plan: Plan): Promise<string> {
         price: plan.price,
         billing_period: plan.billingPeriod,
         features: plan.features,
-        is_active: plan.isActive
+        is_active: plan.isActive,
+        description: plan.description || "",
+        highlighted: plan.highlighted || false,
+        color: plan.color || "#f59e0b",
+        max_reports: plan.maxReports ?? 0,
+        sort_order: plan.sortOrder ?? 99
       };
       if (plan.id && plan.id !== "free" && plan.id !== "pro") {
         payload.id = plan.id;
@@ -548,6 +644,16 @@ export async function dbSavePlan(plan: Plan): Promise<string> {
       console.error("❌ Supabase save plan error:", err);
     }
   }
+  // LocalStorage fallback — persist plans locally when Supabase is not configured
+  try {
+    const stored = JSON.parse(localStorage.getItem("sheetcc_plans_local") || "[]") as Plan[];
+    const idx = stored.findIndex(p => p.id === plan.id);
+    const savedPlan = { ...plan, id: plan.id || Date.now().toString() };
+    if (idx >= 0) stored[idx] = savedPlan;
+    else stored.push(savedPlan);
+    localStorage.setItem("sheetcc_plans_local", JSON.stringify(stored));
+    return savedPlan.id!;
+  } catch (e) {}
   return plan.id || Date.now().toString();
 }
 
