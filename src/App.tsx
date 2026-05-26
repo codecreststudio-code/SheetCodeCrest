@@ -2032,16 +2032,43 @@ body {
 
 /* Hero Area */
 .landing-hero {
-  padding: 6rem 2rem 4rem;
-  text-align: center;
-  max-width: 900px;
+  padding: 4rem 2rem;
+  max-width: 1200px;
   margin: 0 auto;
   position: relative;
 }
 
+.hero-split {
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: 4rem;
+  align-items: center;
+}
+
+@media (max-width: 968px) {
+  .hero-split {
+    grid-template-columns: 1fr;
+    gap: 3rem;
+  }
+}
+
+.hero-left {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+}
+
+@media (max-width: 968px) {
+  .hero-left {
+    align-items: center;
+    text-align: center;
+  }
+}
+
 .hero-title {
   font-family: var(--font-display);
-  font-size: 4rem;
+  font-size: 3.5rem;
   font-weight: 900;
   letter-spacing: -0.05em;
   line-height: 1.05;
@@ -2049,16 +2076,64 @@ body {
   background: linear-gradient(135deg, #ffffff 55%, var(--focus-blue) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+  text-align: left;
+}
+
+@media (max-width: 968px) {
+  .hero-title {
+    font-size: 2.8rem;
+    text-align: center !important;
+  }
 }
 
 .hero-subtitle {
-  font-size: 1.25rem;
+  font-size: 1.1rem;
   color: var(--slate);
-  margin-bottom: 3rem;
+  margin-bottom: 2rem;
   line-height: 1.55;
-  max-width: 720px;
-  margin-left: auto;
-  margin-right: auto;
+  max-width: 620px;
+  text-align: left;
+  margin-left: 0;
+  margin-right: 0;
+}
+
+@media (max-width: 968px) {
+  .hero-subtitle {
+    text-align: center !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+  }
+}
+
+.hero-right {
+  position: relative;
+  width: 100%;
+  height: 480px;
+  border-radius: 24px;
+  background: radial-gradient(circle at 50% 50%, rgba(250, 255, 105, 0.08), transparent 70%);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+@media (max-width: 968px) {
+  .hero-right {
+    height: 380px;
+  }
+}
+
+.spline-container {
+  width: 100%;
+  height: 100%;
+  border-radius: 24px;
+  overflow: hidden;
+}
+
+:root[data-theme="light"] .hero-right {
+  background: radial-gradient(circle at 50% 50%, rgba(250, 255, 105, 0.25), transparent 70%);
+  border-color: rgba(0, 0, 0, 0.08);
 }
 
 /* Bento Features Grid */
@@ -3523,95 +3598,107 @@ body {
         <>
           {/* HERO HEADING SECTION */}
           <section className="landing-hero">
-            <h2 className="hero-title">
-              The AI-Powered Spreadsheet Analyst
-            </h2>
-            <p className="hero-subtitle">
-              Upload raw exports from Shopify, Shiprocket, or any spreadsheet. SheetCodeCrest auto-detects your data schema and builds a full analytics workbook instantly.
-            </p>
+            <div className="hero-split">
+              <div className="hero-left">
+                <h2 className="hero-title">
+                  The AI-Powered Spreadsheet Analyst
+                </h2>
+                <p className="hero-subtitle">
+                  Upload raw exports from Shopify, Shiprocket, or any spreadsheet. SheetCodeCrest auto-detects your data schema and builds a full analytics workbook instantly.
+                </p>
 
-            {/* STAT CALLOUTS — ClickHouse-style electric yellow numbers */}
-            <div className="stat-callout-section">
-              <div>
-                <span className="stat-callout-num">3+</span>
-                <span className="stat-callout-label">Analytics Engines</span>
-              </div>
-              <div>
-                <span className="stat-callout-num">10×</span>
-                <span className="stat-callout-label">Faster Than Manual</span>
-              </div>
-              <div>
-                <span className="stat-callout-num">0</span>
-                <span className="stat-callout-label">Data Leaves Device</span>
-              </div>
-            </div>
-            
-            <div 
-              className={`upload-card ${dragging ? "dragging" : ""}`}
-              onDrop={onDrop}
-              onDragOver={onDragOver}
-              onDragLeave={onDragLeave}
-              onClick={() => hasFreeReportsRemaining && inputRef.current?.click()}
-              style={{ margin: "0 auto 4rem auto", maxWidth: "680px" }}
-            >
-              <input 
-                type="file" 
-                ref={inputRef} 
-                accept=".xlsx,.xls,.csv" 
-                style={{ display: "none" }} 
-                onChange={onFileChange} 
-              />
-              <span className="upload-icon">📁</span>
-              <h2 className="upload-title">
-                Drop your spreadsheet here
-              </h2>
-              <p className="upload-desc">
-                Supports `.xlsx`, `.xls`, or `.csv` files. No manual type mapping needed.
-              </p>
-              <div className="usage-meter">
-                {hasFreeReportsRemaining
-                  ? `Free reports remaining: ${freeReportsRemaining} of ${globalFreeLimit}`
-                  : "Free trial complete"}
-              </div>
-              {!hasFreeReportsRemaining && (
-                <div className="subscription-card" onClick={(e) => e.stopPropagation()}>
-                  <h3>Purchase access to continue</h3>
-                  <p>
-                    You have used your free report generations. Upgrade with Codecrest Studio to keep creating Shopify, Shiprocket, and universal Excel analytics workbooks.
-                  </p>
-                  <div className="subscription-actions" style={{ display: "flex", gap: "10px", marginTop: "1rem" }}>
-                    {currentUser ? (
-                      <button
-                        type="button"
-                        className="btn-primary"
-                        onClick={() => setCheckoutOpen(true)}
-                        style={{ padding: "10px 20px", fontSize: "13px", borderRadius: "30px", flex: "none" }}
-                      >
-                        ⚡ Upgrade to Pro ($19/mo)
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        className="btn-primary"
-                        onClick={() => {
-                          setAuthTab("login");
-                          setAuthError("");
-                          setAuthModalOpen(true);
-                        }}
-                        style={{ padding: "10px 20px", fontSize: "13px", borderRadius: "30px", flex: "none" }}
-                      >
-                        🔑 Sign In to Upgrade
-                      </button>
-                    )}
-                    <a className="icon-only" href={CODECREST.website} target="_blank" rel="noopener noreferrer" aria-label="Open Codecrest Studio website" title="Website" style={{ width: "40px", height: "40px" }}>
-                      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
-                    </a>
+                {/* STAT CALLOUTS — ClickHouse-style electric yellow numbers */}
+                <div className="stat-callout-section" style={{ display: "flex", justifyContent: "flex-start", gap: "2rem", width: "100%", flexWrap: "wrap", marginBottom: "2rem" }}>
+                  <div>
+                    <span className="stat-callout-num">3+</span>
+                    <span className="stat-callout-label">Analytics Engines</span>
+                  </div>
+                  <div>
+                    <span className="stat-callout-num">10×</span>
+                    <span className="stat-callout-label">Faster Than Manual</span>
+                  </div>
+                  <div>
+                    <span className="stat-callout-num">0</span>
+                    <span className="stat-callout-label">Data Leaves Device</span>
                   </div>
                 </div>
-              )}
-            </div>
 
-            {/* SPREADSHEET MOCKUP VISUAL */}
+                <div 
+                  className={`upload-card ${dragging ? "dragging" : ""}`}
+                  onDrop={onDrop}
+                  onDragOver={onDragOver}
+                  onDragLeave={onDragLeave}
+                  onClick={() => hasFreeReportsRemaining && inputRef.current?.click()}
+                  style={{ width: "100%", maxWidth: "580px", margin: "0 0 2rem 0" }}
+                >
+                  <input 
+                    type="file" 
+                    ref={inputRef} 
+                    accept=".xlsx,.xls,.csv" 
+                    style={{ display: "none" }} 
+                    onChange={onFileChange} 
+                  />
+                  <span className="upload-icon">📁</span>
+                  <h2 className="upload-title">
+                    Drop your spreadsheet here
+                  </h2>
+                  <p className="upload-desc">
+                    Supports `.xlsx`, `.xls`, or `.csv` files. No manual type mapping needed.
+                  </p>
+                  <div className="usage-meter">
+                    {hasFreeReportsRemaining
+                      ? `Free reports remaining: ${freeReportsRemaining} of ${globalFreeLimit}`
+                      : "Free trial complete"}
+                  </div>
+                  {!hasFreeReportsRemaining && (
+                    <div className="subscription-card" onClick={(e) => e.stopPropagation()}>
+                      <h3>Purchase access to continue</h3>
+                      <p>
+                        You have used your free report generations. Upgrade with Codecrest Studio to keep creating Shopify, Shiprocket, and universal Excel analytics workbooks.
+                      </p>
+                      <div className="subscription-actions" style={{ display: "flex", gap: "10px", marginTop: "1rem" }}>
+                        {currentUser ? (
+                          <button
+                            type="button"
+                            className="btn-primary"
+                            onClick={() => setCheckoutOpen(true)}
+                            style={{ padding: "10px 20px", fontSize: "13px", borderRadius: "30px", flex: "none" }}
+                          >
+                            ⚡ Upgrade to Pro ($19/mo)
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            className="btn-primary"
+                            onClick={() => {
+                              setAuthTab("login");
+                              setAuthError("");
+                              setAuthModalOpen(true);
+                            }}
+                            style={{ padding: "10px 20px", fontSize: "13px", borderRadius: "30px", flex: "none" }}
+                          >
+                            🔑 Sign In to Upgrade
+                          </button>
+                        )}
+                        <a className="icon-only" href={CODECREST.website} target="_blank" rel="noopener noreferrer" aria-label="Open Codecrest Studio website" title="Website" style={{ width: "40px", height: "40px" }}>
+                          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+                        </a>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="hero-right">
+                <div className="spline-container">
+                  <spline-viewer url="https://prod.spline.design/kZi12h0jj951662P/scene.splinecode" />
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* SPREADSHEET MOCKUP VISUAL */}
+          <section className="demo-showcase-section" style={{ padding: "4rem 2rem", maxWidth: "1200px", margin: "0 auto" }}>
             <div className="mockup-container">
               <div className="mockup-header">
                 <span className="mockup-dot" style={{ background: "#ef4444" }}></span>
