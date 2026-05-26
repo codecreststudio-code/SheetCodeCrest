@@ -271,6 +271,8 @@ export default function App() {
   });
 
   const [mockupTabActive, setMockupTabActive] = useState<"shopify" | "logistics" | "universal">("shopify");
+  const [testimonialIdx, setTestimonialIdx] = useState(0);
+  const [pricingBilling, setPricingBilling] = useState<"monthly" | "yearly">("monthly");
 
   // Universal Profiler Data
   const [dataProfile, setDataProfile] = useState<DataProfile | null>(null);
@@ -2897,6 +2899,476 @@ body {
 :root[data-theme="light"] .icon-only:hover {
   background: rgba(0, 0, 0, 0.03);
 }
+
+/* =============================================
+   LANDING PAGE EXTRA SECTIONS
+   ============================================= */
+
+/* Dark Metrics Band */
+.metrics-band {
+  background: #111111;
+  border-top: 1px solid #2a2a2a;
+  border-bottom: 1px solid #2a2a2a;
+  padding: 4rem 2rem;
+  margin: 0 0 5rem 0;
+}
+
+:root[data-theme="light"] .metrics-band {
+  background: #0a0a0a;
+}
+
+.metrics-band-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 3rem;
+  text-align: center;
+}
+
+@media (max-width: 700px) {
+  .metrics-band-inner { grid-template-columns: 1fr; gap: 2rem; }
+}
+
+.metrics-band-num {
+  font-family: var(--font-display);
+  font-size: 3.5rem;
+  font-weight: 700;
+  color: #faff69;
+  letter-spacing: -2px;
+  line-height: 1;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.metrics-band-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin-bottom: 6px;
+}
+
+.metrics-band-desc {
+  font-size: 0.8rem;
+  color: #888888;
+  line-height: 1.5;
+  max-width: 220px;
+  margin: 0 auto;
+}
+
+/* How It Works / Solution Section */
+.solution-section {
+  max-width: 1100px;
+  margin: 0 auto 6rem auto;
+  padding: 0 2rem;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4rem;
+  align-items: center;
+}
+
+@media (max-width: 900px) {
+  .solution-section { grid-template-columns: 1fr; gap: 2rem; }
+}
+
+.solution-left h2 {
+  font-family: var(--font-display);
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: -1.5px;
+  line-height: 1.1;
+  margin-bottom: 1rem;
+}
+
+.solution-left p {
+  font-size: 1rem;
+  color: var(--slate);
+  line-height: 1.65;
+  margin-bottom: 1.5rem;
+}
+
+.solution-arrow-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 2px solid var(--hairline);
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.2s;
+  color: var(--ink);
+  font-size: 1.2rem;
+}
+
+.solution-arrow-btn:hover {
+  border-color: var(--focus-blue);
+  color: var(--focus-blue);
+  transform: scale(1.1);
+}
+
+.solution-right {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.solution-card {
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  border-radius: 12px;
+  padding: 1.5rem;
+  transition: all 0.25s;
+}
+
+:root[data-theme="light"] .solution-card {
+  background: #f9f9f9;
+  border-color: #e5e5e5;
+}
+
+.solution-card:hover {
+  border-color: var(--focus-blue);
+  transform: translateY(-3px);
+}
+
+.solution-card-icon {
+  font-size: 1.5rem;
+  margin-bottom: 0.75rem;
+  display: block;
+}
+
+.solution-card h4 {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--ink);
+  margin: 0 0 0.4rem 0;
+}
+
+.solution-card p {
+  font-size: 0.78rem;
+  color: var(--slate);
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* Testimonials Section */
+.testimonials-section {
+  background: #0d0d0d;
+  border-top: 1px solid #2a2a2a;
+  border-bottom: 1px solid #2a2a2a;
+  padding: 5rem 2rem;
+  margin-bottom: 5rem;
+}
+
+:root[data-theme="light"] .testimonials-section {
+  background: #0a0a0a;
+}
+
+.testimonials-inner {
+  max-width: 860px;
+  margin: 0 auto;
+}
+
+.testimonials-label {
+  font-family: var(--font-technical);
+  font-size: 11px;
+  font-weight: 700;
+  color: #faff69;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  margin-bottom: 3rem;
+}
+
+.testimonial-card {
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  border-radius: 16px;
+  padding: 2.5rem;
+  position: relative;
+  margin-bottom: 1.5rem;
+}
+
+.testimonial-quote-mark {
+  font-size: 4rem;
+  color: #faff69;
+  font-family: Georgia, serif;
+  line-height: 0.6;
+  display: block;
+  margin-bottom: 1.25rem;
+  opacity: 0.7;
+}
+
+.testimonial-text {
+  font-size: 1.1rem;
+  color: #e6e6e6;
+  line-height: 1.65;
+  margin-bottom: 1.5rem;
+  font-style: italic;
+}
+
+.testimonial-author-name {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #ffffff;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.testimonial-author-title {
+  font-size: 0.8rem;
+  color: #888888;
+  margin-top: 2px;
+}
+
+.testimonial-nav {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 1.5rem;
+}
+
+.testimonial-nav-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid #3a3a3a;
+  background: transparent;
+  color: #888888;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.testimonial-nav-btn:hover {
+  border-color: #faff69;
+  color: #faff69;
+}
+
+.testimonial-dots {
+  display: flex;
+  gap: 6px;
+}
+
+.testimonial-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #3a3a3a;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.testimonial-dot.active {
+  background: #faff69;
+  width: 20px;
+  border-radius: 3px;
+}
+
+/* Pricing Preview Section */
+.pricing-section {
+  max-width: 1100px;
+  margin: 0 auto 5rem auto;
+  padding: 0 2rem;
+}
+
+.pricing-header {
+  text-align: center;
+  margin-bottom: 3rem;
+}
+
+.pricing-header h2 {
+  font-family: var(--font-display);
+  font-size: 2.25rem;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: -1.5px;
+  margin-bottom: 0.5rem;
+}
+
+.pricing-header p {
+  color: var(--slate);
+  font-size: 1rem;
+}
+
+.pricing-toggle {
+  display: inline-flex;
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  border-radius: 8px;
+  padding: 4px;
+  gap: 4px;
+  margin-top: 1.25rem;
+}
+
+:root[data-theme="light"] .pricing-toggle {
+  background: #f5f5f5;
+  border-color: #e5e5e5;
+}
+
+.pricing-toggle-btn {
+  padding: 6px 18px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--slate);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.pricing-toggle-btn.active {
+  background: #faff69;
+  color: #0a0a0a;
+}
+
+.pricing-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.25rem;
+}
+
+@media (max-width: 768px) {
+  .pricing-grid { grid-template-columns: 1fr; }
+}
+
+.pricing-card {
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  border-radius: 16px;
+  padding: 2rem;
+  position: relative;
+  transition: all 0.3s;
+}
+
+:root[data-theme="light"] .pricing-card {
+  background: #f9f9f9;
+  border-color: #e5e5e5;
+}
+
+.pricing-card:hover {
+  border-color: #faff69;
+  transform: translateY(-4px);
+}
+
+.pricing-card.featured {
+  background: #faff69;
+  border-color: #faff69;
+}
+
+.pricing-card.featured * { color: #0a0a0a !important; }
+
+.pricing-card.featured:hover { transform: translateY(-4px); }
+
+.pricing-badge {
+  display: inline-block;
+  background: #0a0a0a;
+  color: #faff69;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 3px 10px;
+  border-radius: 4px;
+  margin-bottom: 1rem;
+}
+
+.pricing-card.featured .pricing-badge {
+  background: #0a0a0a;
+  color: #faff69;
+}
+
+.pricing-plan-name {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--ink);
+  margin-bottom: 0.25rem;
+}
+
+.pricing-price {
+  font-family: var(--font-display);
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: -1.5px;
+  line-height: 1;
+  margin: 0.75rem 0;
+}
+
+.pricing-price span {
+  font-size: 1rem;
+  font-weight: 400;
+  color: var(--slate);
+  letter-spacing: 0;
+}
+
+.pricing-desc {
+  font-size: 0.8rem;
+  color: var(--slate);
+  margin-bottom: 1.5rem;
+  line-height: 1.5;
+}
+
+.pricing-features {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1.75rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pricing-features li {
+  font-size: 0.8rem;
+  color: var(--slate);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pricing-features li::before {
+  content: "✓";
+  color: #22c55e;
+  font-weight: 700;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.pricing-card.featured .pricing-features li::before { color: #0a0a0a; }
+
+.pricing-cta-btn {
+  width: 100%;
+  padding: 12px 20px;
+  border-radius: 8px;
+  border: 1px solid #2a2a2a;
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: 0.875rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.pricing-cta-btn:hover {
+  background: rgba(255,255,255,0.05);
+  border-color: var(--focus-blue);
+}
+
+.pricing-card.featured .pricing-cta-btn {
+  background: #0a0a0a;
+  color: #faff69;
+  border-color: #0a0a0a;
+}
+
+.pricing-card.featured .pricing-cta-btn:hover {
+  background: #1a1a1a;
+}
 `}</style>
 
       {/* Announcement Bar */}
@@ -3408,9 +3880,225 @@ body {
             </div>
           </section>
 
-          {/* Trust Partner / Logo Strip */}
+          {/* ============================================
+              DARK METRICS BAND
+          ============================================= */}
+          <div className="metrics-band">
+            <div className="metrics-band-inner">
+              <div>
+                <span className="metrics-band-num">&lt;2%</span>
+                <div className="metrics-band-title">Processing Overhead</div>
+                <p className="metrics-band-desc">Our optimized engine processes thousands of rows with minimal resource overhead — all client-side.</p>
+              </div>
+              <div>
+                <span className="metrics-band-num">+80%</span>
+                <div className="metrics-band-title">Time Saved per Report</div>
+                <p className="metrics-band-desc">What takes hours in Excel is done in seconds. Consolidation, segmentation, and profiling happen instantly.</p>
+              </div>
+              <div>
+                <span className="metrics-band-num">$$$</span>
+                <div className="metrics-band-title">Revenue Recovered</div>
+                <p className="metrics-band-desc">Identify COD risk, RTO losses, and courier inefficiencies that directly impact your bottom line.</p>
+              </div>
+            </div>
+          </div>
+
+          {/* ============================================
+              BUSINESS SOLUTION — SPLIT SECTION
+          ============================================= */}
+          <div className="solution-section">
+            <div className="solution-left">
+              <div style={{ fontFamily: "var(--font-technical)", fontSize: "10.5px", fontWeight: 700, color: "var(--coral)", textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: "12px" }}>Why SheetCodeCrest?</div>
+              <h2>Want to boost your business growth?<br />Your data is the solution.</h2>
+              <p>SheetCodeCrest is designed to surface actionable intelligence from your raw data — making every export file a strategic asset rather than a confusing spreadsheet.</p>
+              <button type="button" className="solution-arrow-btn" aria-label="Explore features">
+                ↗
+              </button>
+            </div>
+            <div className="solution-right">
+              <div className="solution-card">
+                <span className="solution-card-icon">🛒</span>
+                <h4>Shopify Analytics</h4>
+                <p>COD vs. prepaid breakdown, SKU performance, repeat buyer segmentation, and RTO risk flags — all in one workbook.</p>
+              </div>
+              <div className="solution-card">
+                <span className="solution-card-icon">🚚</span>
+                <h4>Courier Auditing</h4>
+                <p>Compare Delhivery, Bluedart, Xpressbees — identify which partners are draining revenue via high RTO rates.</p>
+              </div>
+              <div className="solution-card">
+                <span className="solution-card-icon">📊</span>
+                <h4>Data Profiling</h4>
+                <p>Auto-detect column types, fill rates, duplicates, and statistical summaries across any CSV or Excel file.</p>
+              </div>
+              <div className="solution-card">
+                <span className="solution-card-icon">🤖</span>
+                <h4>AI Analyst (Avery)</h4>
+                <p>Ask questions in plain English. Avery queries your uploaded data and returns actionable business insights instantly.</p>
+              </div>
+            </div>
+          </div>
+
+          {/* ============================================
+              TESTIMONIALS
+          ============================================= */}
+          {(() => {
+            const testimonials = [
+              { text: "SheetCodeCrest transformed how we handle our Shopify exports. What used to take our team 3 hours every week now takes 30 seconds. The COD risk detection alone has saved us thousands in RTO losses.", name: "PRIYA MEHTA", title: "E-Commerce Director, Mumbai" },
+              { text: "The courier efficiency scoring is exactly what our logistics team needed. We switched from Bluedart to Delhivery for certain zones based on SheetCodeCrest's data — delivery rates went from 71% to 89%.", name: "RAHUL SHARMA", title: "Operations Manager, Bangalore" },
+              { text: "I love that nothing leaves my browser. I can upload confidential sales data without worrying about privacy. The universal profiler handles our custom formats perfectly — no manual mapping needed.", name: "ANIKA PATEL", title: "Head of Data, Delhi NCR" },
+            ];
+            const t = testimonials[testimonialIdx];
+            return (
+              <div className="testimonials-section">
+                <div className="testimonials-inner">
+                  <div className="testimonials-label">✦ Testimonials</div>
+                  <div className="testimonial-card">
+                    <span className="testimonial-quote-mark">&ldquo;</span>
+                    <p className="testimonial-text">{t.text}</p>
+                    <div>
+                      <div className="testimonial-author-name">{t.name}</div>
+                      <div className="testimonial-author-title">{t.title}</div>
+                    </div>
+                  </div>
+                  <div className="testimonial-nav">
+                    <button
+                      type="button"
+                      className="testimonial-nav-btn"
+                      onClick={() => setTestimonialIdx((testimonialIdx - 1 + testimonials.length) % testimonials.length)}
+                      aria-label="Previous testimonial"
+                    >
+                      ←
+                    </button>
+                    <button
+                      type="button"
+                      className="testimonial-nav-btn"
+                      onClick={() => setTestimonialIdx((testimonialIdx + 1) % testimonials.length)}
+                      aria-label="Next testimonial"
+                    >
+                      →
+                    </button>
+                    <div className="testimonial-dots">
+                      {testimonials.map((_, i) => (
+                        <button
+                          key={i}
+                          type="button"
+                          className={`testimonial-dot${i === testimonialIdx ? " active" : ""}`}
+                          onClick={() => setTestimonialIdx(i)}
+                          aria-label={`Go to testimonial ${i + 1}`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* ============================================
+              PRICING PREVIEW
+          ============================================= */}
+          <div className="pricing-section">
+            <div className="pricing-header">
+              <div style={{ fontFamily: "var(--font-technical)", fontSize: "10.5px", fontWeight: 700, color: "var(--coral)", textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: "6px" }}>Pricing</div>
+              <h2>Choose your plan</h2>
+              <p>Start free. Upgrade when you're ready to scale.</p>
+              <div className="pricing-toggle">
+                <button
+                  type="button"
+                  className={`pricing-toggle-btn${pricingBilling === "monthly" ? " active" : ""}`}
+                  onClick={() => setPricingBilling("monthly")}
+                >
+                  Monthly
+                </button>
+                <button
+                  type="button"
+                  className={`pricing-toggle-btn${pricingBilling === "yearly" ? " active" : ""}`}
+                  onClick={() => setPricingBilling("yearly")}
+                >
+                  Yearly <span style={{ fontSize: "10px", color: "#22c55e" }}>-20%</span>
+                </button>
+              </div>
+            </div>
+            <div className="pricing-grid">
+              {/* Free Plan */}
+              <div className="pricing-card">
+                <div className="pricing-plan-name">Starter</div>
+                <div className="pricing-price">$0 <span>/ free</span></div>
+                <p className="pricing-desc">Perfect for trying SheetCodeCrest on your first few exports.</p>
+                <ul className="pricing-features">
+                  <li>3 free report generations</li>
+                  <li>Shopify, Shiprocket & Universal modes</li>
+                  <li>Interactive data mockup viewer</li>
+                  <li>100% client-side — no data stored</li>
+                  <li>Email & Instagram support</li>
+                </ul>
+                <button
+                  type="button"
+                  className="pricing-cta-btn"
+                  onClick={() => {
+                    if (!currentUser) { setAuthTab("login"); setAuthError(""); setAuthModalOpen(true); }
+                  }}
+                >
+                  {currentUser ? "✓ Current Plan" : "Get Started Free"}
+                </button>
+              </div>
+              {/* Pro Plan — Featured */}
+              <div className="pricing-card featured">
+                <span className="pricing-badge">Most Popular</span>
+                <div className="pricing-plan-name">Pro</div>
+                <div className="pricing-price">
+                  {pricingBilling === "monthly" ? "$19" : "$15"}
+                  <span>/ {pricingBilling === "monthly" ? "month" : "month, billed yearly"}</span>
+                </div>
+                <p className="pricing-desc">For growing e-commerce brands and logistics teams running weekly reports.</p>
+                <ul className="pricing-features">
+                  <li>Unlimited report generations</li>
+                  <li>All Starter features included</li>
+                  <li>AI Analyst (Avery) — conversational mode</li>
+                  <li>Priority email support</li>
+                  <li>Saved report history & cloud sync</li>
+                </ul>
+                <button
+                  type="button"
+                  className="pricing-cta-btn"
+                  onClick={() => {
+                    if (!currentUser) { setAuthTab("login"); setAuthError(""); setAuthModalOpen(true); }
+                    else setCheckoutOpen(true);
+                  }}
+                >
+                  {currentUser ? "⚡ Upgrade Now" : "Start with Pro"}
+                </button>
+              </div>
+              {/* Business Plan */}
+              <div className="pricing-card">
+                <div className="pricing-plan-name">Business</div>
+                <div className="pricing-price">
+                  {pricingBilling === "monthly" ? "$49" : "$39"}
+                  <span>/ {pricingBilling === "monthly" ? "month" : "month, billed yearly"}</span>
+                </div>
+                <p className="pricing-desc">For agencies, D2C brands, and teams needing multi-user and custom integrations.</p>
+                <ul className="pricing-features">
+                  <li>Everything in Pro</li>
+                  <li>Multi-user team access</li>
+                  <li>Custom column mapping rules</li>
+                  <li>Dedicated account manager</li>
+                  <li>API access (coming soon)</li>
+                </ul>
+                <button
+                  type="button"
+                  className="pricing-cta-btn"
+                  onClick={() => window.open(CODECREST.website, "_blank")}
+                >
+                  Contact Us
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Trust Logo Strip */}
           <div className="trust-logo-strip" style={{ marginTop: "1rem" }}>
-            <div className="trust-logo-title">Compatible Integrations & formats</div>
+            <div className="trust-logo-title">Compatible Integrations &amp; formats</div>
             <div className="trust-logos">
               <span>SHIPROCKET</span>
               <span>SHOPIFY</span>
