@@ -12,6 +12,8 @@ import {
   clearFailedAttempts,
   getLockoutSecondsRemaining,
 } from "./securityUtils";
+// Import validated environment configuration
+import { env } from "./config/env";
 import * as XLSX from "xlsx";
 import {
   parseExcel,
@@ -58,18 +60,17 @@ const CODECREST = {
   email: "codecreststudio@gmail.com",
   website: "https://codecreststudio.vercel.app/",
 };
-const GOOGLE_CLIENT_ID = "671624988330-q996r5ooe7blbi11lmmvdba6aspmcips.apps.googleusercontent.com"; // Change to your Google OAuth Client ID if needed
-const PERSONAL_UPI_ID = "codecreststudio@okaxis"; // Your personal UPI ID for direct scan fallback
+
+
+// Use validated environment variables
+const GOOGLE_CLIENT_ID = env.googleClientId;
+const PERSONAL_UPI_ID = env.personalUpiId;
 
 type ThemeMode = "light" | "dark";
 
-const API_PROXY_URL = import.meta.env.VITE_PROXY_URL
-  ? `${import.meta.env.VITE_PROXY_URL}/api/chat`
-  : "http://localhost:5001/api/chat";
-
-const GOOGLE_SHEET_PROXY_URL = import.meta.env.VITE_PROXY_URL
-  ? `${import.meta.env.VITE_PROXY_URL}/api/sync-sheet`
-  : "http://localhost:5001/api/sync-sheet";
+// Use validated environment variables
+const API_PROXY_URL = `${env.proxyUrl}/api/chat`;
+const GOOGLE_SHEET_PROXY_URL = `${env.proxyUrl}/api/sync-sheet`;
 
 const api = async (messages: any[], system: string) => {
   try {
@@ -253,6 +254,64 @@ export default function App() {
 
   // Checkout: plans loaded from DB + selected plan
   const [checkoutPlans, setCheckoutPlans] = useState<Plan[]>([]);
+  const [landingPlans, setLandingPlans] = useState<Plan[]>([
+    {
+      id: "basic",
+      name: "Basic",
+      price: 0,
+      billingPeriod: "free",
+      features: [
+        "3 free report generations",
+        "Shopify & Shiprocket modes",
+        "Interactive data mockup viewer",
+        "100% client-side — no data stored"
+      ],
+      isActive: true,
+      description: "Perfect for trying SheetCodeCrest on your first few exports",
+      highlighted: false,
+      color: "#3b82f6",
+      maxReports: 3,
+      sortOrder: 0
+    },
+    {
+      id: "standard",
+      name: "Standard",
+      price: 1599,
+      billingPeriod: "monthly",
+      features: [
+        "Unlimited report generations",
+        "All Starter features included",
+        "AI Analyst (Avery) — conversational mode",
+        "Saved report history & cloud sync",
+        "Standard support"
+      ],
+      isActive: true,
+      description: "For growing e-commerce brands running weekly reports",
+      highlighted: true,
+      color: "#faff69",
+      maxReports: 0,
+      sortOrder: 1
+    },
+    {
+      id: "premium",
+      name: "Premium",
+      price: 3999,
+      billingPeriod: "monthly",
+      features: [
+        "Everything in Standard",
+        "Multi-user team access",
+        "Custom column mapping rules",
+        "Dedicated account manager",
+        "API access (coming soon)"
+      ],
+      isActive: true,
+      description: "For agencies, D2C brands, and teams needing multi-user and custom integrations",
+      highlighted: false,
+      color: "#a855f7",
+      maxReports: 0,
+      sortOrder: 2
+    }
+  ]);
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
 
   // Admin Settings -- feature flags
@@ -384,6 +443,9 @@ export default function App() {
           setSavedRecords(records);
         }
       }
+
+      // 3. Load all plans dynamically on app mount
+      await loadCheckoutPlans();
 
       // Local check finished
     };
@@ -925,6 +987,8 @@ export default function App() {
       setAdminPayments(payments);
       setAdminPlans(plans);
       setAdminLogs(logs);
+      setLandingPlans(plans);
+      setCheckoutPlans(plans.filter(p => p.isActive && p.price > 0));
     } catch (err) {
       console.error("Failed to load admin data", err);
     } finally {
@@ -1150,10 +1214,11 @@ export default function App() {
 
 
 
-  // Load active paid plans for the checkout modal
+  // Load active paid plans for the checkout modal and landing page
   const loadCheckoutPlans = async () => {
     try {
       const plans = await dbGetPlans();
+      setLandingPlans(plans);
       const activePaidPlans = plans.filter(p => p.isActive && p.price > 0);
       setCheckoutPlans(activePaidPlans);
       if (activePaidPlans.length > 0) {
@@ -2653,15 +2718,121 @@ body {
   padding: 1rem;
 }
 
-.modal-content {
+.modal-card, .modal-content {
   background: var(--primary);
   border: 1px solid var(--glass-border);
-  border-radius: 12px;
+  border-radius: 16px;
   max-width: 580px;
   width: 100%;
   max-height: 90vh;
   overflow-y: auto;
   animation: modalEnter 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--hairline);
+  flex-shrink: 0;
+}
+
+.modal-title {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ink);
+  margin: 0;
+}
+
+.modal-close-btn {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-size: 20px;
+  cursor: pointer;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.modal-close-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--ink);
+}
+
+.modal-body {
+  padding: 1.5rem;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.modal-footer {
+  padding: 1rem 1.5rem;
+  border-top: 1px solid var(--hairline);
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.2);
+  flex-shrink: 0;
+}
+
+select.form-input option {
+  background-color: #1a1a1a;
+  color: #ffffff;
+}
+
+/* Premium Technical Tables */
+.premium-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--hairline);
+  border-radius: 12px;
+  background: var(--primary);
+  margin-top: 1rem;
+}
+
+.premium-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-technical);
+  font-size: 13px;
+  text-align: left;
+}
+
+.premium-table th {
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--slate);
+  font-weight: 700;
+  padding: 12px 16px;
+  border-bottom: 2px solid var(--hairline);
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.05em;
+}
+
+.premium-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--hairline);
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.premium-table tr:last-child td {
+  border-bottom: none;
+}
+
+.premium-table tr:hover {
+  background: rgba(250, 255, 105, 0.03); /* subtle electric yellow highlight */
 }
 
 @keyframes modalEnter {
@@ -4101,78 +4272,79 @@ body {
               </div>
             </div>
             <div className="pricing-grid">
-              {/* Free Plan */}
-              <div className="pricing-card">
-                <div className="pricing-plan-name">Starter</div>
-                <div className="pricing-price">$0 <span>/ free</span></div>
-                <p className="pricing-desc">Perfect for trying SheetCodeCrest on your first few exports.</p>
-                <ul className="pricing-features">
-                  <li>3 free report generations</li>
-                  <li>Shopify, Shiprocket & Universal modes</li>
-                  <li>Interactive data mockup viewer</li>
-                  <li>100% client-side — no data stored</li>
-                  <li>Email & Instagram support</li>
-                </ul>
-                <button
-                  type="button"
-                  className="pricing-cta-btn"
-                  onClick={() => {
-                    if (!currentUser) { setAuthTab("login"); setAuthError(""); setAuthModalOpen(true); }
-                  }}
-                >
-                  {currentUser ? "✓ Current Plan" : "Get Started Free"}
-                </button>
-              </div>
-              {/* Pro Plan — Featured */}
-              <div className="pricing-card featured">
-                <span className="pricing-badge">Most Popular</span>
-                <div className="pricing-plan-name">Pro</div>
-                <div className="pricing-price">
-                  {pricingBilling === "monthly" ? "$19" : "$15"}
-                  <span>/ {pricingBilling === "monthly" ? "month" : "month, billed yearly"}</span>
-                </div>
-                <p className="pricing-desc">For growing e-commerce brands and logistics teams running weekly reports.</p>
-                <ul className="pricing-features">
-                  <li>Unlimited report generations</li>
-                  <li>All Starter features included</li>
-                  <li>AI Analyst (Avery) — conversational mode</li>
-                  <li>Priority email support</li>
-                  <li>Saved report history & cloud sync</li>
-                </ul>
-                <button
-                  type="button"
-                  className="pricing-cta-btn"
-                  onClick={() => {
-                    if (!currentUser) { setAuthTab("login"); setAuthError(""); setAuthModalOpen(true); }
-                    else setCheckoutOpen(true);
-                  }}
-                >
-                  {currentUser ? "⚡ Upgrade Now" : "Start with Pro"}
-                </button>
-              </div>
-              {/* Business Plan */}
-              <div className="pricing-card">
-                <div className="pricing-plan-name">Business</div>
-                <div className="pricing-price">
-                  {pricingBilling === "monthly" ? "$49" : "$39"}
-                  <span>/ {pricingBilling === "monthly" ? "month" : "month, billed yearly"}</span>
-                </div>
-                <p className="pricing-desc">For agencies, D2C brands, and teams needing multi-user and custom integrations.</p>
-                <ul className="pricing-features">
-                  <li>Everything in Pro</li>
-                  <li>Multi-user team access</li>
-                  <li>Custom column mapping rules</li>
-                  <li>Dedicated account manager</li>
-                  <li>API access (coming soon)</li>
-                </ul>
-                <button
-                  type="button"
-                  className="pricing-cta-btn"
-                  onClick={() => window.open(CODECREST.website, "_blank")}
-                >
-                  Contact Us
-                </button>
-              </div>
+              {landingPlans
+                .filter(p => p.isActive)
+                .sort((a, b) => (a.sortOrder ?? 99) - (b.sortOrder ?? 99))
+                .map((plan) => {
+                  const ac = plan.color || "#faff69";
+                  const isPaid = plan.price > 0;
+                  
+                  // Calculate price based on billingPeriod ("free" vs others) and monthly vs yearly toggle
+                  let displayPrice = plan.price;
+                  let periodText = plan.billingPeriod === "free" ? "free" : "month";
+                  
+                  if (isPaid && pricingBilling === "yearly") {
+                    displayPrice = Math.round(plan.price * 0.8); // 20% discount
+                    periodText = "month, billed yearly";
+                  }
+
+                  return (
+                    <div 
+                      key={plan.id || plan.name} 
+                      className={`pricing-card${plan.highlighted ? " featured" : ""}`}
+                      style={plan.highlighted ? { borderColor: ac, boxShadow: `0 0 30px ${ac}1a` } : undefined}
+                    >
+                      {plan.highlighted && (
+                        <span className="pricing-badge" style={{ background: ac, color: "#000" }}>Most Popular</span>
+                      )}
+                      <div className="pricing-plan-name" style={{ color: plan.highlighted ? ac : "var(--ink)" }}>{plan.name}</div>
+                      <div className="pricing-price">
+                        {plan.price === 0 ? "₹0" : `₹${displayPrice.toLocaleString()}`}
+                        <span>/ {periodText}</span>
+                      </div>
+                      {plan.description && <p className="pricing-desc">{plan.description}</p>}
+                      <ul className="pricing-features">
+                        {plan.features.map((feat, idx) => (
+                          <li key={idx}>{feat}</li>
+                        ))}
+                      </ul>
+                      
+                      {isPaid ? (
+                        <button
+                          type="button"
+                          className="pricing-cta-btn"
+                          style={plan.highlighted ? { background: ac, color: "#000" } : undefined}
+                          onClick={() => {
+                            if (!currentUser) {
+                              setAuthTab("login");
+                              setAuthError("");
+                              setAuthModalOpen(true);
+                            } else {
+                              setSelectedPlanId(plan.id || null);
+                              setCheckoutOpen(true);
+                            }
+                          }}
+                        >
+                          {currentUser?.isPro ? "⚡ Upgrade Now" : "Start with " + plan.name}
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          className="pricing-cta-btn"
+                          onClick={() => {
+                            if (!currentUser) {
+                              setAuthTab("login");
+                              setAuthError("");
+                              setAuthModalOpen(true);
+                            }
+                          }}
+                        >
+                          {currentUser ? "✓ Current Plan" : "Get Started Free"}
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
             </div>
           </div>
 

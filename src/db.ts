@@ -586,30 +586,60 @@ export async function dbGetPlans(): Promise<Plan[]> {
   // Return default plans as fallback if no Supabase
   return [
     {
-      id: "free",
-      name: "Free",
+      id: "basic",
+      name: "Basic",
       price: 0,
       billingPeriod: "free" as const,
-      features: ["3 report generations", "Universal profiler", "Basic AI chat"],
+      features: [
+        "3 free report generations",
+        "Shopify & Shiprocket modes",
+        "Interactive data mockup viewer",
+        "100% client-side — no data stored"
+      ],
       isActive: true,
-      description: "Get started for free",
+      description: "Perfect for trying SheetCodeCrest on your first few exports",
       highlighted: false,
       color: "#3b82f6",
       maxReports: 3,
       sortOrder: 0
     },
     {
-      id: "pro",
-      name: "Pro",
+      id: "standard",
+      name: "Standard",
       price: 1599,
       billingPeriod: "monthly" as const,
-      features: ["Unlimited reports", "All 3 analysis modes", "Full AI analyst", "Persistent history", "Priority support"],
+      features: [
+        "Unlimited report generations",
+        "All Starter features included",
+        "AI Analyst (Avery) — conversational mode",
+        "Saved report history & cloud sync",
+        "Standard support"
+      ],
       isActive: true,
-      description: "Everything you need to scale",
+      description: "For growing e-commerce brands running weekly reports",
       highlighted: true,
-      color: "#f59e0b",
+      color: "#faff69", // Electric Yellow ClickHouse style
       maxReports: 0,
       sortOrder: 1
+    },
+    {
+      id: "premium",
+      name: "Premium",
+      price: 3999,
+      billingPeriod: "monthly" as const,
+      features: [
+        "Everything in Standard",
+        "Multi-user team access",
+        "Custom column mapping rules",
+        "Dedicated account manager",
+        "API access (coming soon)"
+      ],
+      isActive: true,
+      description: "For agencies, D2C brands, and teams needing multi-user and custom integrations",
+      highlighted: false,
+      color: "#a855f7",
+      maxReports: 0,
+      sortOrder: 2
     }
   ];
 }
@@ -629,7 +659,7 @@ export async function dbSavePlan(plan: Plan): Promise<string> {
         max_reports: plan.maxReports ?? 0,
         sort_order: plan.sortOrder ?? 99
       };
-      if (plan.id && plan.id !== "free" && plan.id !== "pro") {
+      if (plan.id) {
         payload.id = plan.id;
       }
       const { data, error } = await supabase
