@@ -2562,6 +2562,126 @@ body {
   letter-spacing: 0.05em;
   font-weight: 600;
 }
+
+/* Premium Header Styling */
+.premium-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 2rem;
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--glass-border);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+/* Header Button Styling */
+.header-btn {
+  background: transparent;
+  border: 1px solid var(--hairline);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.header-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--slate);
+}
+
+:root[data-theme="light"] .header-btn:hover {
+  background: rgba(0, 0, 0, 0.03);
+}
+
+.header-btn.upgrade-highlight {
+  border-color: var(--coral) !important;
+  color: var(--coral) !important;
+}
+
+.header-btn.upgrade-highlight:hover {
+  background: rgba(239, 68, 68, 0.08) !important;
+}
+
+/* Announcement Bar Styling */
+.announcement-bar {
+  background: #111111;
+  color: #888888;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 8px 16px;
+  text-align: center;
+  border-bottom: 1px solid var(--hairline);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.announcement-bar a {
+  color: var(--focus-blue);
+  text-decoration: underline;
+  font-weight: 600;
+}
+
+:root[data-theme="light"] .announcement-bar {
+  background: #f5f5f5;
+  color: #737373;
+}
+
+/* Light Theme Title Color Readability Override */
+:root[data-theme="light"] .hero-title {
+  background: linear-gradient(135deg, #0a0a0a 55%, var(--action-blue) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Trust Logo Strip Styling */
+.trust-logo-strip {
+  margin: 4rem auto 2rem auto;
+  max-width: 800px;
+  text-align: center;
+}
+
+.trust-logo-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--slate);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 1.25rem;
+}
+
+.trust-logos {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 2.5rem;
+  flex-wrap: wrap;
+}
+
+.trust-logos span {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 900;
+  color: var(--slate);
+  letter-spacing: 0.08em;
+  transition: color 0.2s;
+  cursor: default;
+}
+
+.trust-logos span:hover {
+  color: var(--focus-blue);
+}
 `}</style>
 
       {/* Announcement Bar */}
