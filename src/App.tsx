@@ -2717,6 +2717,50 @@ body {
 :root[data-theme="light"] .theme-toggle:hover {
   background: rgba(0, 0, 0, 0.03) !important;
 }
+
+/* Footer Social & Link Icons Styling */
+.footer-links {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  margin-top: 0.75rem;
+}
+
+.icon-only {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid var(--hairline);
+  color: var(--slate);
+  transition: all 0.2s ease;
+  background: transparent;
+  padding: 6px;
+}
+
+.icon-only svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.icon-only:hover {
+  color: var(--focus-blue);
+  border-color: var(--focus-blue);
+  background: rgba(250, 255, 105, 0.05);
+  transform: translateY(-2px);
+}
+
+:root[data-theme="light"] .icon-only:hover {
+  background: rgba(0, 0, 0, 0.03);
+}
 `}</style>
 
       {/* Announcement Bar */}
