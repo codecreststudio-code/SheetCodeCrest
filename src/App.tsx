@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
+import { motion } from "motion/react";
 import {
   hashPassword,
   verifyPassword,
@@ -3853,10 +3854,229 @@ select.form-input option {
                 </div>
               </div>
 
-              <div className="hero-right">
-                <div className="spline-container">
-                  <spline-viewer url="https://prod.spline.design/kZi12h0jj951662P/scene.splinecode" />
-                </div>
+              <div className="hero-right" style={{ background: "transparent", border: "none" }}>
+                <motion.div 
+                  initial={{ opacity: 0, y: 30 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.8, ease: "easeOut" }}
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    background: "rgba(18, 18, 18, 0.6)",
+                    backdropFilter: "blur(12px)",
+                    border: "1px solid var(--hairline)",
+                    borderRadius: "24px",
+                    padding: "20px",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "16px",
+                    overflow: "hidden",
+                    position: "relative",
+                    boxShadow: "0 20px 40px rgba(0, 0, 0, 0.4)"
+                  }}
+                >
+                  {/* Console Header */}
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
+                    <div style={{ display: "flex", gap: "6px" }}>
+                      <span style={{ width: "10px", height: "10px", borderRadius: "50%", background: "#ef4444" }}></span>
+                      <span style={{ width: "10px", height: "10px", borderRadius: "50%", background: "#f59e0b" }}></span>
+                      <span style={{ width: "10px", height: "10px", borderRadius: "50%", background: "#10b981" }}></span>
+                    </div>
+                    <span style={{ fontFamily: "var(--font-technical)", fontSize: "10px", color: "var(--slate)" }}>
+                      codecrest_engine_v1.0.5
+                    </span>
+                  </div>
+
+                  {/* Mock Input Bar */}
+                  <div style={{ background: "#0a0a0a", border: "1px solid var(--hairline)", borderRadius: "8px", padding: "10px 14px", display: "flex", alignItems: "center", gap: "10px", flexShrink: 0 }}>
+                    <span style={{ color: "var(--coral)", fontWeight: 700, fontSize: "12px", fontFamily: "var(--font-technical)" }}>$</span>
+                    <div style={{ fontFamily: "var(--font-technical)", fontSize: "11px", color: "var(--ink)", display: "flex", alignItems: "center" }}>
+                      <span>avery-compiler --analyze shopify_orders.csv</span>
+                      <motion.span 
+                        animate={{ opacity: [1, 0, 1] }}
+                        transition={{ repeat: Infinity, duration: 0.8 }}
+                        style={{ display: "inline-block", width: "6px", height: "12px", background: "var(--focus-blue)", marginLeft: "4px" }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Flow Graphic and nodes */}
+                  <div style={{ flex: 1, position: "relative", minHeight: "180px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <svg viewBox="0 0 400 200" style={{ width: "100%", height: "100%" }}>
+                      {/* Grid Background */}
+                      <defs>
+                        <pattern id="graphic-grid" width="20" height="20" patternUnits="userSpaceOnUse">
+                          <path d="M 20 0 L 0 0 0 20" fill="none" stroke="rgba(255, 255, 255, 0.03)" strokeWidth="1" />
+                        </pattern>
+                      </defs>
+                      <rect width="100%" height="100%" fill="url(#graphic-grid)" />
+
+                      {/* Connection Curves */}
+                      <motion.path 
+                        d="M 50,100 C 120,50 180,50 200,100" 
+                        fill="none" 
+                        stroke="rgba(250, 255, 105, 0.15)" 
+                        strokeWidth="2" 
+                        strokeDasharray="4 4"
+                      />
+                      <motion.path 
+                        d="M 50,100 C 120,150 180,150 200,100" 
+                        fill="none" 
+                        stroke="rgba(250, 255, 105, 0.15)" 
+                        strokeWidth="2" 
+                        strokeDasharray="4 4"
+                      />
+                      <motion.path 
+                        d="M 200,100 Q 275,50 350,100" 
+                        fill="none" 
+                        stroke="rgba(250, 255, 105, 0.15)" 
+                        strokeWidth="2" 
+                        strokeDasharray="4 4"
+                      />
+                      <motion.path 
+                        d="M 200,100 Q 275,150 350,100" 
+                        fill="none" 
+                        stroke="rgba(250, 255, 105, 0.15)" 
+                        strokeWidth="2" 
+                        strokeDasharray="4 4"
+                      />
+
+                      {/* Flowing Data Packets */}
+                      <motion.circle r="4" fill="var(--focus-blue)" filter="drop-shadow(0 0 6px #faff69)">
+                        <animateMotion 
+                          dur="2.5s" 
+                          repeatCount="indefinite" 
+                          path="M 50,100 C 120,50 180,50 200,100"
+                        />
+                      </motion.circle>
+                      <motion.circle r="4" fill="var(--focus-blue)" filter="drop-shadow(0 0 6px #faff69)">
+                        <animateMotion 
+                          dur="3s" 
+                          begin="1s"
+                          repeatCount="indefinite" 
+                          path="M 50,100 C 120,150 180,150 200,100"
+                        />
+                      </motion.circle>
+                      <motion.circle r="4" fill="var(--focus-blue)" filter="drop-shadow(0 0 6px #faff69)">
+                        <animateMotion 
+                          dur="2s" 
+                          begin="0.5s"
+                          repeatCount="indefinite" 
+                          path="M 200,100 Q 275,50 350,100"
+                        />
+                      </motion.circle>
+                      <motion.circle r="4" fill="var(--focus-blue)" filter="drop-shadow(0 0 6px #faff69)">
+                        <animateMotion 
+                          dur="2.8s" 
+                          begin="1.2s"
+                          repeatCount="indefinite" 
+                          path="M 200,100 Q 275,150 350,100"
+                        />
+                      </motion.circle>
+
+                      {/* Left Node: CSV File */}
+                      <motion.g 
+                        whileHover={{ scale: 1.1 }}
+                        style={{ cursor: "pointer" }}
+                      >
+                        <circle cx="50" cy="100" r="28" fill="#121212" stroke="var(--hairline)" strokeWidth="2" />
+                        <circle cx="50" cy="100" r="20" fill="rgba(250,255,105,0.06)" />
+                        <text x="50" y="105" textAnchor="middle" fontSize="16" fill="var(--focus-blue)" style={{ userSelect: "none" }}>📄</text>
+                      </motion.g>
+
+                      {/* Center Node: AI Processor (Avery) */}
+                      <g>
+                        {/* Ripple pulses */}
+                        <motion.circle 
+                          cx="200" cy="100" r="45" 
+                          fill="none" 
+                          stroke="rgba(250, 255, 105, 0.12)" 
+                          strokeWidth="1.5"
+                          animate={{ scale: [1, 1.35], opacity: [0.8, 0] }}
+                          transition={{ repeat: Infinity, duration: 2, ease: "easeOut" }}
+                        />
+                        <motion.circle 
+                          cx="200" cy="100" r="32" fill="#121212" stroke="var(--focus-blue)" strokeWidth="2" 
+                          whileHover={{ scale: 1.1, strokeWidth: 3 }}
+                          style={{ cursor: "pointer" }}
+                        />
+                        <circle cx="200" cy="100" r="24" fill="rgba(250,255,105,0.1)" />
+                        <text x="200" y="105" textAnchor="middle" fontSize="16" fill="var(--focus-blue)" style={{ userSelect: "none" }}>🧠</text>
+                      </g>
+
+                      {/* Right Node: Consolidated Chart */}
+                      <motion.g 
+                        whileHover={{ scale: 1.1 }}
+                        style={{ cursor: "pointer" }}
+                      >
+                        <circle cx="350" cy="100" r="28" fill="#121212" stroke="var(--hairline)" strokeWidth="2" />
+                        <circle cx="350" cy="100" r="20" fill="rgba(250,255,105,0.06)" />
+                        <text x="350" y="105" textAnchor="middle" fontSize="16" fill="var(--focus-blue)" style={{ userSelect: "none" }}>📊</text>
+                      </motion.g>
+                    </svg>
+
+                    {/* Stats overlay tags */}
+                    <motion.div 
+                      drag
+                      dragConstraints={{ left: -100, right: 100, top: -50, bottom: 50 }}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      style={{
+                        position: "absolute",
+                        top: "10px",
+                        left: "10px",
+                        padding: "6px 12px",
+                        background: "#0a0a0a",
+                        border: "1px solid var(--hairline)",
+                        borderRadius: "20px",
+                        fontSize: "9.5px",
+                        color: "var(--deep-green)",
+                        fontFamily: "var(--font-technical)",
+                        fontWeight: 700,
+                        cursor: "grab",
+                        boxShadow: "0 4px 12px rgba(0,0,0,0.3)"
+                      }}
+                    >
+                      ● 94.5% Accuracy
+                    </motion.div>
+
+                    <motion.div 
+                      drag
+                      dragConstraints={{ left: -100, right: 100, top: -50, bottom: 50 }}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      style={{
+                        position: "absolute",
+                        bottom: "10px",
+                        right: "10px",
+                        padding: "6px 12px",
+                        background: "#0a0a0a",
+                        border: "1px solid var(--focus-blue)",
+                        borderRadius: "20px",
+                        fontSize: "9.5px",
+                        color: "var(--focus-blue)",
+                        fontFamily: "var(--font-technical)",
+                        fontWeight: 700,
+                        cursor: "grab",
+                        boxShadow: "0 4px 12px rgba(0,0,0,0.3)"
+                      }}
+                    >
+                      🔥 12,450 Rows Mapped
+                    </motion.div>
+                  </div>
+
+                  {/* Console footer logs */}
+                  <div style={{ background: "#0c0c0c", borderRadius: "8px", padding: "10px 14px", border: "1px solid var(--hairline)", fontFamily: "var(--font-technical)", fontSize: "10.5px", color: "var(--slate)", display: "flex", flexDirection: "column", gap: "4px", flexShrink: 0 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between" }}>
+                      <span style={{ color: "#888" }}>[info] Consolidation successful in 4ms</span>
+                      <span style={{ color: "var(--focus-blue)", fontWeight: 700 }}>100% OK</span>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between" }}>
+                      <span style={{ color: "#888" }}>[avery] Avery model verified 14 mappings</span>
+                      <span style={{ color: "var(--deep-green)" }}>No errors</span>
+                    </div>
+                  </div>
+                </motion.div>
               </div>
             </div>
           </section>
