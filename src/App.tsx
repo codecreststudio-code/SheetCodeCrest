@@ -2682,6 +2682,41 @@ body {
 .trust-logos span:hover {
   color: var(--focus-blue);
 }
+
+/* Header Controls & Theme Toggle Styling */
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.theme-toggle {
+  background: transparent !important;
+  border: 1px solid var(--hairline) !important;
+  color: var(--ink) !important;
+  font-size: 16px !important;
+  cursor: pointer !important;
+  padding: 0 !important;
+  width: 38px !important;
+  height: 38px !important;
+  border-radius: 50% !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: all 0.2s ease !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+.theme-toggle:hover {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border-color: var(--slate) !important;
+  transform: rotate(15deg);
+}
+
+:root[data-theme="light"] .theme-toggle:hover {
+  background: rgba(0, 0, 0, 0.03) !important;
+}
 `}</style>
 
       {/* Announcement Bar */}
