@@ -2062,10 +2062,10 @@ body {
 /* Bento Features Grid */
 .features-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 1.5rem;
-  padding: 4rem 2rem;
-  max-width: 1200px;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1.25rem;
+  padding: 0 2rem 5rem;
+  max-width: 1100px;
   margin: 0 auto;
 }
 
@@ -2084,18 +2084,154 @@ body {
   border-color: var(--focus-blue);
 }
 
+/* Feature Item Cards (used in landing features section) */
+.feature-item-card {
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  border-radius: 12px;
+  padding: 2rem 1.75rem;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.feature-item-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--focus-blue);
+  box-shadow: 0 0 24px rgba(250, 255, 105, 0.06);
+}
+
+:root[data-theme="light"] .feature-item-card {
+  background: #f9f9f9;
+  border-color: #e5e5e5;
+}
+
+.feature-title-card {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--ink);
+  margin: 0 0 0.75rem 0;
+  letter-spacing: -0.01em;
+}
+
+.feature-desc-card {
+  font-size: 0.875rem;
+  color: var(--slate);
+  line-height: 1.6;
+  margin: 0;
+}
+
 .feature-icon-wrapper {
-  width: 48px;
-  height: 48px;
+  width: 44px;
+  height: 44px;
   border-radius: 8px;
-  background: rgba(250, 255, 105, 0.1);
-  border: 1px solid rgba(250, 255, 105, 0.2);
+  background: rgba(250, 255, 105, 0.08);
+  border: 1px solid rgba(250, 255, 105, 0.15);
   color: var(--focus-blue);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.5rem;
-  margin-bottom: 1.25rem;
+  font-size: 1.25rem;
+  margin-bottom: 1rem;
+}
+
+/* Stat Callout Section */
+.stat-callout-section {
+  max-width: 900px;
+  margin: 0 auto 3rem auto;
+  padding: 0 2rem;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2rem;
+  text-align: center;
+}
+
+@media (max-width: 600px) {
+  .stat-callout-section {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+  }
+}
+
+.stat-callout-num {
+  font-family: var(--font-display);
+  font-size: 3rem;
+  font-weight: 700;
+  color: var(--focus-blue);
+  line-height: 1;
+  letter-spacing: -1.5px;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.stat-callout-label {
+  font-size: 0.8rem;
+  color: var(--muted);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* Yellow CTA Band */
+.cta-yellow-band {
+  background: #faff69;
+  border-radius: 16px;
+  padding: 4rem 3rem;
+  max-width: 900px;
+  margin: 2rem auto 4rem auto;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.cta-yellow-band::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 30% 50%, rgba(255,255,255,0.3) 0%, transparent 60%);
+  pointer-events: none;
+}
+
+.cta-band-headline {
+  font-family: var(--font-display);
+  font-size: 2.25rem;
+  font-weight: 700;
+  color: #0a0a0a;
+  letter-spacing: -1.5px;
+  line-height: 1.1;
+  margin-bottom: 0.75rem;
+}
+
+.cta-band-sub {
+  font-size: 1rem;
+  color: rgba(10, 10, 10, 0.7);
+  margin-bottom: 1.75rem;
+  max-width: 480px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.cta-band-btn {
+  background: #0a0a0a;
+  color: #faff69;
+  border: none;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.9rem;
+  padding: 14px 28px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  letter-spacing: -0.01em;
+}
+
+.cta-band-btn:hover {
+  background: #1a1a1a;
+  transform: translateY(-2px);
 }
 
 /* Upload Zone Area */
@@ -2919,8 +3055,24 @@ body {
               The AI-Powered Spreadsheet Analyst
             </h2>
             <p className="hero-subtitle">
-              Upload your raw export files from Shopify, Shiprocket, or custom sheets. SheetCodeCrest automatically consolidates your data, profiles quality, optimizes logistics, and provides conversational AI strategy.
+              Upload raw exports from Shopify, Shiprocket, or any spreadsheet. SheetCodeCrest auto-detects your data schema and builds a full analytics workbook instantly.
             </p>
+
+            {/* STAT CALLOUTS — ClickHouse-style electric yellow numbers */}
+            <div className="stat-callout-section">
+              <div>
+                <span className="stat-callout-num">3+</span>
+                <span className="stat-callout-label">Analytics Engines</span>
+              </div>
+              <div>
+                <span className="stat-callout-num">10×</span>
+                <span className="stat-callout-label">Faster Than Manual</span>
+              </div>
+              <div>
+                <span className="stat-callout-num">0</span>
+                <span className="stat-callout-label">Data Leaves Device</span>
+              </div>
+            </div>
             
             <div 
               className={`upload-card ${dragging ? "dragging" : ""}`}
@@ -4034,24 +4186,60 @@ body {
         </>
       )}
 
-      {/* Footer disclaimer */}
-      <footer style={{ marginTop: "3rem", borderTop: "1px solid var(--hairline)", paddingTop: "1.5rem", textAlign: "center", fontSize: "0.75rem", color: "var(--slate)" }}>
-        <div>
-          SheetCodeCrest • Runs completely in the browser for secure data privacy.
+      {/* Yellow CTA Band — ClickHouse-style pre-footer */}
+      {step === "upload" && (
+        <div style={{ padding: "0 1.5rem" }}>
+          <div className="cta-yellow-band">
+            <h3 className="cta-band-headline">Ready to transform your data?</h3>
+            <p className="cta-band-sub">Upload your Shopify, Shiprocket, or custom sheet and get a professional analytics workbook in seconds.</p>
+            <button
+              type="button"
+              className="cta-band-btn"
+              onClick={() => {
+                if (!currentUser) {
+                  setAuthTab("login");
+                  setAuthError("");
+                  setAuthModalOpen(true);
+                } else {
+                  inputRef.current?.click();
+                }
+              }}
+            >
+              {currentUser ? "⚡ Upload & Analyze" : "🔑 Get Started Free"}
+            </button>
+          </div>
         </div>
-        <div style={{ marginTop: "0.4rem" }}>
-          Created and developed by <strong style={{ color: "var(--ink)" }}>Codecrest_studio</strong>
-        </div>
-        <div className="footer-links">
-          <a className="icon-only" href={CODECREST.instagram} target="_blank" rel="noopener noreferrer" aria-label="Open Codecrest Studio Instagram" title="Instagram">
-            <svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>
-          </a>
-          <a className="icon-only" href={`mailto:${CODECREST.email}`} aria-label="Email Codecrest Studio" title="Email">
-            <svg viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
-          </a>
-          <a className="icon-only" href={CODECREST.website} target="_blank" rel="noopener noreferrer" aria-label="Open Codecrest Studio website" title="Website">
-            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
-          </a>
+      )}
+
+      {/* Footer */}
+      <footer className="app-footer">
+        <div style={{ maxWidth: "900px", margin: "0 auto" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "10px", marginBottom: "1rem" }}>
+            <img
+              src={theme === "dark" ? "/logo-dark.png" : "/logo-light.png"}
+              alt="SheetCodeCrest"
+              style={{ height: "28px", width: "28px", borderRadius: "6px", objectFit: "contain" }}
+            />
+            <span style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: "1rem", color: "var(--ink)" }}>SheetCodeCrest</span>
+          </div>
+          <div style={{ fontSize: "13px", color: "var(--slate)", marginBottom: "0.5rem" }}>
+            Runs 100% in your browser — zero data leaves your device.
+          </div>
+          <div style={{ fontSize: "12px", color: "var(--muted)", marginBottom: "1rem" }}>
+            Built with ❤️ by{" "}
+            <a href={CODECREST.website} target="_blank" rel="noopener noreferrer" style={{ color: "var(--focus-blue)", textDecoration: "none", fontWeight: 600 }}>Codecrest Studio</a>
+          </div>
+          <div className="footer-links">
+            <a className="icon-only" href={CODECREST.instagram} target="_blank" rel="noopener noreferrer" aria-label="Open Codecrest Studio Instagram" title="Instagram">
+              <svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>
+            </a>
+            <a className="icon-only" href={`mailto:${CODECREST.email}`} aria-label="Email Codecrest Studio" title="Email">
+              <svg viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+            </a>
+            <a className="icon-only" href={CODECREST.website} target="_blank" rel="noopener noreferrer" aria-label="Open Codecrest Studio website" title="Website">
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+            </a>
+          </div>
         </div>
       </footer>
 
