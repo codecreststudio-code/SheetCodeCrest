@@ -390,6 +390,15 @@ export async function dbLogPayment(log: PaymentLog): Promise<void> {
       console.error("❌ Supabase payment log error:", err);
     }
   }
+  // Replicate locally in LocalStorage
+  try {
+    const stored = JSON.parse(localStorage.getItem("sheetcc_payments_local") || "[]") as PaymentLog[];
+    const newLog = { ...log, id: log.id || Date.now() };
+    stored.unshift(newLog);
+    localStorage.setItem("sheetcc_payments_local", JSON.stringify(stored));
+  } catch (e) {
+    console.error("❌ Local payment log write error:", e);
+  }
 }
 
 // ----------------------------------------------------
@@ -454,6 +463,13 @@ export async function dbGetAllPayments(): Promise<PaymentLog[]> {
       console.error("❌ Supabase get all payments error:", err);
     }
   }
+  // LocalStorage fallback
+  try {
+    const stored = localStorage.getItem("sheetcc_payments_local");
+    if (stored) {
+      return JSON.parse(stored) as PaymentLog[];
+    }
+  } catch (e) {}
   return [];
 }
 
@@ -487,6 +503,16 @@ export async function dbApprovePayment(paymentId: string, username: string): Pro
     userObj.isPro = true;
     await dbSaveUser(userObj);
   }
+
+  // Update local payment status
+  try {
+    const stored = JSON.parse(localStorage.getItem("sheetcc_payments_local") || "[]") as PaymentLog[];
+    const idx = stored.findIndex(p => p.paymentId === paymentId);
+    if (idx >= 0) {
+      stored[idx].status = "success";
+      localStorage.setItem("sheetcc_payments_local", JSON.stringify(stored));
+    }
+  } catch (e) {}
 }
 
 // ----------------------------------------------------
@@ -542,6 +568,16 @@ export async function dbUpdatePaymentStatus(paymentId: string, status: string): 
       console.error("❌ Supabase update payment status error:", err);
     }
   }
+
+  // Update local payment status
+  try {
+    const stored = JSON.parse(localStorage.getItem("sheetcc_payments_local") || "[]") as PaymentLog[];
+    const idx = stored.findIndex(p => p.paymentId === paymentId);
+    if (idx >= 0) {
+      stored[idx].status = status;
+      localStorage.setItem("sheetcc_payments_local", JSON.stringify(stored));
+    }
+  } catch (e) {}
 }
 
 // ----------------------------------------------------
