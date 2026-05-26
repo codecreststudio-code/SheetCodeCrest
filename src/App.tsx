@@ -1910,53 +1910,55 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
     <div className="app-container">
       {/* Dynamic Styled Canvas */}
       <style>{`:root {
-  --canvas: #090b11;
-  --primary: #111422;
-  --ink: #f3f4f6;
-  --deep-green: #10b981;
-  --dark-navy: #1e1b4b;
-  --soft-stone: #111827;
-  --pale-green: rgba(16, 185, 129, 0.1);
-  --pale-blue: rgba(99, 102, 241, 0.1);
-  --hairline: rgba(255, 255, 255, 0.08);
-  --border-light: rgba(255, 255, 255, 0.1);
-  --card-border: rgba(255, 255, 255, 0.06);
-  --muted: #6b7280;
-  --slate: #9ca3af;
-  --body-muted: #d1d5db;
-  --action-blue: #6366f1;
-  --focus-blue: #818cf8;
-  --coral: #ff7759;
-  --coral-soft: #ffad9b;
-  --amber: #f59e0b;
+  --canvas: #0a0a0a;
+  --primary: #1a1a1a;
+  --ink: #ffffff;
+  --deep-green: #22c55e;
+  --dark-navy: #121212;
+  --soft-stone: #1a1a1a;
+  --pale-green: rgba(34, 197, 94, 0.1);
+  --pale-blue: rgba(250, 255, 105, 0.1);
+  --hairline: #2a2a2a;
+  --border-light: #3a3a3a;
+  --card-border: #2a2a2a;
+  --muted: #888888;
+  --slate: #cccccc;
+  --body-muted: #e6e6e6;
+  --action-blue: #faff69;
+  --focus-blue: #faff69;
+  --on-primary: #0a0a0a;
+  --coral: #ef4444;
+  --coral-soft: #ff8888;
+  --amber: #faff69;
   --error: #ef4444;
-  --glass-bg: rgba(17, 24, 39, 0.7);
-  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-bg: #1a1a1a;
+  --glass-border: #2a2a2a;
 
-  --font-display: 'Outfit', 'Space Grotesk', sans-serif;
+  --font-display: 'Inter', 'Space Grotesk', sans-serif;
   --font-ui: 'Inter', sans-serif;
-  --font-technical: 'Fira Code', monospace;
+  --font-technical: 'JetBrains Mono', 'Fira Code', monospace;
 }
 
 :root[data-theme="light"] {
-  --canvas: #f8fafc;
-  --primary: #ffffff;
-  --ink: #0f172a;
-  --deep-green: #059669;
-  --dark-navy: #e0e7ff;
-  --soft-stone: #f1f5f9;
-  --pale-green: rgba(5, 150, 105, 0.1);
-  --pale-blue: rgba(79, 70, 229, 0.1);
-  --hairline: #e2e8f0;
-  --border-light: #cbd5e1;
-  --card-border: #f1f5f9;
-  --muted: #64748b;
-  --slate: #475569;
-  --body-muted: #334155;
-  --action-blue: #4f46e5;
-  --focus-blue: #6366f1;
-  --glass-bg: rgba(255, 255, 255, 0.8);
-  --glass-border: rgba(0, 0, 0, 0.08);
+  --canvas: #ffffff;
+  --primary: #f5f5f5;
+  --ink: #0a0a0a;
+  --deep-green: #15803d;
+  --dark-navy: #f5f5f5;
+  --soft-stone: #e5e5e5;
+  --pale-green: rgba(21, 128, 61, 0.1);
+  --pale-blue: rgba(250, 255, 105, 0.1);
+  --hairline: #e5e5e5;
+  --border-light: #d4d4d4;
+  --card-border: #e5e5e5;
+  --muted: #737373;
+  --slate: #404040;
+  --body-muted: #171717;
+  --action-blue: #0a0a0a;
+  --focus-blue: #0a0a0a;
+  --on-primary: #ffffff;
+  --glass-bg: #f5f5f5;
+  --glass-border: #d4d4d4;
 }
 
 * {
@@ -1972,9 +1974,6 @@ body {
   font-family: var(--font-ui);
   line-height: 1.5;
   overflow-x: hidden;
-  background-image: 
-    radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.12) 0%, transparent 40%),
-    radial-gradient(circle at 90% 80%, rgba(139, 92, 246, 0.12) 0%, transparent 40%);
   background-attachment: fixed;
 }
 
@@ -2015,10 +2014,10 @@ body {
   align-items: center;
   gap: 10px;
   font-family: var(--font-display);
-  font-weight: 800;
+  font-weight: 900;
   font-size: 1.35rem;
-  letter-spacing: -0.03em;
-  background: linear-gradient(135deg, #ffffff 30%, var(--focus-blue) 100%);
+  letter-spacing: -0.04em;
+  background: linear-gradient(135deg, #ffffff 50%, var(--focus-blue) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
@@ -2040,22 +2039,22 @@ body {
 
 .hero-title {
   font-family: var(--font-display);
-  font-size: 3.75rem;
+  font-size: 4rem;
   font-weight: 900;
-  letter-spacing: -0.04em;
-  line-height: 1.1;
+  letter-spacing: -0.05em;
+  line-height: 1.05;
   margin-bottom: 1.5rem;
-  background: linear-gradient(135deg, #ffffff 40%, var(--focus-blue) 75%, var(--deep-green) 100%);
+  background: linear-gradient(135deg, #ffffff 55%, var(--focus-blue) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
 .hero-subtitle {
-  font-size: 1.2rem;
+  font-size: 1.25rem;
   color: var(--slate);
   margin-bottom: 3rem;
-  line-height: 1.6;
-  max-width: 700px;
+  line-height: 1.55;
+  max-width: 720px;
   margin-left: auto;
   margin-right: auto;
 }
@@ -2071,42 +2070,27 @@ body {
 }
 
 .feature-card {
-  background: var(--glass-bg);
-  backdrop-filter: blur(16px);
-  border: 1px solid var(--glass-border);
-  border-radius: 24px;
+  background: var(--primary);
+  border: 1px solid var(--hairline);
+  border-radius: 12px;
   padding: 2.5rem 2rem;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.05);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   overflow: hidden;
 }
 
-.feature-card::before {
-  content: "";
-  position: absolute;
-  top: 0; left: 0; right: 0; height: 3px;
-  background: linear-gradient(to right, var(--action-blue), var(--focus-blue));
-  opacity: 0;
-  transition: opacity 0.3s;
-}
-
 .feature-card:hover {
-  transform: translateY(-6px);
-  border-color: rgba(99, 102, 241, 0.3);
-  box-shadow: 0 20px 40px rgba(99, 102, 241, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.1);
-}
-
-.feature-card:hover::before {
-  opacity: 1;
+  transform: translateY(-4px);
+  border-color: var(--focus-blue);
 }
 
 .feature-icon-wrapper {
   width: 48px;
   height: 48px;
-  border-radius: 12px;
-  background: rgba(99, 102, 241, 0.1);
-  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: 8px;
+  background: rgba(250, 255, 105, 0.1);
+  border: 1px solid rgba(250, 255, 105, 0.2);
+  color: var(--focus-blue);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2122,9 +2106,9 @@ body {
 }
 
 .upload-zone {
-  border: 2px dashed var(--glass-border);
-  background: rgba(17, 24, 39, 0.4);
-  border-radius: 24px;
+  border: 2px dashed var(--hairline);
+  background: var(--primary);
+  border-radius: 12px;
   padding: 3.5rem 2rem;
   text-align: center;
   cursor: pointer;
@@ -2137,9 +2121,8 @@ body {
 
 .upload-zone:hover {
   border-color: var(--focus-blue);
-  background: rgba(99, 102, 241, 0.05);
-  box-shadow: 0 0 30px rgba(99, 102, 241, 0.08);
-  transform: scale(1.01);
+  background: rgba(250, 255, 105, 0.02);
+  transform: translateY(-2px);
 }
 
 .upload-icon {
@@ -2155,13 +2138,12 @@ body {
 
 /* Premium Buttons & Controls */
 .btn-primary, .auth-submit-btn, .action-btn {
-  background: linear-gradient(135deg, var(--action-blue), var(--focus-blue));
-  color: #ffffff;
+  background: var(--action-blue);
+  color: var(--on-primary);
   border: none;
   font-weight: 700;
   padding: 12px 24px;
-  border-radius: 12px;
-  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35);
+  border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s;
   display: inline-flex;
@@ -2172,33 +2154,31 @@ body {
 
 .btn-primary:hover, .auth-submit-btn:hover, .action-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.5);
+  background: #e6eb52;
 }
 
 .btn-secondary {
-  background: transparent;
+  background: var(--primary);
   border: 1px solid var(--hairline);
   color: var(--ink);
   font-weight: 600;
   padding: 10px 20px;
-  border-radius: 12px;
+  border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .btn-secondary:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: #242424;
   border-color: var(--slate);
 }
 
 /* Data Tables & Analytics Grid */
 .section-card {
-  background: var(--glass-bg);
-  backdrop-filter: blur(16px);
-  border: 1px solid var(--glass-border);
-  border-radius: 20px;
+  background: var(--primary);
+  border: 1px solid var(--hairline);
+  border-radius: 12px;
   padding: 2rem;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
   margin-bottom: 2rem;
 }
 
@@ -2266,15 +2246,15 @@ body {
   outline: none;
   border-color: var(--focus-blue);
   background: rgba(255, 255, 255, 0.05);
-  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+  box-shadow: 0 0 0 2px rgba(250, 255, 105, 0.1);
 }
 
 /* Modals & Overlays */
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(3, 7, 18, 0.6);
-  backdrop-filter: blur(8px);
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2283,15 +2263,13 @@ body {
 }
 
 .modal-content {
-  background: var(--glass-bg);
-  backdrop-filter: blur(24px);
+  background: var(--primary);
   border: 1px solid var(--glass-border);
-  border-radius: 24px;
+  border-radius: 12px;
   max-width: 580px;
   width: 100%;
   max-height: 90vh;
   overflow-y: auto;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
   animation: modalEnter 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
@@ -2366,16 +2344,16 @@ body {
 }
 
 .metric-card {
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--primary);
   border: 1px solid var(--hairline);
-  border-radius: 14px;
+  border-radius: 8px;
   padding: 1.25rem;
   text-align: center;
-  transition: transform 0.2s;
+  transition: all 0.2s;
 }
 
 .metric-card:hover {
-  transform: scale(1.02);
+  transform: translateY(-2px);
   border-color: var(--focus-blue);
 }
 
@@ -3826,33 +3804,76 @@ body {
               {checkoutPlans.length > 0 && (
                 <div style={{ marginBottom: "1.25rem" }}>
                   <div style={{ fontSize: "11px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--slate)", marginBottom: "10px" }}>Choose Your Plan</div>
-                  <div style={{ display: "grid", gridTemplateColumns: checkoutPlans.length > 2 ? "repeat(3, 1fr)" : checkoutPlans.length === 2 ? "1fr 1fr" : "1fr", gap: "10px" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: checkoutPlans.length > 2 ? "repeat(3, 1fr)" : checkoutPlans.length === 2 ? "1fr 1fr" : "1fr", gap: "12px" }}>
                     {checkoutPlans.map(plan => {
                       const isSel = selectedPlanId === plan.id;
-                      const ac = plan.color || "#f59e0b";
+                      const isFeatured = plan.highlighted;
+                      
+                      const bg = isSel 
+                        ? (isFeatured ? "var(--focus-blue)" : "var(--primary)")
+                        : "var(--primary)";
+                      const border = isSel
+                        ? "2px solid var(--focus-blue)"
+                        : "1px solid var(--hairline)";
+                      const textCol = isSel && isFeatured ? "var(--on-primary)" : "var(--ink)";
+                      const slateCol = isSel && isFeatured ? "rgba(0, 0, 0, 0.6)" : "var(--slate)";
+                      const priceCol = isSel && isFeatured ? "var(--on-primary)" : "var(--focus-blue)";
+
                       return (
                         <button key={plan.id || plan.name} type="button" onClick={() => setSelectedPlanId(plan.id || null)}
                           style={{
                             position: "relative",
-                            padding: "14px 10px",
+                            padding: "16px 14px",
                             borderRadius: "12px",
-                            border: `2px solid ${isSel ? ac : "var(--hairline)"}`,
-                            background: isSel ? `${ac}14` : "rgba(255,255,255,0.02)",
+                            border: border,
+                            background: bg,
+                            color: textCol,
                             cursor: "pointer",
                             textAlign: "left",
-                            transition: "all 0.15s"
+                            transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+                            display: "flex",
+                            flexDirection: "column",
+                            justifyContent: "space-between",
+                            minHeight: "110px"
                           }}>
                           {plan.highlighted && (
-                            <div style={{ position: "absolute", top: "-9px", left: "50%", transform: "translateX(-50%)", background: ac, color: "#000", fontSize: "7px", fontWeight: 800, padding: "2px 8px", borderRadius: "20px", whiteSpace: "nowrap" }}>⭐ BEST</div>
+                            <div style={{ 
+                              position: "absolute", 
+                              top: "-9px", 
+                              left: "12px", 
+                              background: isSel ? "var(--on-primary)" : "var(--focus-blue)", 
+                              color: isSel ? "var(--focus-blue)" : "var(--on-primary)", 
+                              fontSize: "8px", 
+                              fontWeight: 900, 
+                              padding: "2px 8px", 
+                              borderRadius: "4px", 
+                              whiteSpace: "nowrap" 
+                            }}>⭐ RECOMMENDED</div>
                           )}
-                          <div style={{ fontWeight: 800, fontSize: "13px", color: isSel ? ac : "var(--text)" }}>{plan.name}</div>
-                          {plan.description && <div style={{ fontSize: "9px", color: "var(--slate)", marginTop: "1px" }}>{plan.description}</div>}
-                          <div style={{ fontWeight: 900, fontSize: "18px", color: ac, marginTop: "4px" }}>
+                          <div>
+                            <div style={{ fontWeight: 800, fontSize: "14px", color: isSel && isFeatured ? "var(--on-primary)" : "var(--ink)" }}>{plan.name}</div>
+                            {plan.description && <div style={{ fontSize: "10px", color: slateCol, marginTop: "2px", lineHeight: "1.2" }}>{plan.description}</div>}
+                          </div>
+                          <div style={{ fontWeight: 900, fontSize: "18px", color: priceCol, marginTop: "8px" }}>
                             ₹{plan.price.toLocaleString()}
-                            <span style={{ fontSize: "9px", fontWeight: 400, color: "var(--slate)", marginLeft: "2px" }}>/{plan.billingPeriod}</span>
+                            <span style={{ fontSize: "10px", fontWeight: 400, color: slateCol, marginLeft: "2px" }}>/{plan.billingPeriod}</span>
                           </div>
                           {isSel && (
-                            <div style={{ position: "absolute", top: "8px", right: "8px", width: "14px", height: "14px", borderRadius: "50%", background: ac, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "8px", color: "#000", fontWeight: 900 }}>✓</div>
+                            <div style={{ 
+                              position: "absolute", 
+                              top: "12px", 
+                              right: "12px", 
+                              width: "16px", 
+                              height: "16px", 
+                              borderRadius: "50%", 
+                              background: isFeatured ? "var(--on-primary)" : "var(--focus-blue)", 
+                              display: "flex", 
+                              alignItems: "center", 
+                              justifyContent: "center", 
+                              fontSize: "10px", 
+                              color: isFeatured ? "var(--focus-blue)" : "var(--on-primary)", 
+                              fontWeight: 900
+                            }}>✓</div>
                           )}
                         </button>
                       );
