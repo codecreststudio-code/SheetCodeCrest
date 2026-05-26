@@ -1937,28 +1937,6 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
   --font-technical: 'JetBrains Mono', 'Fira Code', monospace;
 }
 
-:root[data-theme="light"] {
-  --canvas: #ffffff;
-  --primary: #f5f5f5;
-  --ink: #0a0a0a;
-  --deep-green: #15803d;
-  --dark-navy: #f5f5f5;
-  --soft-stone: #e5e5e5;
-  --pale-green: rgba(21, 128, 61, 0.1);
-  --pale-blue: rgba(250, 255, 105, 0.1);
-  --hairline: #e5e5e5;
-  --border-light: #d4d4d4;
-  --card-border: #e5e5e5;
-  --muted: #737373;
-  --slate: #404040;
-  --body-muted: #171717;
-  --action-blue: #0a0a0a;
-  --focus-blue: #0a0a0a;
-  --on-primary: #ffffff;
-  --glass-bg: #f5f5f5;
-  --glass-border: #d4d4d4;
-}
-
 * {
   box-sizing: border-box;
   margin: 0;
@@ -2127,10 +2105,6 @@ body {
   overflow: hidden;
 }
 
-:root[data-theme="light"] .hero-right {
-  background: radial-gradient(circle at 50% 50%, rgba(250, 255, 105, 0.25), transparent 70%);
-  border-color: rgba(0, 0, 0, 0.08);
-}
 
 /* Bento Features Grid */
 .features-grid {
@@ -2174,10 +2148,6 @@ body {
   box-shadow: 0 0 24px rgba(250, 255, 105, 0.06);
 }
 
-:root[data-theme="light"] .feature-item-card {
-  background: #f9f9f9;
-  border-color: #e5e5e5;
-}
 
 .feature-title-card {
   font-family: var(--font-display);
@@ -2222,8 +2192,30 @@ body {
 
 @media (max-width: 600px) {
   .stat-callout-section {
-    grid-template-columns: repeat(3, 1fr);
-    gap: 1rem;
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+  .stat-callout-num {
+    font-size: 2.25rem !important;
+  }
+}
+
+.hero-stats {
+  display: flex;
+  justify-content: flex-start;
+  gap: 2.5rem;
+  width: 100%;
+  flex-wrap: wrap;
+  margin-bottom: 2rem;
+}
+
+@media (max-width: 968px) {
+  .hero-stats {
+    justify-content: center;
+    gap: 1.5rem;
+  }
+  .hero-stats .stat-callout-num {
+    font-size: 2.25rem !important;
   }
 }
 
@@ -2786,6 +2778,62 @@ body {
   z-index: 1000;
 }
 
+@media (max-width: 768px) {
+  .premium-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    padding: 1rem 1.25rem;
+    position: relative;
+  }
+  
+  .brand-section {
+    flex-direction: row;
+    align-items: center;
+    gap: 10px !important;
+  }
+
+  .brand-section img {
+    height: 36px !important;
+    width: 36px !important;
+  }
+
+  .brand-section p {
+    font-size: 11px !important;
+    line-height: 1.3 !important;
+  }
+
+  .header-controls {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .header-controls .header-btn {
+    flex: 1 1 auto;
+    text-align: center;
+    justify-content: center;
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+
+  .user-hub-widget {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    width: 100%;
+    align-items: center;
+  }
+
+  .user-info-text {
+    width: 100%;
+    margin-bottom: 4px;
+    font-size: 12px;
+  }
+}
+
 /* Header Button Styling */
 .header-btn {
   background: transparent;
@@ -2806,10 +2854,6 @@ body {
 .header-btn:hover {
   background: rgba(255, 255, 255, 0.05);
   border-color: var(--slate);
-}
-
-:root[data-theme="light"] .header-btn:hover {
-  background: rgba(0, 0, 0, 0.03);
 }
 
 .header-btn.upgrade-highlight {
@@ -2840,18 +2884,6 @@ body {
   color: var(--focus-blue);
   text-decoration: underline;
   font-weight: 600;
-}
-
-:root[data-theme="light"] .announcement-bar {
-  background: #f5f5f5;
-  color: #737373;
-}
-
-/* Light Theme Title Color Readability Override */
-:root[data-theme="light"] .hero-title {
-  background: linear-gradient(135deg, #0a0a0a 55%, var(--action-blue) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
 }
 
 /* Trust Logo Strip Styling */
@@ -2923,10 +2955,6 @@ body {
   transform: rotate(15deg);
 }
 
-:root[data-theme="light"] .theme-toggle:hover {
-  background: rgba(0, 0, 0, 0.03) !important;
-}
-
 /* Footer Social & Link Icons Styling */
 .footer-links {
   display: flex;
@@ -2967,10 +2995,6 @@ body {
   transform: translateY(-2px);
 }
 
-:root[data-theme="light"] .icon-only:hover {
-  background: rgba(0, 0, 0, 0.03);
-}
-
 /* =============================================
    LANDING PAGE EXTRA SECTIONS
    ============================================= */
@@ -2982,10 +3006,6 @@ body {
   border-bottom: 1px solid #2a2a2a;
   padding: 4rem 2rem;
   margin: 0 0 5rem 0;
-}
-
-:root[data-theme="light"] .metrics-band {
-  background: #0a0a0a;
 }
 
 .metrics-band-inner {
@@ -3086,17 +3106,18 @@ body {
   gap: 1rem;
 }
 
+@media (max-width: 500px) {
+  .solution-right {
+    grid-template-columns: 1fr;
+  }
+}
+
 .solution-card {
   background: #1a1a1a;
   border: 1px solid #2a2a2a;
   border-radius: 12px;
   padding: 1.5rem;
   transition: all 0.25s;
-}
-
-:root[data-theme="light"] .solution-card {
-  background: #f9f9f9;
-  border-color: #e5e5e5;
 }
 
 .solution-card:hover {
@@ -3131,10 +3152,6 @@ body {
   border-bottom: 1px solid #2a2a2a;
   padding: 5rem 2rem;
   margin-bottom: 5rem;
-}
-
-:root[data-theme="light"] .testimonials-section {
-  background: #0a0a0a;
 }
 
 .testimonials-inner {
@@ -3276,11 +3293,6 @@ body {
   margin-top: 1.25rem;
 }
 
-:root[data-theme="light"] .pricing-toggle {
-  background: #f5f5f5;
-  border-color: #e5e5e5;
-}
-
 .pricing-toggle-btn {
   padding: 6px 18px;
   border-radius: 6px;
@@ -3315,11 +3327,6 @@ body {
   padding: 2rem;
   position: relative;
   transition: all 0.3s;
-}
-
-:root[data-theme="light"] .pricing-card {
-  background: #f9f9f9;
-  border-color: #e5e5e5;
 }
 
 .pricing-card:hover {
@@ -3594,7 +3601,7 @@ body {
                 </p>
 
                 {/* STAT CALLOUTS — ClickHouse-style electric yellow numbers */}
-                <div className="stat-callout-section" style={{ display: "flex", justifyContent: "flex-start", gap: "2rem", width: "100%", flexWrap: "wrap", marginBottom: "2rem" }}>
+                <div className="hero-stats">
                   <div>
                     <span className="stat-callout-num">3+</span>
                     <span className="stat-callout-label">Analytics Engines</span>
