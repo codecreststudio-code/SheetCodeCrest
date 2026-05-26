@@ -2029,7 +2029,7 @@ body {
 }
 
 /* Hero Area */
-.hero-section {
+.landing-hero {
   padding: 6rem 2rem 4rem;
   text-align: center;
   max-width: 900px;
@@ -2105,7 +2105,7 @@ body {
   padding: 0 1.5rem;
 }
 
-.upload-zone {
+.upload-zone, .upload-card {
   border: 2px dashed var(--hairline);
   background: var(--primary);
   border-radius: 12px;
@@ -2119,10 +2119,33 @@ body {
   gap: 1rem;
 }
 
-.upload-zone:hover {
+.upload-zone:hover, .upload-card:hover, .upload-card.dragging {
   border-color: var(--focus-blue);
   background: rgba(250, 255, 105, 0.02);
   transform: translateY(-2px);
+}
+
+.upload-title {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--ink);
+  margin-top: 0.5rem;
+}
+
+.upload-desc {
+  font-size: 0.95rem;
+  color: var(--slate);
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+.usage-meter {
+  font-size: 0.85rem;
+  color: var(--focus-blue);
+  font-family: var(--font-technical);
+  font-weight: 600;
+  margin-top: 0.25rem;
 }
 
 .upload-icon {
@@ -2134,6 +2157,173 @@ body {
 @keyframes bounce {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-8px); }
+}
+
+/* Interactive Mockup Styling */
+.mockup-container {
+  max-width: 1000px;
+  margin: 0 auto 6rem auto;
+  background: var(--primary);
+  border: 1px solid var(--hairline);
+  border-radius: 12px;
+  overflow: hidden;
+  text-align: left;
+}
+
+.mockup-header {
+  background: #121212;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--hairline);
+  display: flex;
+  align-items: center;
+}
+
+.mockup-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 6px;
+  display: inline-block;
+}
+
+.mockup-tab-strip {
+  display: flex;
+  gap: 8px;
+  padding: 10px 18px;
+  background: #161616;
+  border-bottom: 1px solid var(--hairline);
+  flex-wrap: wrap;
+}
+
+.mockup-tab {
+  color: var(--slate);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.mockup-tab:hover {
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.mockup-tab.active {
+  color: var(--on-primary);
+  background: var(--focus-blue);
+  font-weight: 700;
+}
+
+.mockup-body {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 24px;
+  padding: 24px;
+}
+
+@media (max-width: 768px) {
+  .mockup-body {
+    grid-template-columns: 1fr;
+  }
+}
+
+.mockup-left {
+  overflow-x: auto;
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+  background: #121212;
+}
+
+.mockup-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-technical);
+  font-size: 12px;
+  text-align: left;
+}
+
+.mockup-table th {
+  background: #1a1a1a;
+  color: var(--slate);
+  font-weight: 600;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--hairline);
+  text-transform: uppercase;
+  font-size: 10px;
+  letter-spacing: 0.05em;
+}
+
+.mockup-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--hairline);
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.mockup-table tr:last-child td {
+  border-bottom: none;
+}
+
+.mockup-table tr:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.mockup-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.mockup-badge.delivered {
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+}
+
+.mockup-badge.rto {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+.mockup-right {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.mockup-card-right {
+  background: #121212;
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.mockup-chart-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  height: 120px;
+  padding: 10px 10px 0 10px;
+  border-bottom: 1px solid var(--hairline);
+  margin-bottom: 12px;
+}
+
+.mockup-chart-bar {
+  width: 28px;
+  background: #2a2a2a;
+  border-radius: 4px 4px 0 0;
+  transition: all 0.3s;
+}
+
+.mockup-chart-bar:hover {
+  background: var(--focus-blue);
+  box-shadow: 0 0 15px rgba(250, 255, 105, 0.4);
+}
+
+.mockup-chart-bar.highlight {
+  background: var(--focus-blue);
 }
 
 /* Premium Buttons & Controls */
