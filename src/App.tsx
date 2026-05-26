@@ -2469,6 +2469,10 @@ body {
   padding: 8px 16px;
   border-radius: 6px;
   transition: all 0.2s;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  outline: none;
 }
 
 .mockup-tab:hover {
@@ -2477,8 +2481,8 @@ body {
 }
 
 .mockup-tab.active {
-  color: var(--on-primary);
-  background: var(--focus-blue);
+  color: var(--on-primary) !important;
+  background: var(--focus-blue) !important;
   font-weight: 700;
 }
 
@@ -3278,7 +3282,7 @@ select.form-input option {
   gap: 1rem;
 }
 
-@media (max-width: 500px) {
+@media (max-width: 640px) {
   .solution-right {
     grid-template-columns: 1fr;
   }
@@ -3488,7 +3492,7 @@ select.form-input option {
   gap: 1.25rem;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 992px) {
   .pricing-grid { grid-template-columns: 1fr; }
 }
 
@@ -3618,6 +3622,388 @@ select.form-input option {
 
 .pricing-card.featured .pricing-cta-btn:hover {
   background: #1a1a1a;
+}
+
+/* =============================================
+   COMPREHENSIVE PREMIUM MOBILE RESPONSIVENESS OVERRIDES
+   ============================================= */
+
+/* Dashboard & Analytics grid styles (newly styled for maximum premium look) */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1.25rem;
+  margin-bottom: 2rem;
+}
+
+.kpi-card {
+  background: var(--primary);
+  border: 1px solid var(--hairline);
+  border-radius: 12px;
+  padding: 1.5rem;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  position: relative;
+  overflow: hidden;
+}
+
+.kpi-card:hover {
+  border-color: var(--focus-blue);
+  transform: translateY(-2px);
+  box-shadow: 0 0 20px rgba(250, 255, 105, 0.03);
+}
+
+.kpi-card.success {
+  border-left: 3px solid var(--deep-green);
+}
+
+.kpi-card.warning {
+  border-left: 3px solid var(--coral);
+}
+
+.kpi-label {
+  font-size: 11px;
+  color: var(--slate);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.kpi-value {
+  font-size: 2rem;
+  font-weight: 900;
+  color: #ffffff;
+  font-family: var(--font-display);
+  letter-spacing: -0.04em;
+  line-height: 1.1;
+}
+
+.kpi-card.success .kpi-value {
+  color: var(--focus-blue);
+}
+
+.kpi-sub {
+  font-size: 11px;
+  color: var(--muted);
+  font-family: var(--font-technical);
+}
+
+.chart-row {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.visual-bar-container {
+  margin-bottom: 1.25rem;
+}
+
+.visual-bar-info {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--slate);
+  margin-bottom: 6px;
+  font-family: var(--font-technical);
+}
+
+.visual-bar-info span:first-child {
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.visual-bar-bg {
+  height: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.visual-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  background: var(--focus-blue);
+  transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.visual-bar-fill.success {
+  background: var(--deep-green);
+}
+
+.visual-bar-fill.warning {
+  background: var(--amber);
+}
+
+.visual-bar-fill.danger {
+  background: var(--coral);
+}
+
+/* Custom layout helper classes for grids that were previously inline-styled */
+.demo-showcase-section {
+  padding: 4rem 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.checkout-plans-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.dashboard-panels-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.admin-payments-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 1rem;
+}
+
+.admin-plan-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 440px;
+  max-width: 100vw;
+  height: 100vh;
+  background: var(--glass-bg);
+  backdrop-filter: blur(24px);
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Tablet Overrides */
+@media (max-width: 1024px) {
+  .landing-hero {
+    padding: 3rem 1.5rem;
+  }
+  .features-grid {
+    padding: 0 1.5rem 3rem;
+    grid-template-columns: repeat(2, 1fr) !important; /* perfectly symmetrical 2 columns! */
+  }
+  .demo-showcase-section {
+    padding: 3rem 1.5rem;
+  }
+  .solution-section {
+    margin-bottom: 4rem;
+    padding: 0 1.5rem;
+  }
+  .testimonials-section {
+    padding: 4rem 1.5rem;
+    margin-bottom: 3rem;
+  }
+  .pricing-section {
+    margin-bottom: 3rem;
+    padding: 0 1.5rem;
+  }
+  .cta-yellow-band {
+    padding: 3rem 2rem;
+    margin: 2.5rem auto 3rem auto;
+  }
+}
+
+/* Mobile Overrides (Portrait/Landscape) */
+@media (max-width: 768px) {
+  .hero-split {
+    gap: 2.5rem;
+  }
+  
+  .hero-title {
+    font-size: 2.5rem;
+    letter-spacing: -0.04em;
+  }
+  
+  .hero-subtitle {
+    font-size: 1rem;
+    line-height: 1.5;
+  }
+
+  .stat-callout-section {
+    padding: 0 1.25rem;
+    margin-bottom: 2rem;
+  }
+
+  .metrics-band {
+    padding: 3rem 1.25rem;
+    margin-bottom: 3rem;
+  }
+
+  .features-grid {
+    grid-template-columns: 1fr !important; /* stacks beautifully */
+  }
+
+  .demo-showcase-section {
+    padding: 2.5rem 1.25rem;
+  }
+
+  .checkout-plans-grid {
+    grid-template-columns: 1fr !important; /* stacks checkout plans inside modal */
+  }
+
+  .dashboard-panels-grid {
+    grid-template-columns: 1fr !important; /* stacks version/comments panels */
+  }
+
+  .admin-payments-stats-grid {
+    grid-template-columns: 1fr 1fr !important; /* 2 columns for tablet view */
+  }
+
+  .feature-card, .feature-item-card {
+    padding: 1.75rem 1.5rem;
+  }
+
+  .solution-left h2 {
+    font-size: 2rem;
+  }
+
+  .solution-card {
+    padding: 1.25rem;
+  }
+
+  .testimonial-card {
+    padding: 1.75rem 1.25rem;
+  }
+
+  .testimonial-quote-mark {
+    font-size: 3rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .testimonial-text {
+    font-size: 0.95rem;
+    line-height: 1.5;
+  }
+
+  .pricing-header h2 {
+    font-size: 1.85rem;
+  }
+
+  .cta-yellow-band {
+    padding: 3rem 2rem;
+    margin: 2rem 0 3rem 0;
+  }
+
+  .cta-band-headline {
+    font-size: 1.85rem;
+    letter-spacing: -1px;
+    line-height: 1.2;
+  }
+
+  .cta-band-sub {
+    font-size: 0.9rem;
+    line-height: 1.4;
+  }
+
+  .chart-row {
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+  }
+
+  .modal-body {
+    padding: 1.25rem;
+  }
+
+  .brand-section h1 {
+    font-size: 1.4rem !important;
+  }
+}
+
+/* Compact Mobile Breakpoint (iPhone SE, small viewports) */
+@media (max-width: 480px) {
+  .premium-header {
+    padding: 0.85rem 1rem;
+  }
+
+  .brand-section h1 {
+    font-size: 1.2rem !important;
+  }
+
+  .brand-section p {
+    display: none; /* Hide description on micro viewports to keep logo and signin on single row */
+  }
+
+  .landing-hero {
+    padding: 2rem 1rem;
+  }
+
+  .hero-title {
+    font-size: 2.1rem;
+    line-height: 1.1;
+  }
+
+  .hero-right {
+    height: 280px !important;
+  }
+
+  .stat-callout-num {
+    font-size: 2rem !important;
+  }
+
+  .demo-showcase-section {
+    padding: 2rem 1rem;
+  }
+
+  .admin-payments-stats-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .admin-plan-drawer {
+    width: 100% !important; /* Full width drawer so it is fully accessible on mobile */
+  }
+
+  .kpi-grid {
+    grid-template-columns: 1fr !important; /* Stacks dashboard KPIs */
+  }
+
+  .feature-card, .feature-item-card {
+    padding: 1.5rem 1.15rem;
+  }
+
+  .solution-left h2 {
+    font-size: 1.75rem;
+  }
+
+  .cta-yellow-band {
+    padding: 2.25rem 1.25rem;
+    border-radius: 12px;
+  }
+
+  .cta-band-headline {
+    font-size: 1.5rem;
+  }
+
+  .cta-band-sub {
+    font-size: 0.85rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .cta-band-btn {
+    padding: 12px 22px;
+    font-size: 0.85rem;
+  }
+
+  .modal-body {
+    padding: 1rem;
+  }
+
+  .modal-header, .modal-footer {
+    padding: 0.85rem 1rem;
+  }
+
+  .modal-card {
+    width: 95% !important;
+    max-height: 95vh !important;
+  }
 }
 `}</style>
 
@@ -4082,7 +4468,7 @@ select.form-input option {
           </section>
 
           {/* SPREADSHEET MOCKUP VISUAL */}
-          <section className="demo-showcase-section" style={{ padding: "4rem 2rem", maxWidth: "1200px", margin: "0 auto" }}>
+          <section className="demo-showcase-section">
             <div className="mockup-container">
               <div className="mockup-header">
                 <span className="mockup-dot" style={{ background: "#ef4444" }}></span>
@@ -4095,7 +4481,6 @@ select.form-input option {
                   type="button"
                   className={`mockup-tab ${mockupTabActive === "shopify" ? "active" : ""}`}
                   onClick={() => setMockupTabActive("shopify")}
-                  style={{ background: "transparent", border: "none", cursor: "pointer", outline: "none" }}
                 >
                   📊 Shopify Store Sales
                 </button>
@@ -4103,7 +4488,6 @@ select.form-input option {
                   type="button"
                   className={`mockup-tab ${mockupTabActive === "logistics" ? "active" : ""}`}
                   onClick={() => setMockupTabActive("logistics")}
-                  style={{ background: "transparent", border: "none", cursor: "pointer", outline: "none" }}
                 >
                   🚚 Courier Shipments
                 </button>
@@ -4111,7 +4495,6 @@ select.form-input option {
                   type="button"
                   className={`mockup-tab ${mockupTabActive === "universal" ? "active" : ""}`}
                   onClick={() => setMockupTabActive("universal")}
-                  style={{ background: "transparent", border: "none", cursor: "pointer", outline: "none" }}
                 >
                   📋 Universal Profiling
                 </button>
@@ -4382,7 +4765,13 @@ select.form-input option {
               <div style={{ fontFamily: "var(--font-technical)", fontSize: "10.5px", fontWeight: 700, color: "var(--coral)", textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: "12px" }}>Why SheetCodeCrest?</div>
               <h2>Want to boost your business growth?<br />Your data is the solution.</h2>
               <p>SheetCodeCrest is designed to surface actionable intelligence from your raw data — making every export file a strategic asset rather than a confusing spreadsheet.</p>
-              <button type="button" className="solution-arrow-btn" aria-label="Explore features">
+              <button 
+                type="button" 
+                className="solution-arrow-btn" 
+                onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+                title="Scroll to Upload & Analyze"
+                aria-label="Scroll to Upload Zone"
+              >
                 ↗
               </button>
             </div>
@@ -4985,7 +5374,7 @@ select.form-input option {
           )}
 
           {/* 🛠️ SPREADSHEET GIT-STYLE VERSION CONTROL & COLLABORATIVE COMMENTS PANEL */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "1.5rem", marginBottom: "2rem" }}>
+          <div className="dashboard-panels-grid">
             
             {/* PANEL A: Spreadsheet Git-Style Version Control Branches */}
             <div className="section-card" style={{ display: "flex", flexDirection: "column", height: "100%", margin: 0 }}>
@@ -5541,7 +5930,7 @@ select.form-input option {
               {checkoutPlans.length > 0 && (
                 <div style={{ marginBottom: "1.25rem" }}>
                   <div style={{ fontSize: "11px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--slate)", marginBottom: "10px" }}>Choose Your Plan</div>
-                  <div style={{ display: "grid", gridTemplateColumns: checkoutPlans.length > 2 ? "repeat(3, 1fr)" : checkoutPlans.length === 2 ? "1fr 1fr" : "1fr", gap: "12px" }}>
+                  <div className="checkout-plans-grid">
                     {checkoutPlans.map(plan => {
                       const isSel = selectedPlanId === plan.id;
                       const isFeatured = plan.highlighted;
@@ -5814,7 +6203,7 @@ select.form-input option {
                       </div>
 
                       {/* User Table */}
-                      <div style={{ border: "1px solid var(--hairline)", borderRadius: "10px", overflow: "hidden" }}>
+                      <div style={{ border: "1px solid var(--hairline)", borderRadius: "10px", overflowX: "auto" }}>
                         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
                           <thead>
                             <tr style={{ background: "rgba(255,255,255,0.04)", borderBottom: "1px solid var(--hairline)" }}>
@@ -5919,7 +6308,7 @@ select.form-input option {
                   {adminTab === "payments" && (
                     <div>
                       {/* Stats row */}
-                      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "10px", marginBottom: "1rem" }}>
+                      <div className="admin-payments-stats-grid">
                         {[
                           { label: "Total Revenue", value: `₹${adminPayments.filter(p => p.status === "success").reduce((s: number, p: any) => s + (p.amount || 0), 0).toLocaleString()}`, color: "#10b981" },
                           { label: "Successful", value: adminPayments.filter(p => p.status === "success").length, color: "#10b981" },
@@ -5949,7 +6338,7 @@ select.form-input option {
                       </div>
 
                       {/* Payment Table */}
-                      <div style={{ border: "1px solid var(--hairline)", borderRadius: "10px", overflow: "hidden" }}>
+                      <div style={{ border: "1px solid var(--hairline)", borderRadius: "10px", overflowX: "auto" }}>
                         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px" }}>
                           <thead>
                             <tr style={{ background: "rgba(255,255,255,0.04)", borderBottom: "1px solid var(--hairline)" }}>
@@ -6074,7 +6463,7 @@ select.form-input option {
                       </div>
                       {/* Plan Editor Side Panel */}
                       {adminPlanModalOpen && (
-                        <div style={{ position: "fixed", top: 0, right: 0, width: "440px", height: "100vh", background: "var(--glass-bg)", backdropFilter: "blur(24px)", borderLeft: `2px solid ${adminPlanColor}`, zIndex: 9999, display: "flex", flexDirection: "column" }}>
+                        <div className="admin-plan-drawer" style={{ borderLeft: `2px solid ${adminPlanColor}` }}>
                           <div style={{ padding: "1.25rem 1.5rem", borderBottom: "1px solid var(--hairline)", display: "flex", alignItems: "center", justifyContent: "space-between", background: `${adminPlanColor}14`, flexShrink: 0 }}>
                             <div>
                               <div style={{ fontWeight: 800, fontSize: "15px", color: adminPlanColor }}>{adminEditPlan ? "✏️ Edit Plan" : "➕ Create Plan"}</div>
