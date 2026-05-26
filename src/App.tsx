@@ -192,11 +192,7 @@ export default function App() {
   const [paymentLogs, setPaymentLogs] = useState<string[]>([]);
   const [paymentProcessing, setPaymentProcessing] = useState(false);
   const [paymentCompleted, setPaymentCompleted] = useState(false);
-  const [theme, setTheme] = useState<ThemeMode>(() => {
-    if (typeof window === "undefined") return "light";
-    const stored = window.localStorage.getItem("codecrest_excel_analytics_theme");
-    return stored === "dark" ? "dark" : "light";
-  });
+  const [theme, setTheme] = useState<ThemeMode>("dark");
   const [usageCount, setUsageCount] = useState(() => {
     if (typeof window === "undefined") return 0;
     const stored = Number(window.localStorage.getItem(USAGE_STORAGE_KEY) || "0");
@@ -3479,16 +3475,6 @@ body {
         </div>
         
         <div className="header-controls">
-          <button
-            type="button"
-            className="theme-toggle"
-            onClick={() => setTheme((current) => current === "dark" ? "light" : "dark")}
-            aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-            title={theme === "dark" ? "Light mode" : "Dark mode"}
-          >
-            {theme === "dark" ? "☀️" : "🌙"}
-          </button>
-
           {isSharedViewOnly ? (
             <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
               <span style={{ fontSize: "12px", background: "rgba(245, 158, 11, 0.15)", color: "var(--amber)", padding: "4px 10px", borderRadius: "20px", fontWeight: 600, border: "1px solid rgba(245,158,11,0.3)", display: "flex", alignItems: "center", gap: "6px" }}>
