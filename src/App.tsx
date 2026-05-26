@@ -465,7 +465,7 @@ export default function App() {
       addLog(`✓ Google Sheet Sync succeeded for "${user.username}" (${action})!`, "success");
     } catch (err: any) {
       console.error("Google Sheets sync failed", err);
-      addLog(`âš ï¸ Google Sheets Sync failed: ${err.message || err}`, "error");
+      addLog(`⚠️ Google Sheets Sync failed: ${err.message || err}`, "error");
     }
   };
 
@@ -574,7 +574,7 @@ export default function App() {
         const migratedUser = { ...user, passwordHash: newHash };
         await dbSaveUser(migratedUser);
         user.passwordHash = newHash;
-        addLog(`ðŸ” Password security upgraded to SHA-256 hash for "${username}".`, "info");
+        addLog(`🔑 Password security upgraded to SHA-256 hash for "${username}".`, "info");
       } catch (_) {}
     }
 
@@ -631,7 +631,7 @@ export default function App() {
       return;
     }
 
-    // ðŸ” Hash password before storing
+    // 🔑 Hash password before storing
     const passwordHash = await hashPassword(password);
 
     const newUser: User = {
@@ -814,7 +814,7 @@ export default function App() {
       "📡 Handshaking with UPI Address Resolver (vpa@okicici)...",
       "📲 Generating dynamic UPI deep-link QR intent payload...",
       "📡 Listening for mobile banking app webhook callback...",
-      "ðŸ›¡ï¸ Validating secure transaction checksum (SHA-256)...",
+      "🛡️ Validating secure transaction checksum (SHA-256)...",
       "💸 Transferring funds to merchant account...",
       "📡 Razorpay callback verified by merchant...",
       "⚡ Updating subscription entitlement store...",
@@ -860,7 +860,7 @@ export default function App() {
       "🔎 Searching UPI banking registers for Transaction UTR...",
       `📡 Found matching ref: ${upiUTR.trim()}`,
       "💸 Processing pending transfer validation...",
-      "â˜ï¸ Syncing transaction records securely to cloud database...",
+      "☁️ Syncing transaction records securely to cloud database...",
       "🎉 Account Upgraded to PRO (Manual Verification Pending)!"
     ]);
 
@@ -905,7 +905,7 @@ export default function App() {
   };
 
   // ----------------------------------------------------
-  // ðŸ›¡ï¸ ADMIN PANEL CONTROLLERS (Advanced)
+  // 🛡️ ADMIN PANEL CONTROLLERS (Advanced)
   // ----------------------------------------------------
   const logAdminAction = async (action: string, details?: string) => {
     const by = currentUser?.username || "admin";
@@ -960,7 +960,7 @@ export default function App() {
       }
       setAdminEditUserOpen(false);
       await loadAdminData();
-      addLog(`ðŸ›¡ï¸ Admin: User "${adminEditUser.username}" profile updated.`, "info");
+      addLog(`🛡️ Admin: User "${adminEditUser.username}" profile updated.`, "info");
     } catch (err) {
       console.error("Failed to save user edit", err);
       alert("Failed to update user.");
@@ -974,7 +974,7 @@ export default function App() {
       const updated = { ...targetUser, isPro: !targetUser.isPro };
       await dbSaveUser(updated);
       await logAdminAction("TOGGLE_PRO", `Set isPro=${!targetUser.isPro} for "${targetUser.username}"`);
-      addLog(`ðŸ›¡ï¸ Admin: Toggled PRO for "${targetUser.username}" → ${!targetUser.isPro}`, "info");
+      addLog(`🛡️ Admin: Toggled PRO for "${targetUser.username}" → ${!targetUser.isPro}`, "info");
       await loadAdminData();
       if (currentUser && currentUser.username === targetUser.username) setCurrentUser(updated);
     } catch (err) {
@@ -984,12 +984,12 @@ export default function App() {
   };
 
   const handleDeleteUser = async (targetUser: User) => {
-    if (!confirm(`âš ï¸ PERMANENTLY delete user "${targetUser.username}"? This cannot be undone.`)) return;
+    if (!confirm(`⚠️ PERMANENTLY delete user "${targetUser.username}"? This cannot be undone.`)) return;
     setAdminLoading(true);
     try {
       await dbDeleteUser(targetUser.username);
       await logAdminAction("DELETE_USER", `Deleted user "${targetUser.username}"`);
-      addLog(`ðŸ›¡ï¸ Admin: User "${targetUser.username}" deleted permanently.`, "error");
+      addLog(`🛡️ Admin: User "${targetUser.username}" deleted permanently.`, "error");
       await loadAdminData();
     } catch (err) {
       console.error("Failed to delete user", err);
@@ -1006,7 +1006,7 @@ export default function App() {
     try {
       await dbApprovePayment(paymentId, username);
       await logAdminAction("APPROVE_PAYMENT", `Approved payment ${paymentId} for "${username}"`);
-      addLog(`ðŸ›¡ï¸ Admin approved payment: ${paymentId}. Promoted "${username}" to PRO.`, "success");
+      addLog(`🛡️ Admin approved payment: ${paymentId}. Promoted "${username}" to PRO.`, "success");
       const userObj = await dbGetUser(username);
       if (userObj) sendToGoogleSheets(userObj, "upgrade");
       await loadAdminData();
@@ -1024,7 +1024,7 @@ export default function App() {
     try {
       await dbUpdatePaymentStatus(paymentId, "rejected");
       await logAdminAction("REJECT_PAYMENT", `Rejected payment ${paymentId} for "${username}"`);
-      addLog(`ðŸ›¡ï¸ Admin rejected payment: ${paymentId} for "${username}".`, "error");
+      addLog(`🛡️ Admin rejected payment: ${paymentId} for "${username}".`, "error");
       await loadAdminData();
     } catch (err) {
       console.error("Failed to reject payment", err);
@@ -1041,7 +1041,7 @@ export default function App() {
       await dbUpdatePaymentStatus(paymentId, "refunded");
       await dbUpdateUserFields(username, { isPro: false });
       await logAdminAction("REFUND_PAYMENT", `Refunded payment ${paymentId}, revoked PRO for "${username}"`);
-      addLog(`ðŸ›¡ï¸ Admin refunded payment: ${paymentId}, revoked PRO for "${username}".`, "error");
+      addLog(`🛡️ Admin refunded payment: ${paymentId}, revoked PRO for "${username}".`, "error");
       await loadAdminData();
     } catch (err) {
       console.error("Failed to refund payment", err);
@@ -1103,7 +1103,7 @@ export default function App() {
       };
       await dbSavePlan(plan);
       await logAdminAction(adminEditPlan ? "EDIT_PLAN" : "CREATE_PLAN", `${adminEditPlan ? "Updated" : "Created"} plan "${plan.name}"`);
-      addLog(`ðŸ›¡ï¸ Admin: Plan "${plan.name}" ${adminEditPlan ? "updated" : "created"}.`, "info");
+      addLog(`🛡️ Admin: Plan "${plan.name}" ${adminEditPlan ? "updated" : "created"}.`, "info");
       setAdminPlanModalOpen(false);
       await loadAdminData();
     } catch (err) {
@@ -1121,7 +1121,7 @@ export default function App() {
     try {
       await dbDeletePlan(plan.id);
       await logAdminAction("DELETE_PLAN", `Deleted plan "${plan.name}"`);
-      addLog(`ðŸ›¡ï¸ Admin: Plan "${plan.name}" deleted.`, "error");
+      addLog(`🛡️ Admin: Plan "${plan.name}" deleted.`, "error");
       await loadAdminData();
     } catch (err) {
       console.error("Failed to delete plan", err);
@@ -1137,7 +1137,7 @@ export default function App() {
     window.localStorage.setItem("sheetcodecrest_global_free_limit", String(limit));
     setGlobalFreeLimit(limit);
     logAdminAction("UPDATE_SETTINGS", `Set free report limit to ${limit}`);
-    addLog(`âš™ï¸ System setting updated: free limit = ${limit}`, "info");
+    addLog(`⚙️ System setting updated: free limit = ${limit}`, "info");
   };
 
   const handleSaveFeatureFlags = () => {
@@ -1146,7 +1146,7 @@ export default function App() {
     window.localStorage.setItem("sheetcc_flag_google", String(adminFeatureGoogleLogin));
     window.localStorage.setItem("sheetcc_flag_maintenance", String(adminMaintenanceMode));
     logAdminAction("UPDATE_FLAGS", `AI=${adminFeatureAI}, UPI=${adminFeatureUPI}, Google=${adminFeatureGoogleLogin}, Maintenance=${adminMaintenanceMode}`);
-    addLog("âš™ï¸ Feature flags saved successfully.", "success");
+    addLog("⚙️ Feature flags saved successfully.", "success");
     alert("✅ Feature flags saved!");
   };
 
@@ -1290,7 +1290,7 @@ export default function App() {
       setMode(targetMode);
 
       if (isShopify && !forceMode) {
-        setDetectionNotice(`ðŸ›ï¸ Shopify export auto-detected in the background (${shopifyScore}/8 schema match). Building customer, product, order, retargeting, COD, and geographic analytics.`);
+        setDetectionNotice(`🛠️ Shopify export auto-detected in the background (${shopifyScore}/8 schema match). Building customer, product, order, retargeting, COD, and geographic analytics.`);
       } else if (isShiprocket && !forceMode) {
         setDetectionNotice(`🚀 Shiprocket logistics schema auto-detected in the background (${shiprocketScore}/5 schema match). Unlocking courier scorecards and RTO analysis.`);
       } else if (!forceMode) {
@@ -1527,7 +1527,7 @@ What would you like to investigate in this dataset? E.g.:
 
 1. **💸 Cash-on-Delivery Risk Exposure**: COD orders represent **${((stats.payCounts["cod"]?.orders || 0) / stats.total * 100).toFixed(0)}%** of overall shipments (amounting to **₹${stats.totalCOD.toLocaleString("en-IN")}**). To minimize failed deliveries, implement automated WhatsApp COD confirmations prior to dispatching.
 2. **🚚 Courier Scorecard Analysis**: Your primary shipping partner is **${topCouriers[0]?.[0] || "N/A"}** managing **${topCouriers[0]?.[1]?.orders || 0} orders** with a **${((topCouriers[0]?.[1]?.delivered / topCouriers[0]?.[1]?.orders) * 100).toFixed(1)}%** success rate. Monitor billing weight discrepancies closely to avoid surcharges.
-3. **âš ï¸ Regional Return-to-Origin Hotspot**: **${worstRtoState?.[0] || "N/A"}** is flagging a critical RTO return risk of **${((worstRtoState?.[1]?.rto / worstRtoState?.[1]?.orders) * 100).toFixed(1)}%** over ${worstRtoState?.[1]?.orders || 0} shipments. Consider restricting COD or requiring prepaid payment for high-value orders in this territory.
+3. **⚠️ Regional Return-to-Origin Hotspot**: **${worstRtoState?.[0] || "N/A"}** is flagging a critical RTO return risk of **${((worstRtoState?.[1]?.rto / worstRtoState?.[1]?.orders) * 100).toFixed(1)}%** over ${worstRtoState?.[1]?.orders || 0} shipments. Consider restricting COD or requiring prepaid payment for high-value orders in this territory.
 4. **📦 Packaging Freight Waste**: The overall freight charges total **₹${stats.totalFreight.toLocaleString("en-IN")}**, representing **${(stats.totalFreight / stats.totalRev * 100).toFixed(1)}%** of sales. Review box sizes and volumetric weight brackets to reduce dead-weight costs.`;
   }, [logisticsAnalytics]);
 
@@ -1537,7 +1537,7 @@ What would you like to investigate in this dataset? E.g.:
     if (mode === "shopify" && shopifyAnalytics) {
       const stats = shopifyAnalytics;
       if (q.includes("product") || q.includes("best") || q.includes("top")) {
-        return `### ðŸ›ï¸ Shopify Product Performance
+        return `### 🛠️ Shopify Product Performance
 * **Top product**: **${stats.topProduct}**
 * **Products analysed**: **${stats.productCount}**
 * **Units sold**: **${stats.totalUnits.toLocaleString("en-IN")}**
@@ -1572,7 +1572,7 @@ What would you like to investigate in this dataset? E.g.:
         .sort((a, b) => (b[1].rto / b[1].orders) - (a[1].rto / a[1].orders))[0];
 
       if (q.includes("rto") || q.includes("return") || q.includes("state") || q.includes("destination")) {
-        return `### âš ï¸ Regional Return-to-Origin Hotspot Analysis (Offline Mode)
+        return `### ⚠️ Regional Return-to-Origin Hotspot Analysis (Offline Mode)
 * **Worst Performer**: **${worstRtoState?.[0] || "N/A"}** has an RTO risk of **${((worstRtoState?.[1]?.rto / worstRtoState?.[1]?.orders) * 100).toFixed(1)}%** (${worstRtoState?.[1]?.rto} returned out of ${worstRtoState?.[1]?.orders} orders).
 * **Mitigation Strategy**: Implement strict address validation checks before shipping. We highly recommend asking for prepaid payments or holding COD shipments to this region until customer confirmation is received via WhatsApp.`;
       }
@@ -3848,7 +3848,7 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
                   }}
                   style={{ borderColor: "var(--amber)", color: "var(--amber)", fontWeight: 600 }}
                 >
-                  ðŸ›¡ï¸ Admin Panel
+                  🛡️ Admin Panel
                 </button>
               )}
               <button 
@@ -3856,7 +3856,7 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
                 className="header-btn" 
                 onClick={() => setDashboardOpen(true)}
               >
-                ðŸŽ›ï¸ Dashboard
+                🎛️ Dashboard
               </button>
               {!currentUser.isPro && (
                 <button 
@@ -3902,7 +3902,7 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
       {/* Error state */}
       {error && (
         <div className="section-card" style={{ borderLeft: "4px solid var(--error)", background: "rgba(239, 68, 68, 0.08)" }}>
-          <div style={{ color: "var(--error)", fontWeight: 600, fontSize: "0.9rem" }}>âš ï¸ Spreadsheet Error</div>
+          <div style={{ color: "var(--error)", fontWeight: 600, fontSize: "0.9rem" }}>⚠️ Spreadsheet Error</div>
           <div style={{ color: "var(--ink)", fontSize: "0.85rem", marginTop: "4px", opacity: 0.9 }}>{error}</div>
         </div>
       )}
@@ -4231,7 +4231,7 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
             
             <div className="features-grid">
               <div className="feature-item-card">
-                <div className="feature-icon-wrapper">ðŸ›ï¸</div>
+                <div className="feature-icon-wrapper">🛠️</div>
                 <h4 className="feature-title-card">Shopify Sales Consolidator</h4>
                 <p className="feature-desc-card">Automatically consolidates order rows, calculates geographical performance, filters COD risk status, and groups repeat buyers for retargeting campaigns.</p>
               </div>
@@ -4518,7 +4518,7 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
 
                 return (
                   <div className="section-card" style={{ borderLeft: "4px solid #ef4444" }}>
-                    <h3 className="card-title" style={{ color: "#ef4444" }}>âš ï¸ Regional return hotspot alerts</h3>
+                    <h3 className="card-title" style={{ color: "#ef4444" }}>⚠️ Regional return hotspot alerts</h3>
                     <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                       {highRtoStatesList.map(([stateName, detail]: [string, any]) => {
                         const rtoPercent = (detail.rto / detail.orders) * 100;
@@ -4849,7 +4849,7 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
                       onClick={() => handleChatSubmit(undefined, "Which products are performing best and what should we retarget?")}
                       disabled={aiLoading}
                     >
-                      ðŸ›ï¸ Product Winners
+                      🛠️ Product Winners
                     </button>
                     <button 
                       className="chat-suggestion-chip" 
@@ -4880,7 +4880,7 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
                       onClick={() => handleChatSubmit(undefined, "Which states represent the highest RTO risk and how do we solve them?")}
                       disabled={aiLoading}
                     >
-                      âš ï¸ Highest RTO Risks
+                      ⚠️ Highest RTO Risks
                     </button>
                     <button 
                       className="chat-suggestion-chip" 
@@ -4956,7 +4956,7 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
                   <tr>
                     {tableHeaders.slice(0, 8).map((header) => (
                       <th key={header} onClick={() => handleSort(header)}>
-                        {header} {sortConfig?.key === header ? (sortConfig.direction === "asc" ? "▲" : "â–¼") : ""}
+                        {header} {sortConfig?.key === header ? (sortConfig.direction === "asc" ? "▲" : "▼") : ""}
                       </th>
                     ))}
                   </tr>
@@ -5059,7 +5059,7 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
             <div className="modal-header">
               <h3 className="modal-title" style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                 <img src="/logo-icon.png" alt="SheetCodeCrest Icon" style={{ height: "24px", width: "24px", borderRadius: "5px", objectFit: "contain" }} />
-                <span>{authTab === "login" ? "🔑 Sign In" : "ðŸ“ Create Account"}</span>
+                <span>{authTab === "login" ? "🔑 Sign In" : "📋 Create Account"}</span>
               </h3>
               <button 
                 type="button" 
@@ -5088,7 +5088,7 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
             <div className="modal-body">
               {authError && (
                 <div style={{ color: "var(--error)", marginBottom: "1rem", fontSize: "13px", fontWeight: 600 }}>
-                  âš ï¸ {authError}
+                  ⚠️ {authError}
                 </div>
               )}
               <form onSubmit={authTab === "login" ? handleLogin : handleSignup}>
@@ -5152,7 +5152,7 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
                   />
                 </div>
                 <button type="submit" className="auth-submit-btn">
-                  {authTab === "login" ? "🔑 Sign In" : "ðŸ“ Register"}
+                  {authTab === "login" ? "🔑 Sign In" : "📋 Register"}
                 </button>
 
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "center", margin: "1.25rem 0", gap: "10px" }}>
@@ -5332,14 +5332,14 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
         </div>
       )}
 
-      {/* ðŸ›¡ï¸ Secure Admin Panel Modal — Advanced */}
+      {/* 🛡️ Secure Admin Panel Modal — Advanced */}
       {adminModalOpen && (
         <div className="modal-overlay" onClick={() => !adminLoading && setAdminModalOpen(false)}>
           <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "900px", width: "97%", maxHeight: "92vh", display: "flex", flexDirection: "column" }}>
             {/* Header */}
             <div className="modal-header" style={{ borderColor: "var(--amber)", flexShrink: 0 }}>
               <h3 className="modal-title" style={{ display: "flex", alignItems: "center", gap: "8px", color: "var(--amber)" }}>
-                <span>ðŸ›¡ï¸</span> SheetCodeCrest Admin Console
+                <span>🛡️</span> SheetCodeCrest Admin Console
                 <span style={{ fontSize: "10px", background: "rgba(245,158,11,0.15)", color: "var(--amber)", padding: "2px 8px", borderRadius: "20px", fontWeight: 500, marginLeft: "4px" }}>
                   SUPER ADMIN
                 </span>
@@ -5364,7 +5364,7 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
                   payments: `💳 Payments (${adminPayments.length})`,
                   plans: `📦 Plans (${adminPlans.length})`,
                   analytics: "📊 Analytics",
-                  settings: "âš™ï¸ Settings",
+                  settings: "⚙️ Settings",
                   activity: `🔔 Activity (${adminLogs.length})`
                 };
                 return (
@@ -5406,7 +5406,7 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
                         <input
                           type="text"
                           className="form-input"
-                          placeholder="ðŸ” Search by username, name, email, mobile..."
+                          placeholder="🔎 Search by username, name, email, mobile..."
                           value={adminSearch}
                           onChange={(e) => setAdminSearch(e.target.value)}
                           style={{ flex: 1, minWidth: "200px" }}
@@ -5460,7 +5460,7 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
                                     <div style={{ display: "flex", gap: "4px", flexWrap: "nowrap" }}>
                                       <button type="button" onClick={() => openEditUser(user)}
                                         style={{ padding: "4px 8px", borderRadius: "5px", fontSize: "10px", fontWeight: 600, cursor: "pointer", border: "1px solid #3b82f6", background: "rgba(59,130,246,0.1)", color: "#3b82f6" }}>
-                                        âœï¸ Edit
+                                        ✏️ Edit
                                       </button>
                                       <button type="button" onClick={() => handleToggleUserPro(user)}
                                         style={{ padding: "4px 8px", borderRadius: "5px", fontSize: "10px", fontWeight: 600, cursor: "pointer", border: `1px solid ${user.isPro ? "#ef4444" : "#10b981"}`, background: user.isPro ? "rgba(239,68,68,0.1)" : "rgba(16,185,129,0.1)", color: user.isPro ? "#ef4444" : "#10b981" }}>
@@ -5468,7 +5468,7 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
                                       </button>
                                       <button type="button" onClick={() => handleDeleteUser(user)}
                                         style={{ padding: "4px 8px", borderRadius: "5px", fontSize: "10px", fontWeight: 600, cursor: "pointer", border: "1px solid #ef4444", background: "rgba(239,68,68,0.08)", color: "#ef4444" }}>
-                                        ðŸ—‘ï¸
+                                        🗑️
                                       </button>
                                     </div>
                                   </td>
@@ -5488,7 +5488,7 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
                       {adminEditUserOpen && adminEditUser && (
                         <div style={{ position: "fixed", top: 0, right: 0, width: "380px", height: "100vh", background: "var(--glass-bg)", backdropFilter: "blur(24px)", borderLeft: "1px solid var(--hairline)", zIndex: 9999, padding: "2rem", display: "flex", flexDirection: "column", gap: "1rem", overflowY: "auto" }}>
                           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.5rem" }}>
-                            <h4 style={{ margin: 0, fontSize: "16px", fontWeight: 700, color: "var(--amber)" }}>âœï¸ Edit User</h4>
+                            <h4 style={{ margin: 0, fontSize: "16px", fontWeight: 700, color: "var(--amber)" }}>✏️ Edit User</h4>
                             <button type="button" onClick={() => setAdminEditUserOpen(false)} style={{ background: "none", border: "none", color: "var(--slate)", fontSize: "18px", cursor: "pointer" }}>✕</button>
                           </div>
                           <div style={{ padding: "10px 14px", background: "rgba(255,255,255,0.04)", borderRadius: "8px", fontSize: "13px", fontWeight: 600 }}>
@@ -5541,7 +5541,7 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
 
                       {/* Search + Status filter */}
                       <div style={{ display: "flex", gap: "8px", marginBottom: "1rem", flexWrap: "wrap" }}>
-                        <input type="text" className="form-input" placeholder="ðŸ” Search by username or payment ID..." value={adminSearch} onChange={(e) => setAdminSearch(e.target.value)} style={{ flex: 1, minWidth: "200px" }} />
+                        <input type="text" className="form-input" placeholder="🔎 Search by username or payment ID..." value={adminSearch} onChange={(e) => setAdminSearch(e.target.value)} style={{ flex: 1, minWidth: "200px" }} />
                         {(["all","pending_verification","success","rejected","refunded"] as const).map(f => (
                           <button key={f} type="button" onClick={() => setAdminPaymentFilter(f)}
                             style={{ padding: "6px 10px", borderRadius: "6px", fontSize: "10px", fontWeight: 600, cursor: "pointer", border: "1px solid", whiteSpace: "nowrap",
@@ -5597,13 +5597,13 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
                                         {pay.status === "pending_verification" && (
                                           <button type="button" onClick={() => handleAdminRejectPayment(pay.paymentId, pay.username)}
                                             style={{ padding: "4px 8px", borderRadius: "5px", fontSize: "10px", fontWeight: 700, cursor: "pointer", border: "1px solid #ef4444", background: "rgba(239,68,68,0.1)", color: "#ef4444", whiteSpace: "nowrap" }}>
-                                            âŒ Reject
+                                            ❌ Reject
                                           </button>
                                         )}
                                         {pay.status === "success" && (
                                           <button type="button" onClick={() => handleAdminRefundPayment(pay.paymentId, pay.username)}
                                             style={{ padding: "4px 8px", borderRadius: "5px", fontSize: "10px", fontWeight: 600, cursor: "pointer", border: "1px solid #8b5cf6", background: "rgba(139,92,246,0.1)", color: "#8b5cf6", whiteSpace: "nowrap" }}>
-                                            â†©ï¸ Refund
+                                            ↩️ Refund
                                           </button>
                                         )}
                                       </div>
@@ -5726,7 +5726,7 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
                           { icon: "🆓", label: "Free Users", value: adminUsers.filter(u => !u.isPro).length, color: "#64748b" },
                           { icon: "💰", label: "Total Revenue", value: `₹${adminPayments.filter(p => p.status === "success").reduce((s: number, p: any) => s + (p.amount || 0), 0).toLocaleString()}`, color: "#10b981" },
                           { icon: "💳", label: "Transactions", value: adminPayments.length, color: "#8b5cf6" },
-                          { icon: "â³", label: "Pending", value: adminPayments.filter(p => p.status === "pending_verification").length, color: "#ef4444" },
+                          { icon: "⏳", label: "Pending", value: adminPayments.filter(p => p.status === "pending_verification").length, color: "#ef4444" },
                         ].map(card => (
                           <div key={card.label} style={{ padding: "1.25rem", borderRadius: "12px", background: "rgba(255,255,255,0.03)", border: "1px solid var(--hairline)", textAlign: "center" }}>
                             <div style={{ fontSize: "28px", marginBottom: "6px" }}>{card.icon}</div>
@@ -5826,12 +5826,12 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
 
                       {/* Danger Zone */}
                       <div style={{ padding: "1.25rem", borderRadius: "12px", border: "1px solid rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.04)" }}>
-                        <h4 style={{ margin: "0 0 1rem 0", fontSize: "14px", fontWeight: 700, color: "#ef4444" }}>âš ï¸ Danger Zone</h4>
+                        <h4 style={{ margin: "0 0 1rem 0", fontSize: "14px", fontWeight: 700, color: "#ef4444" }}>⚠️ Danger Zone</h4>
                         <p style={{ fontSize: "12px", color: "var(--slate)", margin: "0 0 12px 0" }}>These actions are irreversible. Use with extreme caution.</p>
                         <button type="button"
-                          onClick={() => { if (confirm("Clear all admin activity logs? This cannot be undone.")) { setAdminLogs([]); addLog("âš ï¸ Admin: Activity logs cleared.", "error"); }}}
+                          onClick={() => { if (confirm("Clear all admin activity logs? This cannot be undone.")) { setAdminLogs([]); addLog("⚠️ Admin: Activity logs cleared.", "error"); }}}
                           style={{ padding: "8px 16px", borderRadius: "8px", background: "rgba(239,68,68,0.1)", color: "#ef4444", border: "1px solid #ef4444", fontWeight: 700, fontSize: "12px", cursor: "pointer" }}>
-                          ðŸ—‘ï¸ Clear Activity Logs
+                          🗑️ Clear Activity Logs
                         </button>
                       </div>
                     </div>
@@ -5896,7 +5896,7 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
         <div className="modal-overlay" onClick={() => setDashboardOpen(false)}>
           <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "640px" }}>
             <div className="modal-header">
-              <h3 className="modal-title">ðŸŽ›ï¸ Account & Analytics Dashboard</h3>
+              <h3 className="modal-title">🎛️ Account & Analytics Dashboard</h3>
               <button 
                 type="button" 
                 className="modal-close-btn" 
@@ -5935,7 +5935,7 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
 
                   <div style={{ marginTop: "1.5rem" }}>
                     <h4 style={{ margin: "0 0 10px 0", fontSize: "14px", fontFamily: "var(--font-display)", fontWeight: 600, borderBottom: "1px solid var(--hairline)", paddingBottom: "6px", textAlign: "left" }}>
-                      ðŸ“ Saved Spreadsheets & Analytics
+                      📂 Saved Spreadsheets & Analytics
                     </h4>
                     <div className="records-list-wrapper">
                       {savedRecords.length > 0 ? (
@@ -5976,7 +5976,7 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
                                 onClick={(e) => handleDeleteRecord(rec.id!, e)}
                                 title="Delete saved spreadsheet"
                               >
-                                ðŸ—‘ï¸
+                                🗑️
                               </button>
                             </div>
                           </div>
