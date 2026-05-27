@@ -1,4 +1,14 @@
 User-agent: *
 Allow: /
 
+# AI crawlers (important for AI search visibility)
+User-agent: GPTBot
+Allow: /
+User-agent: Claude-Web
+Allow: /
+User-agent: Googlebot
+Allow: /
+User-agent: Bingbot
+Allow: /
+
 Sitemap: https://sheetcodecrest.vercel.app/sitemap.xml

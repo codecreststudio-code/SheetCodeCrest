@@ -1,84 +1,215 @@
 <!doctype html>
-<html>
+<html lang="en">
   <head>
-    <meta charset="utf-8" />
+    <!-- ═══════════════════════════════════════════
+         CORE
+    ═══════════════════════════════════════════ -->
+    <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>SheetCodeCrest — AI-Powered Spreadsheet Analyst for Any Data</title>
+
+    <!-- ═══════════════════════════════════════════
+         PRIMARY SEO
+    ═══════════════════════════════════════════ -->
+    <title>
+      SheetCodeCrest — Free AI Spreadsheet Analyst | CSV, Excel & JSON Insights
+    </title>
     <meta
       name="description"
-      content="Upload any spreadsheet — CSV, XLSX, or JSON — and get instant AI-powered insights, KPI dashboards, and plain English data analysis. Works with Shopify, Shiprocket, HR, finance, and any dataset."
+      content="Upload any CSV, Excel, or JSON file and get instant AI-powered insights, KPI dashboards, and charts. Works for Shopify orders, Shiprocket exports, HR data, finance sheets, and any dataset. 100% free to start."
     />
     <meta
       name="keywords"
-      content="AI spreadsheet analyst, CSV analyzer, Excel AI tool, data analysis tool India, Shopify data analytics, spreadsheet insights"
+      content="AI spreadsheet analyzer, CSV analyzer online free, Excel AI insights, data analysis tool India, Shopify order analytics, Shiprocket data tool, spreadsheet dashboard, AI data analyst free"
     />
-
-    <!-- Open Graph (for sharing) -->
-    <meta
-      property="og:title"
-      content="SheetCodeCrest — AI Spreadsheet Analyst"
-    />
-    <meta
-      property="og:description"
-      content="Upload any CSV or Excel file and get instant AI insights, charts, and KPI dashboards."
-    />
-    <meta property="og:url" content="https://sheetcodecrest.vercel.app" />
-    <meta property="og:type" content="website" />
-    <meta
-      property="og:image"
-      content="https://sheetcodecrest.vercel.app/og-image.png"
-    />
-
-    <!-- Twitter Card -->
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta
-      name="twitter:title"
-      content="SheetCodeCrest — AI Spreadsheet Analyst"
-    />
-    <meta
-      name="twitter:description"
-      content="Upload any CSV or Excel file and get instant AI insights."
-    />
-
-    <!-- Canonical -->
+    <meta name="author" content="SheetCodeCrest" />
+    <meta name="robots" content="index, follow" />
     <link rel="canonical" href="https://sheetcodecrest.vercel.app/" />
-    <link rel="icon" type="image/png" href="/favicon.png" />
+
+    <!-- ═══════════════════════════════════════════
+         GOOGLE VERIFICATION
+    ═══════════════════════════════════════════ -->
     <meta
       name="google-site-verification"
       content="QT_hUkLEcniarABR7a55mEDIeYyQd8HE-DursoIPuZs"
     />
+
+    <!-- ═══════════════════════════════════════════
+         OPEN GRAPH — Facebook, LinkedIn, WhatsApp
+    ═══════════════════════════════════════════ -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://sheetcodecrest.vercel.app/" />
+    <meta property="og:site_name" content="SheetCodeCrest" />
+    <meta property="og:locale" content="en_IN" />
+    <meta
+      property="og:title"
+      content="SheetCodeCrest — Free AI Spreadsheet Analyst"
+    />
+    <meta
+      property="og:description"
+      content="Upload any CSV, Excel or JSON file and get instant AI insights, KPI dashboards, and data chat. Free. No signup needed."
+    />
+    <meta
+      property="og:image"
+      content="https://sheetcodecrest.vercel.app/logo-light.png"
+    />
+
+    <!-- ═══════════════════════════════════════════
+         TWITTER CARD
+    ═══════════════════════════════════════════ -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta
+      name="twitter:title"
+      content="SheetCodeCrest — Free AI Spreadsheet Analyst"
+    />
+    <meta
+      name="twitter:description"
+      content="Upload any CSV, Excel or JSON and get instant AI insights, charts, and KPI dashboards. Free tool."
+    />
+    <meta
+      name="twitter:image"
+      content="https://sheetcodecrest.vercel.app/logo-light.png"
+    />
+
+    <!-- ═══════════════════════════════════════════
+         FAVICON
+    ═══════════════════════════════════════════ -->
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="apple-touch-icon" href="/favicon.png" />
+
+    <!-- ═══════════════════════════════════════════
+         GOOGLE ADSENSE
+    ═══════════════════════════════════════════ -->
     <script
       async
       src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1950207410287535"
       crossorigin="anonymous"
     ></script>
+
+    <!-- ═══════════════════════════════════════════
+         FONTS
+    ═══════════════════════════════════════════ -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@400;500;600;700;800;900&family=Fira+Code:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
       rel="stylesheet"
     />
+
+    <!-- ═══════════════════════════════════════════
+         STRUCTURED DATA — SoftwareApplication
+         Tells Google exactly what your product is
+    ═══════════════════════════════════════════ -->
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
         "@type": "SoftwareApplication",
         "name": "SheetCodeCrest",
         "url": "https://sheetcodecrest.vercel.app",
-        "description": "AI-powered spreadsheet analyst. Upload CSV, Excel or JSON and get instant AI insights, KPI dashboards, and data chat.",
+        "logo": "https://sheetcodecrest.vercel.app/logo-light.png",
+        "description": "AI-powered spreadsheet analyst. Upload CSV, Excel or JSON and get instant AI insights, KPI dashboards, auto-generated charts, and plain English data analysis for any dataset.",
         "applicationCategory": "BusinessApplication",
         "operatingSystem": "Web Browser",
-        "offers": {
-          "@type": "Offer",
-          "price": "0",
-          "priceCurrency": "INR"
-        },
+        "inLanguage": "en-IN",
+        "offers": [
+          {
+            "@type": "Offer",
+            "name": "Basic",
+            "price": "0",
+            "priceCurrency": "INR",
+            "description": "Free plan — 3 uploads per month"
+          },
+          {
+            "@type": "Offer",
+            "name": "Standard",
+            "price": "999",
+            "priceCurrency": "INR",
+            "description": "250 uploads/month, AI chat, unlimited insights"
+          },
+          {
+            "@type": "Offer",
+            "name": "Premium",
+            "price": "2499",
+            "priceCurrency": "INR",
+            "description": "Unlimited uploads, team access, white-label reports"
+          }
+        ],
         "featureList": [
-          "CSV file analysis",
+          "CSV file AI analysis",
           "Excel spreadsheet insights",
+          "JSON data visualization",
           "AI-powered KPI dashboard",
           "Plain English data chat",
           "Shopify order analytics",
-          "Automatic schema detection"
+          "Shiprocket export analysis",
+          "Automatic schema detection",
+          "Data profiler with statistics",
+          "Chart auto-generation"
+        ],
+        "aggregateRating": {
+          "@type": "AggregateRating",
+          "ratingValue": "4.8",
+          "ratingCount": "12"
+        }
+      }
+    </script>
+
+    <!-- ═══════════════════════════════════════════
+         FAQ SCHEMA — Powers Google "People Also Ask"
+         featured snippets
+    ═══════════════════════════════════════════ -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "What file formats does SheetCodeCrest support?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "SheetCodeCrest supports CSV, XLSX, XLS, JSON, TSV, and ODS files. Simply upload your file and get instant AI-powered insights."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Is SheetCodeCrest free to use?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes, SheetCodeCrest has a free Basic plan that allows 3 file uploads per month with AI insights and chart generation. No credit card required."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Does SheetCodeCrest work with Shopify exports?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes, SheetCodeCrest automatically detects Shopify order exports and activates a dedicated Shopify analytics module with COD risk scoring, repeat customer detection, and state-wise revenue breakdown."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Is my data safe with SheetCodeCrest?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes. SheetCodeCrest processes all data 100% client-side in your browser. Your spreadsheet data never leaves your device and is never stored on any server."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Does SheetCodeCrest work with Shiprocket exports?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes. SheetCodeCrest automatically detects Shiprocket CSV exports and provides courier performance scoring, RTO analysis, city-tier breakdown, and shipping cost leakage detection."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Do I need to know coding or formulas to use SheetCodeCrest?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "No coding or formula knowledge needed. Just upload your file and ask questions in plain English. SheetCodeCrest uses AI to analyze your data and generate insights automatically."
+            }
+          }
         ]
       }
     </script>
