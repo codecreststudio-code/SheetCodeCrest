@@ -156,6 +156,275 @@ const formatMessage = (text: string): string => {
   return processedLines.join("");
 };
 
+const getCurrencySymbol = (curr: "INR" | "USD" | "EUR") => {
+  if (curr === "INR") return "₹";
+  if (curr === "EUR") return "€";
+  return "$";
+};
+
+const getConvertedPrice = (basePrice: number, curr: "INR" | "USD" | "EUR") => {
+  if (basePrice === 0) return 0;
+  if (curr === "INR") return basePrice;
+  if (curr === "USD") {
+    if (basePrice === 999) return 12;
+    if (basePrice === 2499) return 29;
+    return Math.round(basePrice / 83);
+  }
+  if (curr === "EUR") {
+    if (basePrice === 999) return 11;
+    if (basePrice === 2499) return 27;
+    return Math.round(basePrice / 90);
+  }
+  return basePrice;
+};
+
+const SaaSBackgroundParticles = () => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    let animationFrameId: number;
+    let width = (canvas.width = canvas.offsetWidth);
+    let height = (canvas.height = canvas.offsetHeight);
+
+    const particles: Array<{
+      x: number;
+      y: number;
+      size: number;
+      speedX: number;
+      speedY: number;
+      alpha: number;
+    }> = [];
+
+    // Create particles
+    const particleCount = 45;
+    for (let i = 0; i < particleCount; i++) {
+      particles.push({
+        x: Math.random() * width,
+        y: Math.random() * height,
+        size: Math.random() * 2 + 0.5,
+        speedX: (Math.random() - 0.5) * 0.35,
+        speedY: (Math.random() - 0.5) * 0.35,
+        alpha: Math.random() * 0.5 + 0.1,
+      });
+    }
+
+    const handleResize = () => {
+      if (!canvas) return;
+      width = canvas.width = canvas.offsetWidth;
+      height = canvas.height = canvas.offsetHeight;
+    };
+    window.addEventListener("resize", handleResize);
+
+    // Track mouse
+    let mouse = { x: -9999, y: -9999 };
+    const handleMouseMove = (e: MouseEvent) => {
+      const rect = canvas.getBoundingClientRect();
+      mouse.x = e.clientX - rect.left;
+      mouse.y = e.clientY - rect.top;
+    };
+    const handleMouseLeave = () => {
+      mouse.x = -9999;
+      mouse.y = -9999;
+    };
+
+    const parent = canvas.parentElement;
+    if (parent) {
+      parent.addEventListener("mousemove", handleMouseMove);
+      parent.addEventListener("mouseleave", handleMouseLeave);
+    }
+
+    const draw = () => {
+      ctx.clearRect(0, 0, width, height);
+
+      // Draw lines between close particles
+      for (let i = 0; i < particles.length; i++) {
+        const p1 = particles[i];
+        
+        // Update positions
+        p1.x += p1.speedX;
+        p1.y += p1.speedY;
+
+        // Bounce borders
+        if (p1.x < 0 || p1.x > width) p1.speedX *= -1;
+        if (p1.y < 0 || p1.y > height) p1.speedY *= -1;
+
+        // Mouse reaction
+        if (mouse.x !== -9999) {
+          const dx = p1.x - mouse.x;
+          const dy = p1.y - mouse.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < 100) {
+            const force = (100 - dist) / 100;
+            p1.x += (dx / dist) * force * 1.5;
+            p1.y += (dy / dist) * force * 1.5;
+          }
+        }
+
+        // Draw particle
+        ctx.beginPath();
+        ctx.arc(p1.x, p1.y, p1.size, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(0, 255, 178, ${p1.alpha})`;
+        ctx.fill();
+
+        // Connect lines
+        for (let j = i + 1; j < particles.length; j++) {
+          const p2 = particles[j];
+          const dx = p1.x - p2.x;
+          const dy = p1.y - p2.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+
+          if (dist < 85) {
+            const alpha = (1 - dist / 85) * 0.15;
+            ctx.beginPath();
+            ctx.moveTo(p1.x, p1.y);
+            ctx.lineTo(p2.x, p2.y);
+            ctx.strokeStyle = `rgba(0, 255, 178, ${alpha})`;
+            ctx.lineWidth = 0.5;
+            ctx.stroke();
+          }
+        }
+      }
+
+      animationFrameId = requestAnimationFrame(draw);
+    };
+
+    draw();
+
+    return () => {
+      cancelAnimationFrame(animationFrameId);
+      window.removeEventListener("resize", handleResize);
+      if (parent) {
+        parent.removeEventListener("mousemove", handleMouseMove);
+        parent.removeEventListener("mouseleave", handleMouseLeave);
+      }
+    };
+  }, []);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      style={{
+        position: "absolute",
+        inset: 0,
+        width: "100%",
+        height: "100%",
+        pointerEvents: "none",
+        zIndex: 0,
+        opacity: 0.75,
+      }}
+    />
+  );
+};
+
+const CustomGlowingCursor = () => {
+  const [position, setPosition] = useState({ x: -100, y: -100 });
+  const [trail, setTrail] = useState({ x: -100, y: -100 });
+  const [isVisible, setIsVisible] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      setPosition({ x: e.clientX, y: e.clientY });
+      setIsVisible(true);
+    };
+
+    const handleMouseLeave = () => {
+      setIsVisible(false);
+    };
+
+    const handleMouseOver = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (
+        target.tagName === "BUTTON" ||
+        target.tagName === "A" ||
+        target.closest("button") ||
+        target.closest("a") ||
+        target.closest('[role="button"]') ||
+        target.style.cursor === "pointer"
+      ) {
+        setIsHovered(true);
+      } else {
+        setIsHovered(false);
+      }
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseleave", handleMouseLeave);
+    window.addEventListener("mouseover", handleMouseOver);
+
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseleave", handleMouseLeave);
+      window.removeEventListener("mouseover", handleMouseOver);
+    };
+  }, []);
+
+  useEffect(() => {
+    let animationFrameId: number;
+
+    const updateTrail = () => {
+      setTrail((prev) => {
+        const dx = position.x - prev.x;
+        const dy = position.y - prev.y;
+        return {
+          x: prev.x + dx * 0.15,
+          y: prev.y + dy * 0.15,
+        };
+      });
+      animationFrameId = requestAnimationFrame(updateTrail);
+    };
+
+    animationFrameId = requestAnimationFrame(updateTrail);
+    return () => cancelAnimationFrame(animationFrameId);
+  }, [position]);
+
+  if (!isVisible) return null;
+
+  return (
+    <>
+      {/* Inner glowing solid dot (neon-green theme) */}
+      <div
+        style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          width: isHovered ? "10px" : "8px",
+          height: isHovered ? "10px" : "8px",
+          borderRadius: "50%",
+          background: "#00ffb2",
+          boxShadow: "0 0 12px #00ffb2, 0 0 20px rgba(0, 255, 178, 0.5)",
+          transform: `translate3d(${position.x - (isHovered ? 5 : 4)}px, ${position.y - (isHovered ? 5 : 4)}px, 0)`,
+          pointerEvents: "none",
+          zIndex: 999999,
+          transition: "width 0.15s, height 0.15s, background-color 0.15s",
+        }}
+      />
+      {/* Outer trailing interactive halo ring */}
+      <div
+        style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          width: isHovered ? "36px" : "28px",
+          height: isHovered ? "36px" : "28px",
+          borderRadius: "50%",
+          border: "1.5px solid rgba(0, 255, 178, 0.4)",
+          background: isHovered ? "rgba(0, 255, 178, 0.05)" : "transparent",
+          transform: `translate3d(${trail.x - (isHovered ? 18 : 14)}px, ${trail.y - (isHovered ? 18 : 14)}px, 0)`,
+          pointerEvents: "none",
+          zIndex: 999998,
+          transition: "width 0.2s, height 0.2s, background-color 0.2s, border-color 0.2s",
+        }}
+      />
+    </>
+  );
+};
+
 export default function App() {
   // Application Modes & Navigation
   const [mode, setMode] = useState<AppMode>("universal");
@@ -190,11 +459,44 @@ export default function App() {
   const [upiVPA, setUpiVPA] = useState("");
   const [upiUTR, setUpiUTR] = useState("");
   
-  // Payment Gateway simulation log stream
   const [paymentLogs, setPaymentLogs] = useState<string[]>([]);
   const [paymentProcessing, setPaymentProcessing] = useState(false);
   const [paymentCompleted, setPaymentCompleted] = useState(false);
   const [theme, setTheme] = useState<ThemeMode>("dark");
+
+  // FAQ accordion active state
+  const [expandedFaq, setExpandedFaq] = useState<number | null>(null);
+
+  // Currency option with automatic region detection
+  const [currency, setCurrency] = useState<"INR" | "USD" | "EUR">(() => {
+    if (typeof window === "undefined" || typeof Intl === "undefined") return "USD";
+    try {
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      if (tz && (tz.includes("Kolkata") || tz.includes("Calcutta") || tz.includes("India") || tz === "Asia/Kolkata")) {
+        return "INR";
+      }
+      // Check locale languages as fallback
+      const langs = window.navigator.languages || [window.navigator.language];
+      if (langs.some(l => l && (l.toLowerCase().includes("in") || l.toLowerCase().includes("hi")))) {
+        return "INR";
+      }
+    } catch (e) {
+      // Ignore
+    }
+    return "USD";
+  });
+
+  // E-commerce CAC, Margin & ROAS calculator state
+  const [calcAdSpend, setCalcAdSpend] = useState(15000);
+  const [calcOrders, setCalcOrders] = useState(250);
+  const [calcAOV, setCalcAOV] = useState(1200);
+  const [calcCOGS, setCalcCOGS] = useState(400);
+
+  // Bento Card 5 security demo toggles
+  const [bentoAnonymize, setBentoAnonymize] = useState(true);
+  const [bentoSandbox, setBentoSandbox] = useState(true);
+  const [bentoAutoDelete, setBentoAutoDelete] = useState(false);
+
   const [usageCount, setUsageCount] = useState(() => {
     if (typeof window === "undefined") return 0;
     const stored = Number(window.localStorage.getItem(USAGE_STORAGE_KEY) || "0");
@@ -216,6 +518,11 @@ export default function App() {
   const [versionTrackerOpen, setVersionTrackerOpen] = useState(false);
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [versionUploading, setVersionUploading] = useState(false);
+
+  // COD Premium Optimizer State
+  const [codPremiumVal, setCodPremiumVal] = useState(50);
+  const [codSwitchRate, setCodSwitchRate] = useState(15);
+  const [rtoCostPerOrder, setRtoCostPerOrder] = useState(150);
 
   // Admin Portal State
   const [adminModalOpen, setAdminModalOpen] = useState(false);
@@ -262,13 +569,16 @@ export default function App() {
       price: 0,
       billingPeriod: "free",
       features: [
-        "3 free report generations",
-        "Shopify & Shiprocket modes",
-        "Interactive data mockup viewer",
-        "100% client-side — no data stored"
+        "File uploads: 3 / month",
+        "AI insights per report: 5 insights",
+        "Auto chart generation: 4 charts",
+        "Schema & column detection",
+        "Data profiler (basic stats)",
+        "CSV, XLSX, JSON, TSV support",
+        "100% client-side — data never leaves your device"
       ],
       isActive: true,
-      description: "Perfect for trying SheetCodeCrest on your first few exports",
+      description: "Perfect for exploring your data. No credit card needed.",
       highlighted: false,
       color: "#3b82f6",
       maxReports: 3,
@@ -277,36 +587,46 @@ export default function App() {
     {
       id: "standard",
       name: "Standard",
-      price: 1599,
+      price: 999,
       billingPeriod: "monthly",
       features: [
-        "Unlimited report generations",
-        "All Starter features included",
-        "AI Analyst (Avery) — conversational mode",
-        "Saved report history & cloud sync",
-        "Standard support"
+        "Everything in Basic",
+        "File uploads: 250 / month",
+        "AI chat questions: 500 / month",
+        "AI insights per report: unlimited",
+        "Charts per dashboard: 20 charts",
+        "AI analyst chat — plain English queries",
+        "Advanced filters & live dashboard",
+        "Export charts as PNG & CSV",
+        "Saved report history: 30 days",
+        "Email support"
       ],
       isActive: true,
-      description: "For growing e-commerce brands running weekly reports",
+      description: "For analysts and teams running regular reports on any data.",
       highlighted: true,
-      color: "#faff69",
-      maxReports: 0,
+      color: "#2563eb",
+      maxReports: 250,
       sortOrder: 1
     },
     {
       id: "premium",
       name: "Premium",
-      price: 3999,
+      price: 2499,
       billingPeriod: "monthly",
       features: [
         "Everything in Standard",
-        "Multi-user team access",
+        "File uploads: unlimited",
+        "AI chat questions: unlimited",
+        "Team seats: up to 10 users",
+        "White-label reports with your logo",
         "Custom column mapping rules",
+        "Saved report history: 90 days",
+        "API access: coming soon",
         "Dedicated account manager",
-        "API access (coming soon)"
+        "Priority WhatsApp support"
       ],
       isActive: true,
-      description: "For agencies, D2C brands, and teams needing multi-user and custom integrations",
+      description: "For agencies and power users needing full control and team access.",
       highlighted: false,
       color: "#a855f7",
       maxReports: 0,
@@ -314,17 +634,60 @@ export default function App() {
     }
   ]);
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
+  const [sheetSearchQuery, setSheetSearchQuery] = useState("");
+
+  const filteredSavedRecords = useMemo(() => {
+    if (!sheetSearchQuery) return savedRecords;
+    const q = sheetSearchQuery.toLowerCase().trim();
+    return savedRecords.filter(r => 
+      r.filename.toLowerCase().includes(q) || 
+      r.mode.toLowerCase().includes(q)
+    );
+  }, [savedRecords, sheetSearchQuery]);
 
   // Admin Settings -- feature flags
-  const [adminFeatureAI, setAdminFeatureAI] = useState(true);
-  const [adminFeatureUPI, setAdminFeatureUPI] = useState(true);
-  const [adminFeatureGoogleLogin, setAdminFeatureGoogleLogin] = useState(true);
-  const [adminMaintenanceMode, setAdminMaintenanceMode] = useState(false);
+  const [adminFeatureAI, setAdminFeatureAI] = useState(() => {
+    if (typeof window === "undefined") return true;
+    return window.localStorage.getItem("sheetcc_flag_ai") !== "false";
+  });
+  const [adminFeatureUPI, setAdminFeatureUPI] = useState(() => {
+    if (typeof window === "undefined") return true;
+    return window.localStorage.getItem("sheetcc_flag_upi") !== "false";
+  });
+  const [adminFeatureGoogleLogin, setAdminFeatureGoogleLogin] = useState(() => {
+    if (typeof window === "undefined") return true;
+    return window.localStorage.getItem("sheetcc_flag_google") !== "false";
+  });
+  const [adminMaintenanceMode, setAdminMaintenanceMode] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem("sheetcc_flag_maintenance") === "true";
+  });
   const [globalFreeLimit, setGlobalFreeLimit] = useState(() => {
     if (typeof window === "undefined") return 3;
     const stored = window.localStorage.getItem("sheetcodecrest_global_free_limit");
     return stored ? Number(stored) : 3;
   });
+
+  const loadSystemSettings = () => {
+    try {
+      const savedFreeLimit = window.localStorage.getItem("sheetcodecrest_global_free_limit");
+      if (savedFreeLimit) setGlobalFreeLimit(Number(savedFreeLimit));
+      
+      const savedAI = window.localStorage.getItem("sheetcc_flag_ai");
+      if (savedAI !== null) setAdminFeatureAI(savedAI !== "false");
+      
+      const savedUPI = window.localStorage.getItem("sheetcc_flag_upi");
+      if (savedUPI !== null) setAdminFeatureUPI(savedUPI !== "false");
+      
+      const savedGoogle = window.localStorage.getItem("sheetcc_flag_google");
+      if (savedGoogle !== null) setAdminFeatureGoogleLogin(savedGoogle !== "false");
+      
+      const savedMaint = window.localStorage.getItem("sheetcc_flag_maintenance");
+      if (savedMaint !== null) setAdminMaintenanceMode(savedMaint === "true");
+    } catch (e) {
+      console.error("Failed to load local system settings", e);
+    }
+  };
 
   const [mockupTabActive, setMockupTabActive] = useState<"shopify" | "logistics" | "universal">("shopify");
   const [testimonialIdx, setTestimonialIdx] = useState(0);
@@ -446,6 +809,7 @@ export default function App() {
       }
 
       // 3. Load all plans dynamically on app mount
+      loadSystemSettings();
       await loadCheckoutPlans();
 
       // Local check finished
@@ -475,7 +839,7 @@ export default function App() {
 
   // Render official Google Sign-In button when the modal opens
   useEffect(() => {
-    if (authModalOpen) {
+    if (authModalOpen && adminFeatureGoogleLogin) {
       const timer = setTimeout(() => {
         const initGoogleButton = () => {
           if (typeof window !== "undefined" && (window as any).google?.accounts?.id) {
@@ -500,7 +864,7 @@ export default function App() {
       }, 50);
       return () => clearTimeout(timer);
     }
-  }, [authModalOpen, authTab, theme]);
+  }, [authModalOpen, adminFeatureGoogleLogin]);
 
   const sendToGoogleSheets = async (user: User, action: "register" | "login" | "upgrade") => {
     try {
@@ -587,6 +951,8 @@ export default function App() {
     setAuthEmail("");
     const records = await dbGetRecords(user.username);
     setSavedRecords(records);
+    loadSystemSettings();
+    await loadCheckoutPlans();
     
     addLog(`👤 User "${user.username}" authenticated successfully via Live Google Sign-In!`, "info");
     sendToGoogleSheets(user, isNew ? "register" : "login");
@@ -649,6 +1015,9 @@ export default function App() {
     setAuthEmail("");
     const records = await dbGetRecords(user.username);
     setSavedRecords(records);
+    loadSystemSettings();
+    await loadCheckoutPlans();
+    
     addLog(`👤 User "${user.username}" logged in successfully. Plan: ${user.isPro ? "PRO" : "FREE"}`, "info");
     sendToGoogleSheets(user, "login");
   };
@@ -708,12 +1077,11 @@ export default function App() {
     setCurrentUser(newUser);
     window.localStorage.setItem("auto_excel_active_user", newUser.username);
     setAuthModalOpen(false);
-    setAuthUsername("");
-    setAuthPassword("");
-    setAuthName("");
-    setAuthMobile("");
     setAuthEmail("");
     setSavedRecords([]);
+    loadSystemSettings();
+    await loadCheckoutPlans();
+    
     addLog(`👤 New account "${newUser.username}" created securely (password hashed).`, "info");
     sendToGoogleSheets(newUser, "register");
   };
@@ -725,6 +1093,8 @@ export default function App() {
     setCurrentUser(null);
     window.localStorage.removeItem("auto_excel_active_user");
     setSavedRecords([]);
+    loadSystemSettings();
+    loadCheckoutPlans();
   };
 
   const loadRecord = (rec: SavedRecord) => {
@@ -1209,6 +1579,7 @@ export default function App() {
     window.localStorage.setItem("sheetcc_flag_google", String(adminFeatureGoogleLogin));
     window.localStorage.setItem("sheetcc_flag_maintenance", String(adminMaintenanceMode));
     logAdminAction("UPDATE_FLAGS", `AI=${adminFeatureAI}, UPI=${adminFeatureUPI}, Google=${adminFeatureGoogleLogin}, Maintenance=${adminMaintenanceMode}`);
+    loadSystemSettings(); // Refresh instantly in-memory!
     addLog("⚙️ Feature flags saved successfully.", "success");
     alert("✅ Feature flags saved!");
   };
@@ -1972,31 +2343,57 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
 
   return (
     <div className="app-container">
-      {/* Dynamic Styled Canvas */}
+      {/* Custom Glowing Cursor Pointer */}
+      <CustomGlowingCursor />
+      {/* Global Maintenance Mode Overlay */}
+      {adminMaintenanceMode && !isAdminActive && (
+        <div className="maint-overlay">
+          <div className="maint-card">
+            <span className="maint-icon">🔧</span>
+            <h2 className="maint-title">System Maintenance</h2>
+            <p className="maint-desc">
+              We are currently performing scheduled system upgrades to improve our analysis processors. 
+              We'll be back shortly. Thank you for your patience!
+            </p>
+            <div className="maint-divider"></div>
+            <div className="maint-admin-section">
+              <span className="maint-admin-label">Administrator Bypass</span>
+              <button 
+                type="button" 
+                className="btn-maint-bypass" 
+                onClick={() => { setAuthTab("login"); setAuthError(""); setAuthModalOpen(true); }}
+              >
+                🔒 Sign In
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <style>{`:root {
-  --canvas: #0a0a0a;
-  --primary: #1a1a1a;
+  --canvas: #030305;
+  --primary: #0a0a0c;
   --ink: #ffffff;
-  --deep-green: #22c55e;
-  --dark-navy: #121212;
-  --soft-stone: #1a1a1a;
-  --pale-green: rgba(34, 197, 94, 0.1);
-  --pale-blue: rgba(250, 255, 105, 0.1);
-  --hairline: #2a2a2a;
-  --border-light: #3a3a3a;
-  --card-border: #2a2a2a;
-  --muted: #888888;
-  --slate: #cccccc;
-  --body-muted: #e6e6e6;
-  --action-blue: #faff69;
-  --focus-blue: #faff69;
-  --on-primary: #0a0a0a;
+  --deep-green: #00ffb2;
+  --dark-navy: #050508;
+  --soft-stone: #0d0d10;
+  --pale-green: rgba(0, 255, 178, 0.08);
+  --pale-blue: rgba(0, 255, 178, 0.04);
+  --hairline: rgba(255, 255, 255, 0.06);
+  --border-light: rgba(255, 255, 255, 0.08);
+  --card-border: rgba(255, 255, 255, 0.06);
+  --muted: #a3a3a3;
+  --slate: #94a3b8;
+  --body-muted: #cbd5e1;
+  --action-blue: #00ffb2;
+  --focus-blue: #00ffb2;
+  --on-primary: #030305;
   --coral: #ef4444;
   --coral-soft: #ff8888;
-  --amber: #faff69;
+  --amber: #00ffb2;
   --error: #ef4444;
-  --glass-bg: #1a1a1a;
-  --glass-border: #2a2a2a;
+  --glass-bg: rgba(13, 13, 16, 0.65);
+  --glass-border: rgba(255, 255, 255, 0.06);
 
   --font-display: 'Inter', 'Space Grotesk', sans-serif;
   --font-ui: 'Inter', sans-serif;
@@ -2007,7 +2404,7 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
   box-sizing: border-box;
   margin: 0;
   padding: 0;
-  transition: background-color 0.3s ease, border-color 0.3s ease;
+  transition: background-color 0.25s ease, border-color 0.25s ease;
 }
 
 body {
@@ -2031,8 +2428,11 @@ body {
   content: "";
   position: fixed;
   inset: 0;
-  background-image: radial-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px);
-  background-size: 32px 32px;
+  background-image: 
+    radial-gradient(circle at 15% 15%, rgba(0, 255, 178, 0.08) 0%, transparent 40%),
+    radial-gradient(circle at 85% 65%, rgba(0, 255, 178, 0.05) 0%, transparent 45%),
+    radial-gradient(rgba(0, 255, 178, 0.05) 1.2px, transparent 1.2px);
+  background-size: 100% 100%, 100% 100%, 32px 32px;
   pointer-events: none;
   z-index: -1;
 }
@@ -2714,8 +3114,8 @@ body {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.85);
-  backdrop-filter: blur(4px);
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(10px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2724,18 +3124,121 @@ body {
 }
 
 .modal-card, .modal-content {
-  background: var(--primary);
-  border: 1px solid var(--glass-border);
-  border-radius: 16px;
-  max-width: 580px;
+  background: rgba(20, 20, 22, 0.88) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 24px !important;
+  max-width: 500px;
   width: 100%;
   max-height: 90vh;
   overflow-y: auto;
-  animation: modalEnter 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
   display: flex;
   flex-direction: column;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
   overflow: hidden;
+  backdrop-filter: blur(24px);
+}
+
+.auth-tabs {
+  display: flex;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  padding: 4px;
+  margin: 1.5rem 1.5rem 0.5rem;
+  gap: 4px;
+}
+
+.auth-tab-btn {
+  flex: 1;
+  padding: 10px 16px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: #a1a1aa;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  font-family: var(--font-technical);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.auth-tab-btn.active {
+  background: #22c55e;
+  color: #052e16;
+  font-weight: 800;
+  box-shadow: 0 4px 14px rgba(34, 197, 94, 0.3);
+}
+
+.auth-tab-btn:hover:not(.active) {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.form-group {
+  margin-bottom: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #a1a1aa;
+  letter-spacing: 0.08em;
+  font-family: var(--font-technical);
+}
+
+.form-input {
+  background: rgba(0, 0, 0, 0.25) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 10px !important;
+  padding: 12px 16px !important;
+  color: #ffffff !important;
+  font-size: 14px !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.form-input:focus {
+  border-color: #22c55e !important;
+  background: rgba(0, 0, 0, 0.45) !important;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.15) !important;
+  outline: none !important;
+}
+
+.auth-submit-btn {
+  width: 100%;
+  padding: 14px;
+  border-radius: 12px;
+  border: none;
+  background: #22c55e !important;
+  color: #052e16 !important;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 16px rgba(34, 197, 94, 0.25);
+  margin-top: 1.25rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-family: var(--font-technical);
+}
+
+.auth-submit-btn:hover {
+  background: #16a34a !important;
+  box-shadow: 0 6px 20px rgba(22, 163, 74, 0.4);
+  transform: translateY(-2px);
+}
+
+.auth-submit-btn:active {
+  transform: translateY(0);
 }
 
 .modal-header {
@@ -3482,14 +3985,37 @@ select.form-input option {
 }
 
 .pricing-toggle-btn.active {
-  background: #faff69;
+  background: #22c55e;
   color: #0a0a0a;
+}
+
+.pricing-save-badge {
+  display: inline-flex;
+  align-items: center;
+  background: #22c55e;
+  color: #052e16;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 4px 10px;
+  border-radius: 20px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-family: var(--font-technical);
+  box-shadow: 0 4px 10px rgba(34, 197, 94, 0.25);
+  animation: pulseSave 2s infinite;
+  flex-shrink: 0;
+}
+
+@keyframes pulseSave {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
 }
 
 .pricing-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 1.25rem;
+  gap: 1.5rem;
 }
 
 @media (max-width: 992px) {
@@ -3497,131 +4023,187 @@ select.form-input option {
 }
 
 .pricing-card {
-  background: #1a1a1a;
-  border: 1px solid #2a2a2a;
-  border-radius: 16px;
-  padding: 2rem;
+  background: rgba(13, 13, 16, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 20px;
+  padding: 3rem 2.25rem;
   position: relative;
-  transition: all 0.3s;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  backdrop-filter: blur(24px);
+  box-shadow: 0 15px 45px rgba(0, 0, 0, 0.4);
 }
 
 .pricing-card:hover {
-  border-color: #faff69;
-  transform: translateY(-4px);
+  border-color: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55), 0 0 30px rgba(255, 255, 255, 0.02);
 }
 
 .pricing-card.featured {
-  background: #faff69;
-  border-color: #faff69;
+  background: rgba(0, 255, 178, 0.015);
+  border: 1px solid rgba(0, 255, 178, 0.35);
+  box-shadow: 0 0 40px rgba(0, 255, 178, 0.08), inset 0 0 15px rgba(0, 255, 178, 0.03);
 }
 
-.pricing-card.featured * { color: #0a0a0a !important; }
-
-.pricing-card.featured:hover { transform: translateY(-4px); }
+.pricing-card.featured:hover {
+  border-color: var(--deep-green);
+  box-shadow: 0 0 50px rgba(0, 255, 178, 0.2), inset 0 0 20px rgba(0, 255, 178, 0.05);
+}
 
 .pricing-badge {
-  display: inline-block;
-  background: #0a0a0a;
-  color: #faff69;
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  background: #030305;
+  color: var(--deep-green) !important;
   font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
+  font-weight: 800;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  padding: 3px 10px;
-  border-radius: 4px;
-  margin-bottom: 1rem;
-}
-
-.pricing-card.featured .pricing-badge {
-  background: #0a0a0a;
-  color: #faff69;
+  padding: 5px 16px;
+  border-radius: 20px;
+  border: 1px solid var(--deep-green);
+  box-shadow: 0 0 20px rgba(0, 255, 178, 0.3);
+  font-family: var(--font-technical);
+  margin-bottom: 0;
 }
 
 .pricing-plan-name {
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: 1.55rem;
+  font-weight: 900;
+  color: #ffffff;
   margin-bottom: 0.25rem;
+  letter-spacing: -0.02em;
 }
 
+.pricing-card:nth-child(1) .pricing-plan-name { color: #f8fafc; }
+.pricing-card:nth-child(2) .pricing-plan-name { color: var(--deep-green); text-shadow: 0 0 20px rgba(0, 255, 178, 0.15); }
+.pricing-card:nth-child(3) .pricing-plan-name { color: #a855f7; text-shadow: 0 0 20px rgba(168, 85, 247, 0.15); }
+
 .pricing-price {
-  font-family: var(--font-display);
-  font-size: 2.5rem;
+  font-family: var(--font-technical);
+  font-size: 2.65rem;
   font-weight: 700;
-  color: var(--ink);
+  color: #ffffff;
   letter-spacing: -1.5px;
   line-height: 1;
-  margin: 0.75rem 0;
+  margin: 1.25rem 0 0.85rem 0;
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
 }
 
 .pricing-price span {
-  font-size: 1rem;
-  font-weight: 400;
+  font-size: 0.9rem;
+  font-weight: 500;
   color: var(--slate);
   letter-spacing: 0;
+  font-family: var(--font-ui);
 }
 
 .pricing-desc {
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   color: var(--slate);
-  margin-bottom: 1.5rem;
-  line-height: 1.5;
+  margin-bottom: 2rem;
+  line-height: 1.6;
 }
 
 .pricing-features {
   list-style: none;
   padding: 0;
-  margin: 0 0 1.75rem 0;
+  margin: 0 0 2.5rem 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 14px;
 }
 
 .pricing-features li {
-  font-size: 0.8rem;
-  color: var(--slate);
+  font-size: 0.85rem;
+  color: #f1f5f9;
   display: flex;
   align-items: center;
-  gap: 8px;
+  width: 100%;
+  gap: 10px;
+  line-height: 1.4;
 }
 
 .pricing-features li::before {
   content: "✓";
-  color: #22c55e;
-  font-weight: 700;
-  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(0, 255, 178, 0.08);
+  border: 1px solid rgba(0, 255, 178, 0.25);
+  color: var(--deep-green);
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 1;
   flex-shrink: 0;
+  text-shadow: 0 0 4px rgba(0, 255, 178, 0.35);
 }
 
-.pricing-card.featured .pricing-features li::before { color: #0a0a0a; }
+.feature-badge {
+  background: rgba(0, 255, 178, 0.05);
+  border: 1px solid rgba(0, 255, 178, 0.12);
+  color: var(--deep-green);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 6px;
+  margin-left: auto;
+  flex-shrink: 0;
+  font-family: var(--font-technical);
+}
 
 .pricing-cta-btn {
   width: 100%;
-  padding: 12px 20px;
-  border-radius: 8px;
-  border: 1px solid #2a2a2a;
-  background: transparent;
-  color: var(--ink);
+  padding: 13px 20px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  color: #ffffff;
   font-family: var(--font-display);
-  font-size: 0.875rem;
+  font-size: 13px;
   font-weight: 700;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  margin-top: auto;
+  text-align: center;
 }
 
 .pricing-cta-btn:hover {
-  background: rgba(255,255,255,0.05);
-  border-color: var(--focus-blue);
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  box-shadow: 0 4px 15px rgba(255, 255, 255, 0.05);
+  transform: scale(1.02) translateY(-1px);
 }
 
 .pricing-card.featured .pricing-cta-btn {
-  background: #0a0a0a;
-  color: #faff69;
-  border-color: #0a0a0a;
+  background: linear-gradient(135deg, var(--deep-green) 0%, #00b37e 100%);
+  color: #030305;
+  border: none;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  box-shadow: 0 0 25px rgba(0, 255, 178, 0.35);
+  font-size: 13.5px;
+  padding: 14px 20px;
+  border-radius: 10px;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .pricing-card.featured .pricing-cta-btn:hover {
-  background: #1a1a1a;
+  background: linear-gradient(135deg, #00ffc8 0%, #00cca3 100%);
+  box-shadow: 0 0 35px rgba(0, 255, 178, 0.55);
+  transform: scale(1.02) translateY(-1px);
 }
 
 /* =============================================
@@ -4005,129 +4587,1240 @@ select.form-input option {
     max-height: 95vh !important;
   }
 }
+
+/* ============ SHEETAI-INSPIRED LANDING REDESIGN ============ */
+
+/* New Nav */
+.sheetai-nav {
+  position: sticky; top: 0; z-index: 1000;
+  background: rgba(3, 3, 5, 0.9);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 0 2.5rem;
+  height: 65px;
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+}
+.sheetai-nav-brand {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 15px; font-weight: 800; color: #fff; text-decoration: none; flex-shrink: 0;
+  font-family: var(--font-display);
+}
+.sheetai-nav-links { display: flex; align-items: center; gap: 2rem; }
+.sheetai-nav-link {
+  font-size: 13px; color: var(--slate); background: none; border: none;
+  cursor: pointer; font-family: inherit; font-weight: 500; transition: color 0.15s;
+  text-decoration: none; padding: 0;
+}
+.sheetai-nav-link:hover { color: var(--deep-green); }
+.sheetai-nav-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.btn-nav-ghost {
+  background: none; border: none; color: var(--slate);
+  font-size: 13px; font-weight: 500; cursor: pointer;
+  font-family: inherit; padding: 6px 14px; border-radius: 6px; transition: color 0.15s;
+}
+.btn-nav-ghost:hover { color: #fff; }
+.btn-nav-primary {
+  background: var(--deep-green); color: #030305; border: none;
+  padding: 8px 18px; border-radius: 20px; font-size: 13px;
+  font-weight: 700; cursor: pointer; transition: all 0.2s;
+  box-shadow: 0 0 15px rgba(0, 255, 178, 0.2);
+}
+.btn-nav-primary:hover { background: #00cca3; transform: translateY(-1px); box-shadow: 0 0 25px rgba(0, 255, 178, 0.45); }
+@media (max-width: 768px) {
+  .sheetai-nav-links { display: none; }
+  .sheetai-nav { padding: 0 1rem; }
+}
+
+/* Centered Hero Area */
+.hero-centered {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 4.5rem 1.5rem 2.5rem;
+}
+.hero-centered-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 780px;
+  margin: 0 auto;
+}
+
+/* Hero Label Chip */
+.sheetai-hero-label {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(0,255,178,0.07); border: 1px solid rgba(0,255,178,0.2);
+  color: var(--deep-green); padding: 5px 14px; border-radius: 20px;
+  font-family: var(--font-technical); font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 1.5rem;
+}
+.hero-title-new {
+  font-family: var(--font-display); font-size: clamp(2.4rem, 5vw, 4rem);
+  font-weight: 800; letter-spacing: -0.05em; line-height: 1.05;
+  color: #fff; margin-bottom: 1.25rem;
+  text-align: center;
+}
+.hero-title-new .green-word {
+  color: var(--deep-green);
+  text-shadow: 0 0 40px rgba(0, 255, 178, 0.25);
+  background: linear-gradient(135deg, #00ffb2 0%, #00b37e 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.hero-stats-row { display: flex; justify-content: center; gap: 1.5rem; flex-wrap: wrap; margin: 1.75rem 0; }
+.hero-stat-item { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--slate); }
+.hero-stat-item .stat-icon {
+  width: 32px; height: 32px; border-radius: 8px;
+  background: rgba(255,255,255,0.04); border: 1px solid var(--hairline);
+  display: flex; align-items: center; justify-content: center; font-size: 14px;
+}
+.hero-stat-item strong { display: block; font-size: 13px; font-weight: 700; color: #fff; }
+
+.hero-actions-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin: 1rem 0 2.5rem;
+  flex-wrap: wrap;
+}
+
+/* Upload Card New */
+.upload-card-new {
+  background: rgba(10, 10, 12, 0.4); 
+  border: 1px dashed rgba(0, 255, 178, 0.25); 
+  border-radius: 16px;
+  padding: 30px 24px; text-align: center; cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); margin: 0 auto 2.5rem;
+  width: 100%; max-width: 580px;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+}
+.upload-card-new:hover, .upload-card-new.dragging {
+  border-color: var(--deep-green); 
+  background: rgba(0, 255, 178, 0.03);
+  box-shadow: 0 0 35px rgba(0, 255, 178, 0.15);
+  transform: translateY(-2px);
+}
+.upload-icon-new { font-size: 32px; margin-bottom: 10px; filter: drop-shadow(0 0 10px rgba(0,255,178,0.2)); }
+.upload-title-new { font-size: 14px; font-weight: 700; color: #fff; margin-bottom: 4px; }
+.upload-formats { font-size: 11px; color: var(--slate); margin-bottom: 18px; }
+.btn-upload-green {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--deep-green); color: #030305; border: none;
+  padding: 10px 24px; border-radius: 20px; font-size: 13px; font-weight: 700;
+  cursor: pointer; transition: all 0.2s;
+  box-shadow: 0 4px 15px rgba(0, 255, 178, 0.2);
+}
+.btn-upload-green:hover { background: #00cca3; transform: translateY(-1px); box-shadow: 0 0 25px rgba(0, 255, 178, 0.45); }
+.upload-integration-row {
+  display: flex; align-items: center; justify-content: center;
+  gap: 10px; margin-top: 18px; font-size: 11px; color: var(--slate);
+}
+.upload-integration-icon {
+  width: 28px; height: 28px; border-radius: 6px; background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06); display: flex; align-items: center; justify-content: center; font-size: 14px;
+}
+.no-cc-line { font-size: 10px; color: var(--slate); text-align: center; margin-top: 8px; }
+
+/* Analysis Overview Card */
+.analysis-overview-card {
+  background: rgba(13, 13, 16, 0.6); border: 1px solid rgba(255,255,255,0.05); border-radius: 16px;
+  padding: 22px; height: 100%; min-height: 420px;
+  display: flex; flex-direction: column; gap: 14px;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 20px 45px rgba(0,0,0,0.6); overflow: hidden;
+}
+.analysis-card-header { display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+.analysis-card-title { font-size: 13px; font-weight: 700; color: #fff; }
+.live-badge {
+  display: flex; align-items: center; gap: 5px; font-size: 10px; color: var(--deep-green);
+  font-weight: 600; background: rgba(0,255,178,0.1); padding: 3px 8px;
+  border-radius: 20px; border: 1px solid rgba(0,255,178,0.25);
+}
+.live-badge::before {
+  content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--deep-green);
+  animation: pulse-green 1.5s infinite; display: inline-block;
+  box-shadow: 0 0 8px var(--deep-green);
+}
+@keyframes pulse-green { 0%,100%{opacity:1} 50%{opacity:0.3} }
+.card-kpi-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; }
+.card-kpi-item { background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.04); border-radius: 8px; padding: 8px 10px; }
+.card-kpi-label { font-size: 9px; color: var(--slate); text-transform: uppercase; font-family: var(--font-technical); margin-bottom: 3px; }
+.card-kpi-value { font-size: 14px; font-weight: 700; color: #fff; line-height: 1; }
+.card-kpi-change { font-size: 9px; margin-top: 2px; display: flex; align-items: center; gap: 2px; }
+.card-kpi-change.up { color: var(--deep-green); }
+.card-kpi-change.down { color: #error; }
+.card-bar-section { flex: 1; }
+.card-bar-label { font-size: 10px; color: var(--slate); font-weight: 600; margin-bottom: 8px; font-family: var(--font-technical); text-transform: uppercase; letter-spacing: 0.05em; }
+.card-analysis-complete {
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 10px; color: var(--slate); background: rgba(0,255,178,0.04);
+  border: 1px solid rgba(0,255,178,0.12); border-radius: 6px; padding: 6px 10px; flex-shrink: 0;
+}
+
+/* Recent Analyses Section */
+.recent-analyses-section {
+  max-width: 1200px; margin: 0 auto; padding: 0 2rem 3.5rem;
+  display: grid; grid-template-columns: 1.4fr 0.6fr; gap: 20px; align-items: start;
+}
+@media (max-width: 900px) { .recent-analyses-section { grid-template-columns: 1fr; } }
+.recent-analyses-card { background: rgba(13, 13, 16, 0.4); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; overflow: hidden; backdrop-filter: blur(12px); }
+.recent-analyses-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+.recent-analyses-title { font-size: 13px; font-weight: 700; color: #fff; }
+.view-all-link { font-size: 11px; color: var(--deep-green); cursor: pointer; background: none; border: none; font-family: inherit; }
+.analyses-table { width: 100%; border-collapse: collapse; }
+.analyses-table th { font-size: 9px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--slate); font-family: var(--font-technical); font-weight: 600; padding: 8px 18px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.05); }
+.analyses-table td { padding: 11px 18px; font-size: 12px; color: var(--ink); border-bottom: 1px solid rgba(255,255,255,0.03); }
+.analyses-table tr:last-child td { border-bottom: none; }
+.filename-cell { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+.file-icon-dot { width: 28px; height: 28px; border-radius: 6px; background: rgba(0,255,178,0.1); display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0; }
+.status-badge-completed { background: rgba(0,255,178,0.1); color: var(--deep-green); border: 1px solid rgba(0,255,178,0.2); font-size: 9px; font-weight: 700; padding: 2px 8px; border-radius: 20px; font-family: var(--font-technical); text-transform: uppercase; }
+.arrow-link-btn { background: none; border: 1px solid rgba(255,255,255,0.05); color: var(--slate); width: 24px; height: 24px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 12px; transition: all 0.15s; }
+.arrow-link-btn:hover { border-color: var(--deep-green); color: var(--deep-green); box-shadow: 0 0 10px rgba(0,255,178,0.25); }
+.insights-summary-card { background: rgba(13, 13, 16, 0.4); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; padding: 18px; backdrop-filter: blur(12px); }
+.insights-legend { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+.insights-legend-item { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--slate); }
+.legend-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+.legend-pct { margin-left: auto; font-weight: 700; color: #fff; }
+
+/* Features & Bento Grid Area */
+.sheetai-features-section { max-width: 1200px; margin: 0 auto; padding: 4rem 2rem; }
+.sheetai-features-label { font-family: var(--font-technical); font-size: 10px; font-weight: 700; color: var(--deep-green); text-transform: uppercase; letter-spacing: 0.15em; margin-bottom: 6px; text-align: center; }
+.sheetai-features-title { font-family: var(--font-display); font-size: 2.2rem; font-weight: 800; text-align: center; color: #fff; margin-bottom: 3rem; }
+
+/* Bento Grid */
+.bento-features-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-auto-rows: minmax(180px, auto);
+  gap: 20px;
+}
+@media (max-width: 968px) {
+  .bento-features-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.bento-feature-card {
+  background: rgba(13, 13, 16, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 16px;
+  padding: 24px;
+  position: relative;
+  overflow: hidden;
+  backdrop-filter: blur(16px);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+.bento-feature-card:hover {
+  border-color: rgba(0, 255, 178, 0.25);
+  box-shadow: 0 10px 30px rgba(0, 255, 178, 0.05);
+  transform: translateY(-2px);
+}
+.bento-card-bg-gradient {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 100% 100%, rgba(0, 255, 178, 0.03) 0%, transparent 60%);
+  pointer-events: none;
+  z-index: 0;
+}
+.bento-feature-icon {
+  width: 38px; height: 38px; border-radius: 8px;
+  background: rgba(0, 255, 178, 0.08); border: 1px solid rgba(0, 255, 178, 0.15);
+  display: flex; align-items: center; justify-content: center; font-size: 16px; margin-bottom: 16px;
+  color: var(--deep-green);
+  z-index: 1;
+}
+.bento-feature-name { font-size: 14px; font-weight: 700; color: #fff; margin-bottom: 8px; z-index: 1; }
+.bento-feature-desc { font-size: 12px; color: var(--slate); line-height: 1.55; z-index: 1; }
+
+/* Wide & Tall Grid Anchors */
+.bento-colspan-2 { grid-column: span 2; }
+.bento-rowspan-2 { grid-row: span 2; }
+@media (max-width: 968px) {
+  .bento-colspan-2 { grid-column: span 1; }
+  .bento-rowspan-2 { grid-row: span 1; }
+}
+
+/* Bento Visual Mockups */
+.bento-visual-channels {
+  display: flex; justify-content: space-around; align-items: center;
+  background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.03);
+  padding: 16px; border-radius: 10px; margin-top: 14px;
+  position: relative;
+}
+.bento-channel-badge {
+  background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06);
+  padding: 6px 14px; border-radius: 20px; font-size: 11px; color: #fff; font-weight: 600;
+}
+.bento-pulse-line {
+  position: absolute; height: 1px; background: linear-gradient(90deg, transparent, var(--deep-green), transparent);
+  width: 50%; opacity: 0.5;
+}
+
+/* E-Commerce Calculator Styles */
+.calculator-card {
+  max-width: 1200px;
+  margin: 0 auto 4rem;
+  padding: 30px;
+  background: rgba(13, 13, 16, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 20px;
+  backdrop-filter: blur(16px);
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+}
+.calculator-card:hover {
+  border-color: rgba(0, 255, 178, 0.25);
+  box-shadow: 0 20px 40px rgba(0, 255, 178, 0.03);
+}
+.calculator-layout {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 35px;
+}
+@media (max-width: 768px) {
+  .calculator-layout {
+    grid-template-columns: 1fr;
+  }
+}
+.calc-inputs-col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.calc-results-col {
+  background: rgba(0, 255, 178, 0.02);
+  border: 1px solid rgba(0, 255, 178, 0.08);
+  border-radius: 14px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 20px;
+}
+.calc-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.calc-field label {
+  font-size: 11px;
+  font-family: var(--font-technical);
+  text-transform: uppercase;
+  color: var(--slate);
+  letter-spacing: 0.05em;
+  display: flex;
+  justify-content: space-between;
+}
+.calc-field label span {
+  font-weight: 750;
+  color: #fff;
+}
+.calc-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.calc-input-wrapper input[type="number"] {
+  width: 100%;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid rgba(255,255,255,0.06);
+  padding: 10px 14px;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  transition: all 0.2s;
+}
+.calc-input-wrapper input[type="number"]:focus {
+  border-color: var(--deep-green);
+  box-shadow: 0 0 10px rgba(0,255,178,0.15);
+}
+.calc-slider {
+  width: 100%;
+  accent-color: var(--deep-green);
+  margin-top: 6px;
+}
+.calc-stat-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.calc-stat-card {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255,255,255,0.04);
+  padding: 12px;
+  border-radius: 10px;
+  text-align: left;
+}
+.calc-stat-label {
+  font-size: 9px;
+  text-transform: uppercase;
+  color: var(--slate);
+  font-family: var(--font-technical);
+}
+.calc-stat-val {
+  font-size: 17px;
+  font-weight: 800;
+  color: #fff;
+  margin-top: 2px;
+}
+.calc-stat-val.highlight {
+  color: var(--deep-green);
+  text-shadow: 0 0 10px rgba(0,255,178,0.1);
+}
+
+/* Currency Switcher capsule styles */
+.currency-selector {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.06);
+  padding: 4px;
+  border-radius: 20px;
+  vertical-align: middle;
+}
+.currency-pill {
+  background: none;
+  border: none;
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--slate);
+  padding: 4px 10px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: var(--font-technical);
+}
+.currency-pill.active {
+  background: var(--deep-green);
+  color: #030305;
+}
+
+/* FAQ Section */
+.faq-section {
+  max-width: 850px;
+  margin: 5rem auto;
+  padding: 0 2rem;
+}
+.faq-header {
+  text-align: center;
+  margin-bottom: 2.5rem;
+}
+.faq-title {
+  font-family: var(--font-display);
+  font-size: 2.2rem;
+  font-weight: 800;
+  color: #fff;
+  margin-top: 6px;
+}
+.faq-list {
+  display: flex;
+  flex-direction: column;
+}
+.faq-item {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 20px 0;
+  cursor: pointer;
+}
+.faq-question {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+  transition: color 0.15s;
+}
+.faq-question:hover {
+  color: var(--deep-green);
+}
+.faq-icon {
+  font-size: 11px;
+  color: var(--slate);
+  transition: transform 0.2s ease, color 0.2s ease;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.06);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.faq-icon.expanded {
+  transform: rotate(180deg);
+  border-color: rgba(0, 255, 178, 0.3);
+  color: var(--deep-green);
+  box-shadow: 0 0 10px rgba(0,255,178,0.2);
+}
+.faq-answer-container {
+  overflow: hidden;
+  transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s;
+}
+.faq-answer {
+  font-size: 13px;
+  color: var(--slate);
+  line-height: 1.6;
+  padding-top: 12px;
+}
+
+/* Metrics Row */
+.sheetai-metrics-row { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; padding: 1.5rem 2rem; }
+@media (max-width: 800px) { .sheetai-metrics-row { grid-template-columns: repeat(2,1fr); } }
+.sheetai-metric-item { background: rgba(13, 13, 16, 0.45); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; padding: 18px 20px; display: flex; align-items: center; gap: 14px; }
+.sheetai-metric-icon { font-size: 22px; flex-shrink: 0; }
+.sheetai-metric-value { font-size: 1.4rem; font-weight: 800; color: var(--deep-green); line-height: 1; }
+.sheetai-metric-label { font-size: 11px; color: var(--slate); margin-top: 2px; }
+
+/* Why + Testimonials */
+.why-testimonials-section { max-width: 1200px; margin: 0 auto; padding: 4rem 2rem; display: grid; grid-template-columns: 0.9fr 1.1fr; gap: 4rem; align-items: start; }
+@media (max-width: 900px) { .why-testimonials-section { grid-template-columns: 1fr; gap: 3rem; } }
+.why-left-heading { font-family: var(--font-display); font-size: clamp(1.6rem, 3vw, 2.2rem); font-weight: 800; color: #fff; line-height: 1.2; margin-bottom: 1.25rem; }
+.why-left-heading em { font-style: normal; text-decoration: underline; text-decoration-color: var(--deep-green); text-decoration-thickness: 3px; text-underline-offset: 4px; }
+.why-bullets { list-style: none; display: flex; flex-direction: column; gap: 10px; margin-bottom: 1.5rem; }
+.why-bullet-item { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--slate); }
+.why-bullet-check { width: 18px; height: 18px; border-radius: 50%; background: rgba(0,255,178,0.08); border: 1px solid rgba(0,255,178,0.2); display: flex; align-items: center; justify-content: center; color: var(--deep-green); font-size: 10px; flex-shrink: 0; }
+.testimonial-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 600px) { .testimonial-grid { grid-template-columns: 1fr; } }
+.testimonial-card-new { background: rgba(13,13,16,0.45); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; padding: 18px; transition: all 0.25s; backdrop-filter: blur(12px); }
+.testimonial-card-new:hover { border-color: rgba(0,255,178,0.25); box-shadow: 0 10px 25px rgba(0,255,178,0.04); transform: translateY(-1px); }
+.testimonial-stars { color: #f59e0b; font-size: 12px; margin-bottom: 10px; letter-spacing: 1px; }
+.testimonial-text-new { font-size: 12px; color: var(--slate); line-height: 1.6; margin-bottom: 14px; }
+.testimonial-author-row { display: flex; align-items: center; gap: 10px; }
+.testimonial-avatar { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+.testimonial-author-name-new { font-size: 12px; font-weight: 700; color: #fff; }
+.testimonial-author-title-new { font-size: 10px; color: var(--slate); }
+.btn-hero-primary {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--deep-green); color: #030305; border: none;
+  padding: 12px 26px; border-radius: 24px; font-weight: 700; font-size: 14px;
+  cursor: pointer; transition: all 0.2s;
+  box-shadow: 0 4px 15px rgba(0, 255, 178, 0.2);
+}
+.btn-hero-primary:hover { background: #00cca3; transform: translateY(-1px); box-shadow: 0 0 25px rgba(0, 255, 178, 0.45); }
+.btn-hero-secondary {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: none; color: #fff; border: 1px solid rgba(255,255,255,0.1);
+  padding: 12px 26px; border-radius: 24px; font-weight: 700; font-size: 14px;
+  cursor: pointer; transition: all 0.2s;
+}
+.btn-hero-secondary:hover { background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.25); }
+
+/* CTA Banner */
+.cta-section-new { max-width: 1200px; margin: 0 auto 3rem; padding: 0 2rem; }
+.cta-banner-new {
+  background: rgba(13, 13, 16, 0.4); border: 1px solid rgba(255,255,255,0.05); border-radius: 16px;
+  padding: 2.5rem 3rem; display: flex; align-items: center; justify-content: space-between; gap: 2rem;
+  backdrop-filter: blur(12px);
+  position: relative;
+  overflow: hidden;
+}
+.cta-banner-new::after {
+  content: ''; position: absolute; inset: 0;
+  background: radial-gradient(circle at 80% 50%, rgba(0,255,178,0.05) 0%, transparent 50%);
+  pointer-events: none;
+}
+@media (max-width: 700px) { .cta-banner-new { flex-direction: column; text-align: center; padding: 2rem; } }
+.cta-banner-icon { width: 48px; height: 48px; border-radius: 12px; background: rgba(0,255,178,0.08); border: 1px solid rgba(0,255,178,0.2); display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; color: var(--deep-green); }
+.cta-banner-headline { font-size: 1.3rem; font-weight: 800; color: #fff; margin-bottom: 4px; }
+.cta-banner-sub { font-size: 13px; color: var(--slate); }
+.cta-banner-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex-shrink: 0; z-index: 1; }
+@media (max-width: 700px) { .cta-banner-actions { align-items: center; } }
+.btn-cta-green {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--deep-green); color: #030305; border: none;
+  padding: 12px 26px; border-radius: 24px; font-weight: 700; font-size: 14px;
+  cursor: pointer; transition: all 0.2s; white-space: nowrap;
+  box-shadow: 0 4px 15px rgba(0, 255, 178, 0.2);
+}
+.btn-cta-green:hover { background: #00cca3; transform: translateY(-1px); box-shadow: 0 0 25px rgba(0, 255, 178, 0.45); }
+.cta-no-cc { font-size: 10px; color: var(--slate); }
+
+/* Site Footer */
+.site-footer { background: #020204; border-top: 1px solid rgba(255,255,255,0.05); padding: 4rem 2.5rem 3rem; }
+.site-footer-inner { max-width: 1200px; margin: 0 auto; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 1.5rem; }
+.footer-brand { display: flex; flex-direction: column; gap: 12px; align-items: center; }
+.footer-brand-name { font-size: 18px; font-weight: 800; color: #fff; display: flex; align-items: center; gap: 8px; justify-content: center; font-family: var(--font-display); }
+.footer-tagline { font-size: 13px; color: var(--slate); line-height: 1.6; max-width: 420px; margin: 0 auto; }
+.footer-social-row { display: flex; gap: 12px; margin-top: 8px; justify-content: center; }
+.footer-social-btn { width: 38px; height: 38px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05); background: rgba(255, 255, 255, 0.02); color: var(--slate); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); text-decoration: none; }
+.footer-social-btn:hover { border-color: var(--deep-green); color: var(--deep-green); background: rgba(0, 255, 178, 0.05); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0, 255, 178, 0.1); }
+.footer-social-btn svg { transition: transform 0.2s; }
+.footer-social-btn:hover svg { transform: scale(1.05); }
+.footer-bottom { max-width: 1200px; margin: 3rem auto 0; padding-top: 1.5rem; border-top: 1px solid rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: var(--slate); flex-wrap: wrap; gap: 12px; }
+
+
+/* ============ BENTO DASHBOARD STYLES ============ */
+.bento-dashboard {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem 2rem 4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  font-family: var(--font-ui);
+}
+
+.bento-greeting-banner {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.05) 0%, rgba(250, 255, 105, 0.03) 100%);
+  border: 1px solid rgba(34, 197, 94, 0.15);
+  border-radius: 16px;
+  padding: 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  backdrop-filter: blur(10px);
+}
+
+.bento-greeting-left {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.bento-greeting-avatar {
+  font-size: 2.25rem;
+  background: rgba(34, 197, 94, 0.1);
+  width: 56px;
+  height: 56px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(34, 197, 94, 0.2);
+}
+
+.bento-greeting-title {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #ffffff;
+  margin: 0 0 4px 0;
+  letter-spacing: -0.02em;
+}
+
+.bento-greeting-sub {
+  font-size: 0.875rem;
+  color: var(--slate);
+  margin: 0;
+}
+
+.bento-greeting-stats {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.bento-grid {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 1.5rem;
+}
+
+@media (max-width: 900px) {
+  .bento-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.bento-card {
+  background: rgba(14, 14, 14, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 18px;
+  padding: 1.75rem;
+  display: flex;
+  flex-direction: column;
+  backdrop-filter: blur(20px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+.bento-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.25rem;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.bento-card-title {
+  font-size: 0.95rem;
+  font-weight: 750;
+  color: #ffffff;
+  font-family: var(--font-technical);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.bento-card-badge {
+  font-size: 0.75rem;
+  background: rgba(255, 255, 255, 0.06);
+  padding: 2px 8px;
+  border-radius: 20px;
+  color: var(--slate);
+  font-weight: 600;
+}
+
+.bento-mode-selector {
+  margin-bottom: 1.25rem;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.03);
+  padding: 10px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.bento-mode-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--slate);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.bento-mode-tabs {
+  display: flex;
+  gap: 6px;
+}
+
+.bento-mode-tab {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--slate);
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.bento-mode-tab:hover {
+  background: rgba(255, 255, 255, 0.04);
+  color: #ffffff;
+}
+
+.bento-mode-tab.active {
+  background: rgba(34, 197, 94, 0.1);
+  border-color: rgba(34, 197, 94, 0.3);
+  color: #22c55e;
+}
+
+.bento-dropzone {
+  flex: 1;
+  min-height: 250px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  border: 2px dashed rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 2rem;
+  background: rgba(255, 255, 255, 0.01);
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.bento-dropzone:hover, .bento-dropzone.dragging {
+  border-color: #22c55e;
+  background: rgba(34, 197, 94, 0.02);
+  box-shadow: 0 0 20px rgba(34, 197, 94, 0.05);
+}
+
+.bento-workspace-footer {
+  margin-top: 1.25rem;
+}
+
+.bento-limit-bar-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.bento-limit-bar-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: var(--slate);
+  font-weight: 500;
+}
+
+.bento-limit-bar-bg {
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.bento-limit-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #22c55e 0%, #faff69 100%);
+  border-radius: 10px;
+  transition: width 0.4s ease;
+}
+
+.bento-unlocked-status {
+  font-size: 0.75rem;
+  color: #22c55e;
+  background: rgba(34, 197, 94, 0.08);
+  border: 1px solid rgba(34, 197, 94, 0.15);
+  padding: 10px;
+  border-radius: 8px;
+  text-align: center;
+  font-weight: 550;
+}
+
+.bento-search-wrapper {
+  position: relative;
+  margin-bottom: 1rem;
+}
+
+.bento-search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.85rem;
+  opacity: 0.6;
+}
+
+.bento-search-input {
+  width: 100%;
+  padding: 10px 32px 10px 34px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+  color: #ffffff;
+  font-size: 0.85rem;
+  outline: none;
+  font-family: inherit;
+  transition: all 0.2s ease;
+}
+
+.bento-search-input:focus {
+  border-color: rgba(34, 197, 94, 0.4);
+  background: rgba(255, 255, 255, 0.05);
+  box-shadow: 0 0 10px rgba(34, 197, 94, 0.05);
+}
+
+.bento-search-clear {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--slate);
+  cursor: pointer;
+  font-size: 0.75rem;
+  padding: 4px;
+}
+
+.bento-saved-list {
+  flex: 1;
+  max-height: 220px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 1.25rem;
+  padding-right: 4px;
+}
+
+.bento-saved-list::-webkit-scrollbar {
+  width: 4px;
+}
+.bento-saved-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+.bento-saved-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+.bento-saved-item {
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.03);
+  border-radius: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  transition: all 0.15s ease;
+}
+
+.bento-saved-item:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.06);
+}
+
+.bento-saved-item-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.bento-saved-icon {
+  font-size: 1.25rem;
+  background: rgba(255, 255, 255, 0.04);
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.bento-saved-meta {
+  min-width: 0;
+}
+
+.bento-saved-filename {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #ffffff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bento-saved-subtext {
+  font-size: 0.7rem;
+  color: var(--slate);
+  margin-top: 3px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.bento-mode-badge {
+  font-size: 7.5px;
+  font-weight: 800;
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
+.bento-mode-badge.shopify {
+  background: rgba(59, 130, 246, 0.15);
+  color: #3b82f6;
+}
+
+.bento-mode-badge.logistics {
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+}
+
+.bento-mode-badge.universal {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--slate);
+}
+
+.bento-saved-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.btn-bento-action {
+  padding: 5px 10px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: none;
+}
+
+.btn-bento-action.load {
+  background: #22c55e;
+  color: #000000;
+}
+
+.btn-bento-action.load:hover {
+  background: #16a34a;
+  box-shadow: 0 0 10px rgba(34, 197, 94, 0.3);
+}
+
+.btn-bento-action.delete {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.btn-bento-action.delete:hover {
+  background: rgba(239, 68, 68, 0.2);
+}
+
+.bento-empty-state {
+  padding: 2.5rem 1rem;
+  color: var(--slate);
+  font-size: 0.8rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.bento-upgrade-card {
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.08) 0%, rgba(59, 130, 246, 0.04) 100%);
+  border: 1px solid rgba(168, 85, 247, 0.2);
+  border-radius: 12px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.bento-upgrade-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.bento-upgrade-icon {
+  font-size: 1.5rem;
+}
+
+.bento-upgrade-title {
+  font-size: 0.85rem;
+  font-weight: 750;
+  color: #ffffff;
+}
+
+.bento-upgrade-price {
+  font-size: 0.75rem;
+  color: #a855f7;
+  font-weight: 600;
+}
+
+.bento-upgrade-desc {
+  font-size: 0.75rem;
+  color: var(--slate);
+  line-height: 1.4;
+  margin: 0;
+}
+
+.btn-bento-upgrade {
+  width: 100%;
+  padding: 8px;
+  background: #a855f7;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.btn-bento-upgrade:hover {
+  background: #9333ea;
+  box-shadow: 0 0 15px rgba(168, 85, 247, 0.4);
+}
+
+.bento-pro-active-card {
+  background: rgba(34, 197, 94, 0.04);
+  border: 1px solid rgba(34, 197, 94, 0.15);
+  border-radius: 12px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
+  text-align: center;
+  margin-top: auto;
+}
+
+.bento-pro-active-badge {
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: #22c55e;
+  background: rgba(34, 197, 94, 0.1);
+  padding: 2px 8px;
+  border-radius: 20px;
+  letter-spacing: 0.05em;
+}
+
+.bento-pro-active-text {
+  font-size: 0.75rem;
+  color: var(--slate);
+  line-height: 1.4;
+  margin: 0;
+}
+
+/* ============ MAINTENANCE MODE OVERLAY STYLES ============ */
+.maint-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 99999;
+  background: rgba(5, 5, 5, 0.8);
+  backdrop-filter: blur(25px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  animation: fadeIn 0.4s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.maint-card {
+  background: rgba(18, 18, 18, 0.9);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  border-radius: 24px;
+  max-width: 480px;
+  width: 100%;
+  padding: 3rem 2.5rem;
+  text-align: center;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7), 0 0 40px rgba(245, 158, 11, 0.05);
+}
+
+.maint-icon {
+  font-size: 3.5rem;
+  margin-bottom: 1.5rem;
+  display: inline-block;
+  animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+.maint-title {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #ffffff;
+  margin-bottom: 1rem;
+  letter-spacing: -0.01em;
+}
+
+.maint-desc {
+  font-size: 0.875rem;
+  color: var(--slate);
+  line-height: 1.6;
+  margin-bottom: 2rem;
+}
+
+.maint-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.05);
+  margin: 1.5rem 0;
+}
+
+.maint-admin-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.maint-admin-label {
+  font-size: 11px;
+  color: var(--slate);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+}
+
+.btn-maint-bypass {
+  padding: 8px 16px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-maint-bypass:hover {
+  background: rgba(245, 158, 11, 0.1);
+  border-color: rgba(245, 158, 11, 0.3);
+  color: #f59e0b;
+}
 `}</style>
 
-      {/* Announcement Bar */}
-      <div className="announcement-bar">
-        ⚡ Security Verified: Client-Side Secure Sandbox Active. No data leaves your machine.
-        <a href="https://cohere.com" target="_blank" rel="noopener noreferrer">Learn more</a>
-      </div>
-
-      {/* Main Header / Navigation */}
-      <header className="premium-header">
-        <div className="brand-section" style={{ display: "flex", alignItems: "center", gap: "14px" }}>
-          <img 
-            src={theme === "dark" ? "/logo-dark.png" : "/logo-light.png"} 
-            alt="SheetCodeCrest Logo" 
-            style={{ 
-              height: "44px", 
-              width: "44px", 
-              borderRadius: "10px", 
-              objectFit: "contain",
-              transition: "transform 0.3s ease",
-              cursor: "pointer"
-            }} 
-            className="brand-logo"
-            onMouseEnter={(e) => e.currentTarget.style.transform = "scale(1.08)"}
-            onMouseLeave={(e) => e.currentTarget.style.transform = "scale(1)"}
+      {/* Main Navigation */}
+      <nav className="sheetai-nav">
+        <div className="sheetai-nav-brand">
+          <img
+            src="/logo-dark.png"
+            alt="SheetCodeCrest"
+            style={{ height: "32px", width: "32px", borderRadius: "8px", objectFit: "contain" }}
           />
-          <div>
-            <h1 style={{ margin: 0, display: "flex", alignItems: "center", gap: "8px" }}>
-              SheetCodeCrest
-            </h1>
-            <p style={{ margin: "2px 0 0 0" }}>Upload once. The app detects Shopify, Shiprocket, or generic data and builds the right workbook automatically.</p>
-          </div>
+          SheetCodeCrest
         </div>
-        
-        <div className="header-controls">
+
+        <div className="sheetai-nav-links">
+          <button type="button" className="sheetai-nav-link" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>Features</button>
+          <button type="button" className="sheetai-nav-link" onClick={() => { const el = document.getElementById("pricing-section"); el?.scrollIntoView({ behavior: "smooth" }); }}>Pricing</button>
+          <button type="button" className="sheetai-nav-link" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>How it works</button>
+          <a href={CODECREST.website} target="_blank" rel="noopener noreferrer" className="sheetai-nav-link">Resources</a>
+        </div>
+
+        <div className="sheetai-nav-actions">
           {isSharedViewOnly ? (
-            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-              <span style={{ fontSize: "12px", background: "rgba(245, 158, 11, 0.15)", color: "var(--amber)", padding: "4px 10px", borderRadius: "20px", fontWeight: 600, border: "1px solid rgba(245,158,11,0.3)", display: "flex", alignItems: "center", gap: "6px" }}>
-                🔒 Shared Report (View-Only)
-              </span>
-              <button 
-                type="button" 
-                className="header-btn" 
-                onClick={() => {
-                  setIsSharedViewOnly(false);
-                  setActiveRecordId(null);
-                  setSharedRecordObj(null);
-                  setFile(null);
-                  setRawRows([]);
-                  setTableHeaders([]);
-                  setDataProfile(null);
-                  setLogisticsAnalytics(null);
-                  setShopifyAnalytics(null);
-                  setStep("upload");
-                  // Clear query params
-                  window.history.replaceState({}, document.title, window.location.pathname);
-                }}
-              >
-                ↩️ Upload My Own
-              </button>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <span style={{ fontSize: "11px", background: "rgba(245,158,11,0.1)", color: "#f59e0b", padding: "4px 10px", borderRadius: "20px", border: "1px solid rgba(245,158,11,0.2)" }}>🔒 Shared View</span>
+              <button type="button" className="btn-nav-ghost" onClick={() => { setIsSharedViewOnly(false); setActiveRecordId(null); setSharedRecordObj(null); setFile(null); setRawRows([]); setTableHeaders([]); setDataProfile(null); setLogisticsAnalytics(null); setShopifyAnalytics(null); setStep("upload"); window.history.replaceState({}, document.title, window.location.pathname); }}>↩️ Upload My Own</button>
             </div>
           ) : currentUser ? (
-            <div className="user-hub-widget">
-              <span className="user-info-text">
-                <span className="user-icon-bullet">👤</span>
-                <strong>{currentUser.username}</strong>
-                <span className={`plan-badge ${currentUser.isPro ? "pro" : "free"}`}>
-                  {currentUser.isPro ? "Pro" : "Free"}
-                </span>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <span style={{ fontSize: "12px", color: "var(--slate)" }}>👤 {currentUser.username}</span>
+              <span className={`plan-badge ${currentUser.isPro ? "pro" : "free"}`}>
+                {currentUser.isPro ? "Pro" : "Free"}
               </span>
               {isAdminActive && (
-                <button 
-                  type="button" 
-                  className="header-btn" 
-                  onClick={() => {
-                    setAdminModalOpen(true);
-                    loadAdminData();
-                  }}
-                  style={{ borderColor: "var(--amber)", color: "var(--amber)", fontWeight: 600 }}
-                >
-                  🛡️ Admin Panel
-                </button>
+                <button type="button" className="btn-nav-ghost" style={{ color: "#f59e0b" }} onClick={() => { setAdminModalOpen(true); loadAdminData(); }}>🛡️ Admin</button>
               )}
-              <button 
-                type="button" 
-                className="header-btn" 
-                onClick={() => setDashboardOpen(true)}
-              >
-                🎛️ Dashboard
-              </button>
+              <button type="button" className="btn-nav-ghost" onClick={() => setDashboardOpen(true)}>Dashboard</button>
               {!currentUser.isPro && (
-                <button 
-                  type="button" 
-                  className="header-btn" 
-                  onClick={() => setCheckoutOpen(true)}
-                  style={{ borderColor: "var(--coral)", color: "var(--coral)" }}
-                >
-                  ⚡ Upgrade
-                </button>
+                <button type="button" className="btn-nav-primary" onClick={() => setCheckoutOpen(true)}>⚡ Upgrade</button>
               )}
-              <button 
-                type="button" 
-                className="header-btn" 
-                onClick={handleLogout}
-              >
-                🚪 Sign Out
-              </button>
+              <button type="button" className="btn-nav-ghost" onClick={handleLogout} style={{ fontSize: "12px" }}>Sign Out</button>
             </div>
           ) : (
-            <button
-              type="button"
-              className="header-btn login-trigger"
-              onClick={() => {
-                setAuthTab("login");
-                setAuthError("");
-                setAuthModalOpen(true);
-              }}
-            >
-              🔑 Sign In / Register
-            </button>
+            <>
+              <button type="button" className="btn-nav-ghost" onClick={() => { setAuthTab("login"); setAuthError(""); setAuthModalOpen(true); }}>Log in</button>
+              <button type="button" className="btn-nav-primary" onClick={() => { setAuthTab("signup"); setAuthError(""); setAuthModalOpen(true); }}>Start for free →</button>
+            </>
           )}
         </div>
-      </header>
+      </nav>
+
+
+
 
       {/* Auto-detected notices */}
       {detectionNotice && (
@@ -4147,830 +5840,1188 @@ select.form-input option {
       {/* Step 1: Upload File Area */}
       {step === "upload" && (
         <>
-          {/* HERO HEADING SECTION */}
-          <section className="landing-hero">
-            <div className="hero-split">
-              <div className="hero-left">
-                <h2 className="hero-title">
-                  The AI-Powered Spreadsheet Analyst
-                </h2>
-                <p className="hero-subtitle">
-                  Upload raw exports from Shopify, Shiprocket, or any spreadsheet. SheetCodeCrest auto-detects your data schema and builds a full analytics workbook instantly.
-                </p>
-
-                {/* STAT CALLOUTS — ClickHouse-style electric yellow numbers */}
-                <div className="hero-stats">
+          {/* ============ HERO / BENTO WORKSPACE SECTION ============ */}
+          {currentUser ? (
+            <div className="bento-dashboard">
+              {/* Greeting Banner Row */}
+              <div className="bento-greeting-banner">
+                <div className="bento-greeting-left">
+                  <span className="bento-greeting-avatar">✨</span>
                   <div>
-                    <span className="stat-callout-num">3+</span>
-                    <span className="stat-callout-label">Analytics Engines</span>
-                  </div>
-                  <div>
-                    <span className="stat-callout-num">10×</span>
-                    <span className="stat-callout-label">Faster Than Manual</span>
-                  </div>
-                  <div>
-                    <span className="stat-callout-num">0</span>
-                    <span className="stat-callout-label">Data Leaves Device</span>
+                    <h2 className="bento-greeting-title">
+                      Welcome back, <span className="green-word">{currentUser.name || currentUser.username}</span>!
+                    </h2>
+                    <p className="bento-greeting-sub">
+                      Your high-priority intelligence workspace is active. Select your mode and process your sheet.
+                    </p>
                   </div>
                 </div>
-
-                <div 
-                  className={`upload-card ${dragging ? "dragging" : ""}`}
-                  onDrop={onDrop}
-                  onDragOver={onDragOver}
-                  onDragLeave={onDragLeave}
-                  onClick={() => hasFreeReportsRemaining && inputRef.current?.click()}
-                  style={{ width: "100%", maxWidth: "580px", margin: "0 0 2rem 0" }}
-                >
-                  <input 
-                    type="file" 
-                    ref={inputRef} 
-                    accept=".xlsx,.xls,.csv" 
-                    style={{ display: "none" }} 
-                    onChange={onFileChange} 
-                  />
-                  <span className="upload-icon">📁</span>
-                  <h2 className="upload-title">
-                    Drop your spreadsheet here
-                  </h2>
-                  <p className="upload-desc">
-                    Supports `.xlsx`, `.xls`, or `.csv` files. No manual type mapping needed.
-                  </p>
-                  <div className="usage-meter">
-                    {hasFreeReportsRemaining
-                      ? `Free reports remaining: ${freeReportsRemaining} of ${globalFreeLimit}`
-                      : "Free trial complete"}
+                <div className="bento-greeting-right">
+                  <div className="bento-greeting-stats">
+                    <span className={`plan-badge ${currentUser.isPro ? "pro" : "free"}`} style={{ fontSize: "11px", padding: "4px 10px", fontWeight: 700 }}>
+                      {currentUser.isPro ? "⚡ PRO MEMBERSHIP" : "🆓 FREE TRIAL"}
+                    </span>
+                    {!currentUser.isPro && (
+                      <span style={{ fontSize: "12px", color: "var(--slate)", fontWeight: 550 }}>
+                        {freeReportsRemaining} of {globalFreeLimit} free reports remaining
+                      </span>
+                    )}
                   </div>
-                  {!hasFreeReportsRemaining && (
-                    <div className="subscription-card" onClick={(e) => e.stopPropagation()}>
-                      <h3>Purchase access to continue</h3>
-                      <p>
-                        You have used your free report generations. Upgrade with Codecrest Studio to keep creating Shopify, Shiprocket, and universal Excel analytics workbooks.
-                      </p>
-                      <div className="subscription-actions" style={{ display: "flex", gap: "10px", marginTop: "1rem" }}>
-                        {currentUser ? (
-                          <button
-                            type="button"
-                            className="btn-primary"
-                            onClick={() => setCheckoutOpen(true)}
-                            style={{ padding: "10px 20px", fontSize: "13px", borderRadius: "30px", flex: "none" }}
-                          >
-                            ⚡ Upgrade to Pro ($19/mo)
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            className="btn-primary"
-                            onClick={() => {
-                              setAuthTab("login");
-                              setAuthError("");
-                              setAuthModalOpen(true);
-                            }}
-                            style={{ padding: "10px 20px", fontSize: "13px", borderRadius: "30px", flex: "none" }}
-                          >
-                            🔑 Sign In to Upgrade
-                          </button>
-                        )}
-                        <a className="icon-only" href={CODECREST.website} target="_blank" rel="noopener noreferrer" aria-label="Open Codecrest Studio website" title="Website" style={{ width: "40px", height: "40px" }}>
-                          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
-                        </a>
-                      </div>
-                    </div>
-                  )}
                 </div>
               </div>
 
-              <div className="hero-right" style={{ background: "transparent", border: "none" }}>
-                <motion.div 
-                  initial={{ opacity: 0, y: 30 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.8, ease: "easeOut" }}
-                  style={{
-                    width: "100%",
-                    height: "100%",
-                    background: "rgba(18, 18, 18, 0.6)",
-                    backdropFilter: "blur(12px)",
-                    border: "1px solid var(--hairline)",
-                    borderRadius: "24px",
-                    padding: "20px",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "16px",
-                    overflow: "hidden",
-                    position: "relative",
-                    boxShadow: "0 20px 40px rgba(0, 0, 0, 0.4)"
-                  }}
-                >
-                  {/* Console Header */}
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
-                    <div style={{ display: "flex", gap: "6px" }}>
-                      <span style={{ width: "10px", height: "10px", borderRadius: "50%", background: "#ef4444" }}></span>
-                      <span style={{ width: "10px", height: "10px", borderRadius: "50%", background: "#f59e0b" }}></span>
-                      <span style={{ width: "10px", height: "10px", borderRadius: "50%", background: "#10b981" }}></span>
+              {/* Main Bento Grid */}
+              <div className="bento-grid">
+                {/* Left Pane (60% width): Workspace Dropzone Uploader */}
+                <div className="bento-card bento-workspace-uploader">
+                  <div className="bento-card-header">
+                    <span className="bento-card-title">📁 Active Spreadsheet Workspace</span>
+                    <span className="bento-card-badge" style={{ background: "rgba(34,197,94,0.1)", color: "#22c55e" }}>Uploader</span>
+                  </div>
+                  
+                  {/* Mode Selector Tabs */}
+                  <div className="bento-mode-selector">
+                    <div className="bento-mode-label">Analysis Mode:</div>
+                    <div className="bento-mode-tabs">
+                      {(["universal", "logistics", "shopify"] as const).map((m) => (
+                        <button
+                          key={m}
+                          type="button"
+                          className={`bento-mode-tab ${mode === m ? "active" : ""}`}
+                          onClick={() => {
+                            setMode(m);
+                            addLog(`🔄 Analysis mode set manually to ${m.toUpperCase()}`, "info");
+                          }}
+                        >
+                          {m === "shopify" ? "🛒 Shopify" : m === "logistics" ? "🚚 Logistics" : "📊 Universal"}
+                        </button>
+                      ))}
                     </div>
-                    <span style={{ fontFamily: "var(--font-technical)", fontSize: "10px", color: "var(--slate)" }}>
-                      codecrest_engine_v1.0.5
+                  </div>
+
+                  {/* Drag-Drop Zone */}
+                  <div
+                    className={`upload-card-new bento-dropzone ${dragging ? "dragging" : ""}`}
+                    onDrop={onDrop}
+                    onDragOver={onDragOver}
+                    onDragLeave={onDragLeave}
+                    onClick={() => hasFreeReportsRemaining && inputRef.current?.click()}
+                  >
+                    <input
+                      type="file"
+                      ref={inputRef}
+                      accept=".xlsx,.xls,.csv"
+                      style={{ display: "none" }}
+                      onChange={onFileChange}
+                    />
+                    <div className="upload-icon-new">☁️</div>
+                    <div className="upload-title-new">Drag & drop your spreadsheet here</div>
+                    <div className="upload-formats">Supports .xlsx, .xls, .csv · Auto-detected schema</div>
+                    {hasFreeReportsRemaining ? (
+                      <button
+                        type="button"
+                        className="btn-upload-green"
+                        onClick={(e) => { e.stopPropagation(); inputRef.current?.click(); }}
+                      >
+                        ↑ Select Spreadsheet File
+                      </button>
+                    ) : (
+                      <div onClick={(e) => e.stopPropagation()}>
+                        <div style={{ fontSize: "12px", color: "var(--slate)", margin: "0.5rem 0 1rem" }}>
+                          Free trial complete. Upgrade to continue.
+                        </div>
+                        <button
+                          type="button"
+                          className="btn-upload-green"
+                          onClick={() => setCheckoutOpen(true)}
+                        >
+                          ⚡ Upgrade to Pro Now
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="bento-workspace-footer">
+                    {!currentUser.isPro && (
+                      <div className="bento-limit-bar-wrapper">
+                        <div className="bento-limit-bar-labels">
+                          <span>Free Report Limit Usage</span>
+                          <span>{usageCount} / {globalFreeLimit} reports used</span>
+                        </div>
+                        <div className="bento-limit-bar-bg">
+                          <div
+                            className="bento-limit-bar-fill"
+                            style={{ width: `${Math.min(100, (usageCount / globalFreeLimit) * 100)}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
+                    {currentUser.isPro && (
+                      <div className="bento-unlocked-status">
+                        <span>❇️ Enterprise priority API queue active. Secure data sandbox enabled.</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Right Pane (40% width): Saved Spreadsheet Bento */}
+                <div className="bento-card bento-saved-sheets">
+                  <div className="bento-card-header">
+                    <span className="bento-card-title">📂 Saved Datasets & History</span>
+                    <span className="bento-card-badge" style={{ background: "rgba(34,197,94,0.1)", color: "#22c55e" }}>
+                      {savedRecords.length} files
                     </span>
                   </div>
 
-                  {/* Mock Input Bar */}
-                  <div style={{ background: "#0a0a0a", border: "1px solid var(--hairline)", borderRadius: "8px", padding: "10px 14px", display: "flex", alignItems: "center", gap: "10px", flexShrink: 0 }}>
-                    <span style={{ color: "var(--coral)", fontWeight: 700, fontSize: "12px", fontFamily: "var(--font-technical)" }}>$</span>
-                    <div style={{ fontFamily: "var(--font-technical)", fontSize: "11px", color: "var(--ink)", display: "flex", alignItems: "center" }}>
-                      <span>avery-compiler --analyze shopify_orders.csv</span>
-                      <motion.span 
-                        animate={{ opacity: [1, 0, 1] }}
-                        transition={{ repeat: Infinity, duration: 0.8 }}
-                        style={{ display: "inline-block", width: "6px", height: "12px", background: "var(--focus-blue)", marginLeft: "4px" }}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Flow Graphic and nodes */}
-                  <div style={{ flex: 1, position: "relative", minHeight: "180px", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    <svg viewBox="0 0 400 200" style={{ width: "100%", height: "100%" }}>
-                      {/* Grid Background */}
-                      <defs>
-                        <pattern id="graphic-grid" width="20" height="20" patternUnits="userSpaceOnUse">
-                          <path d="M 20 0 L 0 0 0 20" fill="none" stroke="rgba(255, 255, 255, 0.03)" strokeWidth="1" />
-                        </pattern>
-                      </defs>
-                      <rect width="100%" height="100%" fill="url(#graphic-grid)" />
-
-                      {/* Connection Curves */}
-                      <motion.path 
-                        d="M 50,100 C 120,50 180,50 200,100" 
-                        fill="none" 
-                        stroke="rgba(250, 255, 105, 0.15)" 
-                        strokeWidth="2" 
-                        strokeDasharray="4 4"
-                      />
-                      <motion.path 
-                        d="M 50,100 C 120,150 180,150 200,100" 
-                        fill="none" 
-                        stroke="rgba(250, 255, 105, 0.15)" 
-                        strokeWidth="2" 
-                        strokeDasharray="4 4"
-                      />
-                      <motion.path 
-                        d="M 200,100 Q 275,50 350,100" 
-                        fill="none" 
-                        stroke="rgba(250, 255, 105, 0.15)" 
-                        strokeWidth="2" 
-                        strokeDasharray="4 4"
-                      />
-                      <motion.path 
-                        d="M 200,100 Q 275,150 350,100" 
-                        fill="none" 
-                        stroke="rgba(250, 255, 105, 0.15)" 
-                        strokeWidth="2" 
-                        strokeDasharray="4 4"
-                      />
-
-                      {/* Flowing Data Packets */}
-                      <motion.circle r="4" fill="var(--focus-blue)" filter="drop-shadow(0 0 6px #faff69)">
-                        <animateMotion 
-                          dur="2.5s" 
-                          repeatCount="indefinite" 
-                          path="M 50,100 C 120,50 180,50 200,100"
-                        />
-                      </motion.circle>
-                      <motion.circle r="4" fill="var(--focus-blue)" filter="drop-shadow(0 0 6px #faff69)">
-                        <animateMotion 
-                          dur="3s" 
-                          begin="1s"
-                          repeatCount="indefinite" 
-                          path="M 50,100 C 120,150 180,150 200,100"
-                        />
-                      </motion.circle>
-                      <motion.circle r="4" fill="var(--focus-blue)" filter="drop-shadow(0 0 6px #faff69)">
-                        <animateMotion 
-                          dur="2s" 
-                          begin="0.5s"
-                          repeatCount="indefinite" 
-                          path="M 200,100 Q 275,50 350,100"
-                        />
-                      </motion.circle>
-                      <motion.circle r="4" fill="var(--focus-blue)" filter="drop-shadow(0 0 6px #faff69)">
-                        <animateMotion 
-                          dur="2.8s" 
-                          begin="1.2s"
-                          repeatCount="indefinite" 
-                          path="M 200,100 Q 275,150 350,100"
-                        />
-                      </motion.circle>
-
-                      {/* Left Node: CSV File */}
-                      <motion.g 
-                        whileHover={{ scale: 1.1 }}
-                        style={{ cursor: "pointer" }}
+                  {/* Inline Search Bar */}
+                  <div className="bento-search-wrapper">
+                    <span className="bento-search-icon">🔍</span>
+                    <input
+                      type="text"
+                      placeholder="Search files by name..."
+                      className="bento-search-input"
+                      value={sheetSearchQuery}
+                      onChange={(e) => setSheetSearchQuery(e.target.value)}
+                    />
+                    {sheetSearchQuery && (
+                      <button
+                        type="button"
+                        className="bento-search-clear"
+                        onClick={() => setSheetSearchQuery("")}
                       >
-                        <circle cx="50" cy="100" r="28" fill="#121212" stroke="var(--hairline)" strokeWidth="2" />
-                        <circle cx="50" cy="100" r="20" fill="rgba(250,255,105,0.06)" />
-                        <text x="50" y="105" textAnchor="middle" fontSize="16" fill="var(--focus-blue)" style={{ userSelect: "none" }}>📄</text>
-                      </motion.g>
+                        ✕
+                      </button>
+                    )}
+                  </div>
 
-                      {/* Center Node: AI Processor (Avery) */}
-                      <g>
-                        {/* Ripple pulses */}
-                        <motion.circle 
-                          cx="200" cy="100" r="45" 
-                          fill="none" 
-                          stroke="rgba(250, 255, 105, 0.12)" 
-                          strokeWidth="1.5"
-                          animate={{ scale: [1, 1.35], opacity: [0.8, 0] }}
-                          transition={{ repeat: Infinity, duration: 2, ease: "easeOut" }}
-                        />
-                        <motion.circle 
-                          cx="200" cy="100" r="32" fill="#121212" stroke="var(--focus-blue)" strokeWidth="2" 
-                          whileHover={{ scale: 1.1, strokeWidth: 3 }}
-                          style={{ cursor: "pointer" }}
-                        />
-                        <circle cx="200" cy="100" r="24" fill="rgba(250,255,105,0.1)" />
-                        <text x="200" y="105" textAnchor="middle" fontSize="16" fill="var(--focus-blue)" style={{ userSelect: "none" }}>🧠</text>
-                      </g>
+                  {/* Saved records list */}
+                  <div className="bento-saved-list">
+                    {filteredSavedRecords.length > 0 ? (
+                      filteredSavedRecords.map((rec) => (
+                        <div key={rec.id} className="bento-saved-item">
+                          <div className="bento-saved-item-left">
+                            <span className="bento-saved-icon">
+                              {rec.mode === "shopify" ? "🛒" : rec.mode === "logistics" ? "🚚" : "📊"}
+                            </span>
+                            <div className="bento-saved-meta">
+                              <div title={rec.filename} className="bento-saved-filename">
+                                {rec.filename}
+                              </div>
+                              <div className="bento-saved-subtext">
+                                <span className={`bento-mode-badge ${rec.mode}`}>{rec.mode.toUpperCase()}</span>
+                                <span>•</span>
+                                <span>{(rec.size / 1024).toFixed(1)} KB</span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="bento-saved-actions">
+                            <button
+                              type="button"
+                              className="btn-bento-action load"
+                              title="Load Report"
+                              onClick={() => loadRecord(rec)}
+                            >
+                              ⚡ Load
+                            </button>
+                            <button
+                              type="button"
+                              className="btn-bento-action delete"
+                              title="Delete Record"
+                              onClick={(e) => handleDeleteRecord(rec.id!, e)}
+                            >
+                              🗑️
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="bento-empty-state">
+                        <span style={{ fontSize: "1.5rem" }}>📁</span>
+                        <p style={{ margin: 0 }}>
+                          {sheetSearchQuery
+                            ? "No matching spreadsheets found."
+                            : "No saved datasets. Drop your first spreadsheet to start!"}
+                        </p>
+                      </div>
+                    )}
+                  </div>
 
-                      {/* Right Node: Consolidated Chart */}
-                      <motion.g 
-                        whileHover={{ scale: 1.1 }}
-                        style={{ cursor: "pointer" }}
+                  {!currentUser.isPro ? (
+                    <div className="bento-upgrade-card">
+                      <div className="bento-upgrade-header">
+                        <span className="bento-upgrade-icon">💎</span>
+                        <div>
+                          <div className="bento-upgrade-title">Unlock SheetCodeCrest Pro</div>
+                          <div className="bento-upgrade-price">Just ₹1,599/month</div>
+                        </div>
+                      </div>
+                      <p className="bento-upgrade-desc">
+                        Get unlimited spreadsheet analysis, connect live integrations, and enjoy premium priority processing.
+                      </p>
+                      <button
+                        type="button"
+                        className="btn-bento-upgrade"
+                        onClick={() => setCheckoutOpen(true)}
                       >
-                        <circle cx="350" cy="100" r="28" fill="#121212" stroke="var(--hairline)" strokeWidth="2" />
-                        <circle cx="350" cy="100" r="20" fill="rgba(250,255,105,0.06)" />
-                        <text x="350" y="105" textAnchor="middle" fontSize="16" fill="var(--focus-blue)" style={{ userSelect: "none" }}>📊</text>
-                      </motion.g>
-                    </svg>
-
-                    {/* Stats overlay tags */}
-                    <motion.div 
-                      drag
-                      dragConstraints={{ left: -100, right: 100, top: -50, bottom: 50 }}
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      style={{
-                        position: "absolute",
-                        top: "10px",
-                        left: "10px",
-                        padding: "6px 12px",
-                        background: "#0a0a0a",
-                        border: "1px solid var(--hairline)",
-                        borderRadius: "20px",
-                        fontSize: "9.5px",
-                        color: "var(--deep-green)",
-                        fontFamily: "var(--font-technical)",
-                        fontWeight: 700,
-                        cursor: "grab",
-                        boxShadow: "0 4px 12px rgba(0,0,0,0.3)"
-                      }}
-                    >
-                      ● 94.5% Accuracy
-                    </motion.div>
-
-                    <motion.div 
-                      drag
-                      dragConstraints={{ left: -100, right: 100, top: -50, bottom: 50 }}
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      style={{
-                        position: "absolute",
-                        bottom: "10px",
-                        right: "10px",
-                        padding: "6px 12px",
-                        background: "#0a0a0a",
-                        border: "1px solid var(--focus-blue)",
-                        borderRadius: "20px",
-                        fontSize: "9.5px",
-                        color: "var(--focus-blue)",
-                        fontFamily: "var(--font-technical)",
-                        fontWeight: 700,
-                        cursor: "grab",
-                        boxShadow: "0 4px 12px rgba(0,0,0,0.3)"
-                      }}
-                    >
-                      🔥 12,450 Rows Mapped
-                    </motion.div>
-                  </div>
-
-                  {/* Console footer logs */}
-                  <div style={{ background: "#0c0c0c", borderRadius: "8px", padding: "10px 14px", border: "1px solid var(--hairline)", fontFamily: "var(--font-technical)", fontSize: "10.5px", color: "var(--slate)", display: "flex", flexDirection: "column", gap: "4px", flexShrink: 0 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between" }}>
-                      <span style={{ color: "#888" }}>[info] Consolidation successful in 4ms</span>
-                      <span style={{ color: "var(--focus-blue)", fontWeight: 700 }}>100% OK</span>
+                        Upgrade to Pro Now →
+                      </button>
                     </div>
-                    <div style={{ display: "flex", justifyContent: "space-between" }}>
-                      <span style={{ color: "#888" }}>[avery] Avery model verified 14 mappings</span>
-                      <span style={{ color: "var(--deep-green)" }}>No errors</span>
+                  ) : (
+                    <div className="bento-pro-active-card">
+                      <span className="bento-pro-active-badge">✦ PRO UNLOCKED</span>
+                      <p className="bento-pro-active-text">
+                        Your workspace is fully active with high-priority execution. Thank you for your support!
+                      </p>
                     </div>
-                  </div>
-                </motion.div>
-              </div>
-            </div>
-          </section>
-
-          {/* SPREADSHEET MOCKUP VISUAL */}
-          <section className="demo-showcase-section">
-            <div className="mockup-container">
-              <div className="mockup-header">
-                <span className="mockup-dot" style={{ background: "#ef4444" }}></span>
-                <span className="mockup-dot" style={{ background: "#f59e0b" }}></span>
-                <span className="mockup-dot" style={{ background: "#10b981" }}></span>
-                <span style={{ fontSize: "10px", color: "var(--slate)", fontFamily: "var(--font-technical)", marginLeft: "8px", textTransform: "uppercase" }}>Interactive Data Profiler & Consolidator</span>
-              </div>
-              <div className="mockup-tab-strip">
-                <button 
-                  type="button"
-                  className={`mockup-tab ${mockupTabActive === "shopify" ? "active" : ""}`}
-                  onClick={() => setMockupTabActive("shopify")}
-                >
-                  📊 Shopify Store Sales
-                </button>
-                <button 
-                  type="button"
-                  className={`mockup-tab ${mockupTabActive === "logistics" ? "active" : ""}`}
-                  onClick={() => setMockupTabActive("logistics")}
-                >
-                  🚚 Courier Shipments
-                </button>
-                <button 
-                  type="button"
-                  className={`mockup-tab ${mockupTabActive === "universal" ? "active" : ""}`}
-                  onClick={() => setMockupTabActive("universal")}
-                >
-                  📋 Universal Profiling
-                </button>
-              </div>
-              <div className="mockup-body">
-                <div className="mockup-left">
-                  {mockupTabActive === "shopify" && (
-                    <table className="mockup-table">
-                      <thead>
-                        <tr>
-                          <th>Order ID</th>
-                          <th>Customer</th>
-                          <th>City / Region</th>
-                          <th>Status</th>
-                          <th>Amount</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr>
-                          <td>#1001-A</td>
-                          <td>Aman Sharma</td>
-                          <td>Mumbai, MH</td>
-                          <td><span className="mockup-badge delivered">Delivered</span></td>
-                          <td>₹1,899.00</td>
-                        </tr>
-                        <tr>
-                          <td>#1002-B</td>
-                          <td>Sarah Jones</td>
-                          <td>Bangalore, KA</td>
-                          <td><span className="mockup-badge delivered">Delivered</span></td>
-                          <td>₹2,450.00</td>
-                        </tr>
-                        <tr>
-                          <td>#1003-C</td>
-                          <td>Vikram Singh</td>
-                          <td>Delhi, NCR</td>
-                          <td><span className="mockup-badge rto">RTO Returned</span></td>
-                          <td>₹1,299.00</td>
-                        </tr>
-                        <tr>
-                          <td>#1004-D</td>
-                          <td>Rohan Verma</td>
-                          <td>Pune, MH</td>
-                          <td><span className="mockup-badge delivered">Delivered</span></td>
-                          <td>₹999.00</td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  )}
-
-                  {mockupTabActive === "logistics" && (
-                    <table className="mockup-table">
-                      <thead>
-                        <tr>
-                          <th>AWB Number</th>
-                          <th>Courier Co.</th>
-                          <th>Destination</th>
-                          <th>Delivery Status</th>
-                          <th>COD/Prepaid</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr>
-                          <td>AWB-82019</td>
-                          <td>Delhivery</td>
-                          <td>Mumbai, MH</td>
-                          <td><span className="mockup-badge delivered">DELIVERED</span></td>
-                          <td>COD</td>
-                        </tr>
-                        <tr>
-                          <td>AWB-71928</td>
-                          <td>Bluedart</td>
-                          <td>Chennai, TN</td>
-                          <td><span className="mockup-badge rto">RTO RETURNED</span></td>
-                          <td>COD</td>
-                        </tr>
-                        <tr>
-                          <td>AWB-90123</td>
-                          <td>Xpressbees</td>
-                          <td>Kolkata, WB</td>
-                          <td><span className="mockup-badge delivered">DELIVERED</span></td>
-                          <td>PREPAID</td>
-                        </tr>
-                        <tr>
-                          <td>AWB-33412</td>
-                          <td>Delhivery</td>
-                          <td>Delhi, NCR</td>
-                          <td><span className="mockup-badge delivered">DELIVERED</span></td>
-                          <td>COD</td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  )}
-
-                  {mockupTabActive === "universal" && (
-                    <table className="mockup-table">
-                      <thead>
-                        <tr>
-                          <th>Field Name</th>
-                          <th>Type Detection</th>
-                          <th>Fill Rate</th>
-                          <th>Distinct Count</th>
-                          <th>Sample Values</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr>
-                          <td style={{ fontWeight: 600 }}>order_id</td>
-                          <td>NUMERIC</td>
-                          <td>100%</td>
-                          <td>150 unique</td>
-                          <td style={{ color: "var(--slate)" }}>1001; 1002; 1003</td>
-                        </tr>
-                        <tr>
-                          <td style={{ fontWeight: 600 }}>customer</td>
-                          <td>TEXT</td>
-                          <td>100%</td>
-                          <td>142 unique</td>
-                          <td style={{ color: "var(--slate)" }}>Aman; Sarah; Vikram</td>
-                        </tr>
-                        <tr>
-                          <td style={{ fontWeight: 600 }}>shipping_date</td>
-                          <td>DATE</td>
-                          <td>94%</td>
-                          <td>18 unique</td>
-                          <td style={{ color: "var(--slate)" }}>2026-05-01; 2026-05-02</td>
-                        </tr>
-                        <tr>
-                          <td style={{ fontWeight: 600 }}>discount_code</td>
-                          <td>TEXT</td>
-                          <td>40%</td>
-                          <td>4 unique</td>
-                          <td style={{ color: "var(--slate)" }}>WELCOME10; FREE</td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  )}
-                </div>
-                
-                <div className="mockup-right">
-                  {mockupTabActive === "shopify" && (
-                    <>
-                      <div className="mockup-card-right">
-                        <div style={{ fontSize: "10px", fontWeight: 700, color: "var(--slate)", textTransform: "uppercase" }}>Store Revenue Share</div>
-                        <div style={{ fontSize: "16px", fontWeight: 700, marginTop: "4px", color: "var(--ink)" }}>₹4.82 Lakhs</div>
-                        <div className="mockup-chart-row">
-                          <div className="mockup-chart-bar" style={{ height: "40%" }}></div>
-                          <div className="mockup-chart-bar" style={{ height: "70%" }}></div>
-                          <div className="mockup-chart-bar highlight" style={{ height: "95%" }}></div>
-                          <div className="mockup-chart-bar" style={{ height: "55%" }}></div>
-                          <div className="mockup-chart-bar" style={{ height: "80%" }}></div>
-                        </div>
-                      </div>
-                      <div className="mockup-card-right" style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                        <span style={{ fontSize: "18px" }}>🧠</span>
-                        <div style={{ fontSize: "10.5px", color: "var(--slate)", lineHeight: "1.4" }}>
-                          <strong>Avery Smith:</strong> "SKU consolidated. Found 14 duplicate order ID items. Delivery rate is at 78.4%."
-                        </div>
-                      </div>
-                    </>
-                  )}
-
-                  {mockupTabActive === "logistics" && (
-                    <>
-                      <div className="mockup-card-right">
-                        <div style={{ fontSize: "10px", fontWeight: 700, color: "var(--slate)", textTransform: "uppercase" }}>Courier Success Index</div>
-                        <div style={{ fontSize: "16px", fontWeight: 700, marginTop: "4px", color: "var(--ink)" }}>86.5% Rating</div>
-                        <div className="mockup-chart-row">
-                          <div className="mockup-chart-bar highlight" style={{ height: "92%" }} title="Delhivery"></div>
-                          <div className="mockup-chart-bar" style={{ height: "72%" }} title="Bluedart"></div>
-                          <div className="mockup-chart-bar" style={{ height: "84%" }} title="Xpressbees"></div>
-                          <div className="mockup-chart-bar highlight" style={{ height: "90%" }} title="Delhivery 2"></div>
-                          <div className="mockup-chart-bar" style={{ height: "65%" }} title="Shadowfax"></div>
-                        </div>
-                      </div>
-                      <div className="mockup-card-right" style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                        <span style={{ fontSize: "18px" }}>🧠</span>
-                        <div style={{ fontSize: "10.5px", color: "var(--slate)", lineHeight: "1.4" }}>
-                          <strong>Avery Smith:</strong> "Logistics audit: Delhivery has 92% SLA fill rate. Bluedart COD RTO risk is high at 21%."
-                        </div>
-                      </div>
-                    </>
-                  )}
-
-                  {mockupTabActive === "universal" && (
-                    <>
-                      <div className="mockup-card-right">
-                        <div style={{ fontSize: "10px", fontWeight: 700, color: "var(--slate)", textTransform: "uppercase" }}>Data Quality Index</div>
-                        <div style={{ fontSize: "16px", fontWeight: 700, marginTop: "4px", color: "var(--ink)" }}>96.8% Score</div>
-                        <div className="mockup-chart-row">
-                          <div className="mockup-chart-bar highlight" style={{ height: "100%" }}></div>
-                          <div className="mockup-chart-bar highlight" style={{ height: "100%" }}></div>
-                          <div className="mockup-chart-bar highlight" style={{ height: "94%" }}></div>
-                          <div className="mockup-chart-bar" style={{ height: "40%" }}></div>
-                          <div className="mockup-chart-bar highlight" style={{ height: "92%" }}></div>
-                        </div>
-                      </div>
-                      <div className="mockup-card-right" style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                        <span style={{ fontSize: "18px" }}>🧠</span>
-                        <div style={{ fontSize: "10.5px", color: "var(--slate)", lineHeight: "1.4" }}>
-                          <strong>Avery Smith:</strong> "Data Quality profile complete. 12 columns mapped. Detected 6 missing cells in discount_code."
-                        </div>
-                      </div>
-                    </>
                   )}
                 </div>
               </div>
             </div>
+          ) : (
+            /* Otherwise show standard Centered Hero layout for logged out users */
+            <section className="hero-centered">
+              <div className="hero-centered-content">
+                <div className="sheetai-hero-label">✦ AI-Powered Spreadsheet Analysis</div>
+                <h1 className="hero-title-new">
+                  Take control of your <br/><span className="green-word">e-commerce data</span>
+                </h1>
+                <p style={{ fontSize: "1.05rem", color: "var(--slate)", marginBottom: "1.5rem", lineHeight: 1.6, maxWidth: "600px" }}>
+                  Upload your spreadsheets and get instant insights, automated analysis, and beautiful reports in seconds.
+                </p>
 
-            {/* DETAILED FEATURES MATRIX */}
-            <div style={{ textAlign: "center", marginBottom: "2.5rem" }}>
-              <div style={{ fontFamily: "var(--font-technical)", fontSize: "10.5px", fontWeight: 700, color: "var(--coral)", textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: "6px" }}>Core Capabilities</div>
-              <h3 style={{ fontFamily: "var(--font-display)", fontSize: "2rem", fontWeight: 700, margin: 0 }}>Built for High-Growth E-Commerce</h3>
-            </div>
-            
-            <div className="features-grid">
-              <div className="feature-item-card">
-                <div className="feature-icon-wrapper">🛠️</div>
-                <h4 className="feature-title-card">Shopify Sales Consolidator</h4>
-                <p className="feature-desc-card">Automatically consolidates order rows, calculates geographical performance, filters COD risk status, and groups repeat buyers for retargeting campaigns.</p>
-              </div>
-              <div className="feature-item-card">
-                <div className="feature-icon-wrapper">🚚</div>
-                <h4 className="feature-title-card">Logistics Optimizer</h4>
-                <p className="feature-desc-card">Upload Shiprocket or courier sheets to consolidate multiple item packages, highlight shipping cost leakages, and rank courier company RTO risks.</p>
-              </div>
-              <div className="feature-item-card">
-                <div className="feature-icon-wrapper">📊</div>
-                <h4 className="feature-title-card">Universal Data Profiler</h4>
-                <p className="feature-desc-card">Instantly calculates column fill rates, auto-detects date/numerical types, performs average and standard deviation computations, and outputs an interactive grid editor.</p>
-              </div>
-              <div className="feature-item-card">
-                <div className="feature-icon-wrapper">🧠</div>
-                <h4 className="feature-title-card">Conversational AI Analyst</h4>
-                <p className="feature-desc-card">Connect your own Anthropic Claude key or run offline to query Avery, your business data analyst, directly inside the app without writing formulas or scripts.</p>
-              </div>
-            </div>
-          </section>
+                {/* Hero Actions capsule buttons */}
+                <div className="hero-actions-row">
+                  <button
+                    type="button"
+                    className="btn-hero-primary"
+                    onClick={() => {
+                      const el = document.getElementById("centered-uploader-anchor");
+                      el?.scrollIntoView({ behavior: "smooth" });
+                    }}
+                  >
+                    ↑ Start Analyzing Now
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-hero-secondary"
+                    onClick={() => {
+                      const el = document.getElementById("dashboard-mockup-anchor");
+                      el?.scrollIntoView({ behavior: "smooth" });
+                    }}
+                  >
+                    👀 View Dashboard Preview
+                  </button>
+                </div>
 
-          {/* ============================================
-              DARK METRICS BAND
-          ============================================= */}
-          <div className="metrics-band">
-            <div className="metrics-band-inner">
-              <div>
-                <span className="metrics-band-num">&lt;2%</span>
-                <div className="metrics-band-title">Processing Overhead</div>
-                <p className="metrics-band-desc">Our optimized engine processes thousands of rows with minimal resource overhead — all client-side.</p>
-              </div>
-              <div>
-                <span className="metrics-band-num">+80%</span>
-                <div className="metrics-band-title">Time Saved per Report</div>
-                <p className="metrics-band-desc">What takes hours in Excel is done in seconds. Consolidation, segmentation, and profiling happen instantly.</p>
-              </div>
-              <div>
-                <span className="metrics-band-num">$$$</span>
-                <div className="metrics-band-title">Revenue Recovered</div>
-                <p className="metrics-band-desc">Identify COD risk, RTO losses, and courier inefficiencies that directly impact your bottom line.</p>
-              </div>
-            </div>
-          </div>
-
-          {/* ============================================
-              BUSINESS SOLUTION — SPLIT SECTION
-          ============================================= */}
-          <div className="solution-section">
-            <div className="solution-left">
-              <div style={{ fontFamily: "var(--font-technical)", fontSize: "10.5px", fontWeight: 700, color: "var(--coral)", textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: "12px" }}>Why SheetCodeCrest?</div>
-              <h2>Want to boost your business growth?<br />Your data is the solution.</h2>
-              <p>SheetCodeCrest is designed to surface actionable intelligence from your raw data — making every export file a strategic asset rather than a confusing spreadsheet.</p>
-              <button 
-                type="button" 
-                className="solution-arrow-btn" 
-                onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-                title="Scroll to Upload & Analyze"
-                aria-label="Scroll to Upload Zone"
-              >
-                ↗
-              </button>
-            </div>
-            <div className="solution-right">
-              <div className="solution-card">
-                <span className="solution-card-icon">🛒</span>
-                <h4>Shopify Analytics</h4>
-                <p>COD vs. prepaid breakdown, SKU performance, repeat buyer segmentation, and RTO risk flags — all in one workbook.</p>
-              </div>
-              <div className="solution-card">
-                <span className="solution-card-icon">🚚</span>
-                <h4>Courier Auditing</h4>
-                <p>Compare Delhivery, Bluedart, Xpressbees — identify which partners are draining revenue via high RTO rates.</p>
-              </div>
-              <div className="solution-card">
-                <span className="solution-card-icon">📊</span>
-                <h4>Data Profiling</h4>
-                <p>Auto-detect column types, fill rates, duplicates, and statistical summaries across any CSV or Excel file.</p>
-              </div>
-              <div className="solution-card">
-                <span className="solution-card-icon">🤖</span>
-                <h4>AI Analyst (Avery)</h4>
-                <p>Ask questions in plain English. Avery queries your uploaded data and returns actionable business insights instantly.</p>
-              </div>
-            </div>
-          </div>
-
-          {/* ============================================
-              TESTIMONIALS
-          ============================================= */}
-          {(() => {
-            const testimonials = [
-              { text: "SheetCodeCrest transformed how we handle our Shopify exports. What used to take our team 3 hours every week now takes 30 seconds. The COD risk detection alone has saved us thousands in RTO losses.", name: "PRIYA MEHTA", title: "E-Commerce Director, Mumbai" },
-              { text: "The courier efficiency scoring is exactly what our logistics team needed. We switched from Bluedart to Delhivery for certain zones based on SheetCodeCrest's data — delivery rates went from 71% to 89%.", name: "RAHUL SHARMA", title: "Operations Manager, Bangalore" },
-              { text: "I love that nothing leaves my browser. I can upload confidential sales data without worrying about privacy. The universal profiler handles our custom formats perfectly — no manual mapping needed.", name: "ANIKA PATEL", title: "Head of Data, Delhi NCR" },
-            ];
-            const t = testimonials[testimonialIdx];
-            return (
-              <div className="testimonials-section">
-                <div className="testimonials-inner">
-                  <div className="testimonials-label">✦ Testimonials</div>
-                  <div className="testimonial-card">
-                    <span className="testimonial-quote-mark">&ldquo;</span>
-                    <p className="testimonial-text">{t.text}</p>
-                    <div>
-                      <div className="testimonial-author-name">{t.name}</div>
-                      <div className="testimonial-author-title">{t.title}</div>
+                {/* Stats chip bar */}
+                <div className="hero-stats-row" style={{ marginBottom: "2.5rem" }}>
+                  {[
+                    { icon: "📁", value: "3+", label: "File Types" },
+                    { icon: "💡", value: "70+", label: "Insights" },
+                    { icon: "⚡", value: "0", label: "Manual Work" },
+                    { icon: "🔒", value: "100%", label: "Secure" },
+                  ].map((stat) => (
+                    <div className="hero-stat-item" key={stat.label}>
+                      <div className="stat-icon">{stat.icon}</div>
+                      <div style={{ textAlign: "left" }}>
+                        <strong>{stat.value}</strong>
+                        <span>{stat.label}</span>
+                      </div>
                     </div>
-                  </div>
-                  <div className="testimonial-nav">
-                    <button
-                      type="button"
-                      className="testimonial-nav-btn"
-                      onClick={() => setTestimonialIdx((testimonialIdx - 1 + testimonials.length) % testimonials.length)}
-                      aria-label="Previous testimonial"
-                    >
-                      ←
-                    </button>
-                    <button
-                      type="button"
-                      className="testimonial-nav-btn"
-                      onClick={() => setTestimonialIdx((testimonialIdx + 1) % testimonials.length)}
-                      aria-label="Next testimonial"
-                    >
-                      →
-                    </button>
-                    <div className="testimonial-dots">
-                      {testimonials.map((_, i) => (
+                  ))}
+                </div>
+
+                {/* Translucent Active Spreadsheet dropzone uploader */}
+                <div id="centered-uploader-anchor" style={{ width: "100%", scrollMarginTop: "100px" }}>
+                  <div
+                    className={`upload-card-new ${dragging ? "dragging" : ""}`}
+                    onDrop={onDrop}
+                    onDragOver={onDragOver}
+                    onDragLeave={onDragLeave}
+                    onClick={() => hasFreeReportsRemaining && inputRef.current?.click()}
+                  >
+                    <input
+                      type="file"
+                      ref={inputRef}
+                      accept=".xlsx,.xls,.csv"
+                      style={{ display: "none" }}
+                      onChange={onFileChange}
+                    />
+                    <div className="upload-icon-new">☁️</div>
+                    <div className="upload-title-new">Drag & drop your spreadsheet here</div>
+                    <div className="upload-formats">Supports .xlsx, .xls, .csv · Auto-detected schema</div>
+                    {hasFreeReportsRemaining ? (
+                      <button
+                        type="button"
+                        className="btn-upload-green"
+                        onClick={(e) => { e.stopPropagation(); inputRef.current?.click(); }}
+                      >
+                        ↑ Upload your file
+                      </button>
+                    ) : (
+                      <div onClick={(e) => e.stopPropagation()}>
+                        <div style={{ fontSize: "12px", color: "var(--slate)", margin: "0.5rem 0 1rem" }}>
+                          Free trial complete. Upgrade to continue.
+                        </div>
                         <button
-                          key={i}
                           type="button"
-                          className={`testimonial-dot${i === testimonialIdx ? " active" : ""}`}
-                          onClick={() => setTestimonialIdx(i)}
-                          aria-label={`Go to testimonial ${i + 1}`}
+                          className="btn-upload-green"
+                          onClick={() => {
+                            setAuthTab("login");
+                            setAuthError("");
+                            setAuthModalOpen(true);
+                          }}
+                        >
+                          ⚡ Sign In to Upgrade
+                        </button>
+                      </div>
+                    )}
+                    <div className="upload-integration-row">
+                      <span>Connect Live Channels:</span>
+                      <div className="upload-integration-icon" title="Shopify">🛒</div>
+                      <div className="upload-integration-icon" title="Shiprocket">🚚</div>
+                      <div className="upload-integration-icon" title="Google Sheets">📊</div>
+                    </div>
+                  </div>
+                  <div className="no-cc-line" style={{ marginBottom: "3rem" }}>No credit card required · {freeReportsRemaining > 0 ? `${freeReportsRemaining} free reports remaining` : "Free trial complete"}</div>
+                </div>
+
+                {/* High-fidelity Dashboard Mockup container */}
+                <div id="dashboard-mockup-anchor" style={{ width: "100%", maxWidth: "800px", margin: "0 auto", scrollMarginTop: "100px" }}>
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.7, ease: "easeOut" }}
+                    className="analysis-overview-card"
+                  >
+                    {/* Card Header */}
+                    <div className="analysis-card-header">
+                      <span className="analysis-card-title">✨ Active Analysis Mockup (Live Dashboard)</span>
+                      <div className="live-badge">Mockup Active</div>
+                    </div>
+
+                    {/* Health Score and line graph */}
+                    <div style={{ display: "flex", alignItems: "center", gap: "20px", flexWrap: "wrap" }}>
+                      <svg width="70" height="70" viewBox="0 0 70 70" style={{ flexShrink: 0 }}>
+                        <circle cx="35" cy="35" r="28" fill="none" stroke="#141416" strokeWidth="8" />
+                        <circle
+                          cx="35" cy="35" r="28"
+                          fill="none" stroke="var(--deep-green)" strokeWidth="8"
+                          strokeDasharray={`${(92/100)*175.9} 175.9`}
+                          strokeLinecap="round"
+                          transform="rotate(-90 35 35)"
+                          style={{ filter: "drop-shadow(0 0 5px rgba(0, 255, 178, 0.4))" }}
                         />
+                        <text x="35" y="40" textAnchor="middle" fontSize="15" fontWeight="800" fill="var(--deep-green)">92</text>
+                      </svg>
+                      <div style={{ flex: 1, minWidth: "180px", textAlign: "left" }}>
+                        <div style={{ fontSize: "10px", color: "var(--slate)", marginBottom: "2px" }}>OVERALL E-COMMERCE HEALTH</div>
+                        <div style={{ fontSize: "13px", color: "#fff", fontWeight: 700, marginBottom: "8px" }}>Great! Your e-commerce metrics look healthy</div>
+                        <svg width="100%" height="30" viewBox="0 0 120 30" style={{ display: "block" }}>
+                          <polyline points="0,26 18,20 36,22 54,12 72,16 90,7 108,9 120,5" fill="none" stroke="var(--deep-green)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ filter: "drop-shadow(0 0 3px rgba(0,255,178,0.2))" }} />
+                          <polyline points="0,26 18,20 36,22 54,12 72,16 90,7 108,9 120,5 120,30 0,30" fill="rgba(0,255,178,0.06)" stroke="none" />
+                        </svg>
+                      </div>
+                    </div>
+
+                    {/* KPI Row */}
+                    <div className="card-kpi-row">
+                      {[
+                        { label: "Revenue", value: currency === "INR" ? "₹12.4K" : currency === "EUR" ? "€135" : "$146", change: "+16.6%", up: true },
+                        { label: "Expenses", value: currency === "INR" ? "₹4.2K" : currency === "EUR" ? "€45" : "$49", change: "-7.3%", up: false },
+                        { label: "Profit", value: currency === "INR" ? "₹8.2K" : currency === "EUR" ? "€90" : "$97", change: "+28.1%", up: true },
+                      ].map((kpi) => (
+                        <div className="card-kpi-item" key={kpi.label} style={{ textAlign: "left" }}>
+                          <div className="card-kpi-label">{kpi.label}</div>
+                          <div className="card-kpi-value">{kpi.value}</div>
+                          <div className={`card-kpi-change ${kpi.up ? "up" : "down"}`}>{kpi.up ? "↑" : "↓"} {kpi.change}</div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Insights Summary Bars */}
+                    <div className="card-bar-section" style={{ textAlign: "left" }}>
+                      <div className="card-bar-label">AI Insights distribution</div>
+                      <div style={{ display: "flex", gap: "10px", alignItems: "flex-end", height: "60px" }}>
+                        {[
+                          { label: "Trends", h: "75%", hi: false },
+                          { label: "Anomalies", h: "50%", hi: true },
+                          { label: "Patterns", h: "65%", hi: false },
+                          { label: "Opportunities", h: "85%", hi: true },
+                        ].map((bar) => (
+                          <div key={bar.label} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "4px" }}>
+                            <div style={{ width: "100%", height: "52px", display: "flex", alignItems: "flex-end" }}>
+                              <div style={{ width: "100%", height: bar.h, background: bar.hi ? "var(--deep-green)" : "rgba(0,255,178,0.2)", borderRadius: "3px 3px 0 0", transition: "height 0.5s", boxShadow: bar.hi ? "0 0 10px rgba(0,255,178,0.15)" : "none" }} />
+                            </div>
+                            <div style={{ fontSize: "8px", color: "var(--slate)", textAlign: "center" }}>{bar.label}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Completed band */}
+                    <div className="card-analysis-complete">
+                      <span>● Local AI-Analysis complete · 0 bytes leaked</span>
+                      <button type="button" style={{ background: "none", border: "none", color: "var(--deep-green)", fontSize: "10px", cursor: "pointer", fontFamily: "inherit", fontWeight: 700 }} onClick={() => { setAuthTab("signup"); setAuthError(""); setAuthModalOpen(true); }}>Start Free →</button>
+                    </div>
+                  </motion.div>
+                </div>
+              </div>
+            </section>
+          )}
+
+          {/* ============ RECENT ANALYSES + INSIGHTS ============ */}
+          {!currentUser && (
+            <>
+              <div className="recent-analyses-section">
+                <div className="recent-analyses-card">
+                  <div className="recent-analyses-header">
+                    <span className="recent-analyses-title">Recent Analyses</span>
+                    <button type="button" className="view-all-link" onClick={() => { setAuthTab("signup"); setAuthError(""); setAuthModalOpen(true); }}>View all →</button>
+                  </div>
+                  <table className="analyses-table">
+                    <thead>
+                      <tr>
+                        <th>File Name</th>
+                        <th>Rows</th>
+                        <th>Columns</th>
+                        <th>Status</th>
+                        <th>Insights</th>
+                        <th></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[
+                        { name: "Q4_Financials.xlsx", rows: "12,532", cols: 18, insights: "8 insights" },
+                        { name: "Marketing_Data.csv", rows: "45,210", cols: 24, insights: "12 insights" },
+                        { name: "Sales_2024.xlsx", rows: "22,104", cols: 16, insights: "10 insights" },
+                        { name: "Inventory_May.csv", rows: "8,421", cols: 12, insights: "6 insights" },
+                      ].map((row) => (
+                        <tr key={row.name}>
+                          <td><div className="filename-cell"><div className="file-icon-dot">📄</div><span>{row.name}</span></div></td>
+                          <td style={{ color: "var(--slate)" }}>{row.rows}</td>
+                          <td style={{ color: "var(--slate)" }}>{row.cols}</td>
+                          <td><span className="status-badge-completed">Completed</span></td>
+                          <td style={{ color: "#22c55e", fontWeight: 600 }}>{row.insights}</td>
+                          <td><button type="button" className="arrow-link-btn">→</button></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="insights-summary-card">
+                  <div style={{ fontSize: "13px", fontWeight: 700, color: "#fff", marginBottom: "6px" }}>Insights Summary</div>
+                  <div style={{ fontSize: "11px", color: "var(--slate)", marginBottom: "12px" }}>Across all analyses</div>
+                  <svg viewBox="0 0 120 72" style={{ width: "100%", height: "90px" }}>
+                    <rect x="4" y="12" width="112" height="14" rx="4" fill="rgba(34,197,94,0.12)" />
+                    <rect x="4" y="12" width={112 * 0.75} height="14" rx="4" fill="rgba(34,197,94,0.5)" />
+                    <rect x="4" y="30" width="112" height="14" rx="4" fill="rgba(245,158,11,0.12)" />
+                    <rect x="4" y="30" width={112 * 0.55} height="14" rx="4" fill="rgba(245,158,11,0.4)" />
+                    <rect x="4" y="48" width="112" height="14" rx="4" fill="rgba(59,130,246,0.12)" />
+                    <rect x="4" y="48" width={112 * 0.65} height="14" rx="4" fill="rgba(59,130,246,0.4)" />
+                  </svg>
+                  <div className="insights-legend">
+                    {[
+                      { label: "Trends", pct: "40%", color: "#22c55e" },
+                      { label: "Anomalies", pct: "30%", color: "#f59e0b" },
+                      { label: "Patterns", pct: "20%", color: "#3b82f6" },
+                      { label: "Opportunities", pct: "10%", color: "#a855f7" },
+                    ].map((item) => (
+                      <div className="insights-legend-item" key={item.label}>
+                        <div className="legend-dot" style={{ background: item.color }} />
+                        <span>{item.label}</span>
+                        <span className="legend-pct">{item.pct}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* ============ BENTO GRID FEATURES ============ */}
+              <section className="sheetai-features-section">
+                <div className="sheetai-features-label">High-Performance E-Commerce Abstractions</div>
+                <h3 className="sheetai-features-title">Everything you need to audit, understand, and grow</h3>
+
+                <div className="bento-features-grid">
+                  {/* Card 1 (Wide): Live Platform Integrations */}
+                  <div className="bento-feature-card bento-colspan-2">
+                    <div className="bento-card-bg-gradient" />
+                    <div>
+                      <div className="bento-feature-icon">🔌</div>
+                      <div className="bento-feature-name">Live Integration Abstraction</div>
+                      <p className="bento-feature-desc" style={{ maxWidth: "480px" }}>
+                        Seamlessly sync e-commerce logs from your storefront, logistics handlers, and search networks. Ingest Shopify sales, Shiprocket orders, and Google Sheets cleanly.
+                      </p>
+                    </div>
+
+                    {/* Pulsating connection visual mockup */}
+                    <div className="bento-visual-channels">
+                      <div className="bento-channel-badge" style={{ borderColor: "var(--deep-green)", boxShadow: "0 0 10px rgba(0,255,178,0.1)" }}>🛒 Shopify Store</div>
+                      <div className="bento-pulse-line" />
+                      <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: "var(--deep-green)", animation: "pulse-green 1.5s infinite" }} />
+                      <div className="bento-channel-badge" style={{ borderColor: "var(--deep-green)", boxShadow: "0 0 10px rgba(0,255,178,0.1)" }}>🚚 Shiprocket Logs</div>
+                      <div className="bento-pulse-line" style={{ left: "50%" }} />
+                      <div className="bento-channel-badge" style={{ background: "rgba(0,255,178,0.03)", borderColor: "var(--deep-green)" }}>📊 Google Sheets</div>
+                    </div>
+                  </div>
+
+                  {/* Card 2 (Tall): Real-Time E-Commerce Insights */}
+                  <div className="bento-feature-card bento-rowspan-2">
+                    <div className="bento-card-bg-gradient" />
+                    <div className="bento-feature-icon">🧠</div>
+                    <div>
+                      <div className="bento-feature-name">70+ Automatic Growth Audits</div>
+                      <p className="bento-feature-desc" style={{ marginBottom: "16px" }}>
+                        Our specialized parser reads storefront layouts and highlights fee leaks, COD return vulnerabilities, and margin opportunities automatically.
+                      </p>
+
+                      {/* Insights tag block list */}
+                      <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                        {[
+                          { t: "Revenue Surge Detected", c: "var(--deep-green)", bg: "rgba(0,255,178,0.08)", p: "+24.8%" },
+                          { t: "Logistics Cost Overlap", c: "#ef4444", bg: "rgba(239,68,68,0.08)", p: "₹22.4K Leak" },
+                          { t: "COD RTO Return Threat", c: "#f59e0b", bg: "rgba(245,158,11,0.08)", p: "High Risk" },
+                          { t: "Inventory Runout Alarm", c: "#a855f7", bg: "rgba(168,85,247,0.08)", p: "in 4 days" }
+                        ].map((tag, i) => (
+                          <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: tag.bg, border: `1px solid ${tag.c}20`, padding: "6px 10px", borderRadius: "8px", fontSize: "11px" }}>
+                            <span style={{ color: "#fff", fontWeight: 550 }}>{tag.t}</span>
+                            <span style={{ color: tag.c, fontWeight: 700, fontFamily: "var(--font-technical)" }}>{tag.p}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Card 3 (Standard): Multi-Format DropZone */}
+                  <div className="bento-feature-card">
+                    <div className="bento-card-bg-gradient" />
+                    <div>
+                      <div className="bento-feature-icon">📁</div>
+                      <div className="bento-feature-name">Automated Schema Parser</div>
+                      <p className="bento-feature-desc">
+                        Drop raw, unformatted Excel or CSV logs. Avery automatically aligns column keys, normalizes pricing indexes, and maps sales indicators in milliseconds.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Card 4 (Tall): Simulated Avery AI Chatbot */}
+                  <div className="bento-feature-card bento-rowspan-2">
+                    <div className="bento-card-bg-gradient" />
+                    <div className="bento-feature-icon">💬</div>
+                    <div>
+                      <div className="bento-feature-name">Ask AI Avery in Plain English</div>
+                      <p className="bento-feature-desc" style={{ marginBottom: "16px" }}>
+                        Ask natural language queries about product margins, marketing ROAS, or delivery anomalies.
+                      </p>
+
+                      {/* Chat conversation simulation */}
+                      <div style={{ background: "rgba(0,0,0,0.3)", borderRadius: "12px", border: "1px solid rgba(255,255,255,0.03)", padding: "12px", display: "flex", flexDirection: "column", gap: "10px", fontSize: "11px" }}>
+                        <div style={{ alignSelf: "flex-end", background: "rgba(255,255,255,0.05)", padding: "6px 10px", borderRadius: "10px 10px 0 10px", color: "#fff", maxWidth: "90%", textAlign: "right" }}>
+                          "What was our highest-margin product last month?"
+                        </div>
+                        <div style={{ alignSelf: "flex-start", background: "rgba(0,255,178,0.05)", border: "1px solid rgba(0,255,178,0.1)", padding: "6px 10px", borderRadius: "10px 10px 10px 0", color: "var(--body-muted)", maxWidth: "90%", textAlign: "left" }}>
+                          <strong style={{ color: "var(--deep-green)", display: "block", marginBottom: "2px" }}>🤖 Avery AI</strong>
+                          Your highest margin product was **Organic Coffee Beans** (68% margin, generating {currency === "INR" ? "₹8,200" : currency === "EUR" ? "€90" : "$97"} net profit).
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Card 5 (Wide): Interactive Security Dashboard */}
+                  <div className="bento-feature-card bento-colspan-2">
+                    <div className="bento-card-bg-gradient" />
+                    <div>
+                      <div className="bento-feature-icon">🔒</div>
+                      <div className="bento-feature-name">Browser Sandboxed Architecture</div>
+                      <p className="bento-feature-desc" style={{ maxWidth: "480px" }}>
+                        Your financial data stays inside your browser. We leverage IndexedDB sandboxing and local parsing assemblies. Data never travels to corporate databases.
+                      </p>
+                    </div>
+
+                    {/* Interactive Security Toggles mockup */}
+                    <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", marginTop: "14px" }}>
+                      {[
+                        { label: "Anonymize Customer Data", state: bentoAnonymize, set: setBentoAnonymize },
+                        { label: "IndexedDB Sandboxing", state: bentoSandbox, set: setBentoSandbox },
+                        { label: "Auto-Delete History Logs", state: bentoAutoDelete, set: setBentoAutoDelete }
+                      ].map((tog, idx) => (
+                        <div key={idx} onClick={() => tog.set(!tog.state)} style={{ display: "flex", alignItems: "center", gap: "8px", background: "rgba(0,0,0,0.35)", border: "1px solid rgba(255,255,255,0.04)", padding: "8px 12px", borderRadius: "20px", cursor: "pointer", transition: "all 0.15s", userSelect: "none" }}>
+                          <div style={{ width: "26px", height: "14px", borderRadius: "20px", background: tog.state ? "var(--deep-green)" : "#222", position: "relative", transition: "background 0.2s" }}>
+                            <div style={{ width: "10px", height: "10px", borderRadius: "50%", background: tog.state ? "#030305" : "#888", position: "absolute", top: "2px", left: tog.state ? "14px" : "2px", transition: "left 0.2s" }} />
+                          </div>
+                          <span style={{ fontSize: "10.5px", color: tog.state ? "#fff" : "var(--slate)" }}>{tog.label}</span>
+                        </div>
                       ))}
                     </div>
                   </div>
                 </div>
-              </div>
-            );
-          })()}
+              </section>
+            </>
+          )}
 
-          {/* ============================================
-              PRICING PREVIEW
-          ============================================= */}
-          <div className="pricing-section">
-            <div className="pricing-header">
-              <div style={{ fontFamily: "var(--font-technical)", fontSize: "10.5px", fontWeight: 700, color: "var(--coral)", textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: "6px" }}>Pricing</div>
-              <h2>Choose your plan</h2>
-              <p>Start free. Upgrade when you're ready to scale.</p>
-              <div className="pricing-toggle">
-                <button
-                  type="button"
-                  className={`pricing-toggle-btn${pricingBilling === "monthly" ? " active" : ""}`}
-                  onClick={() => setPricingBilling("monthly")}
-                >
-                  Monthly
-                </button>
-                <button
-                  type="button"
-                  className={`pricing-toggle-btn${pricingBilling === "yearly" ? " active" : ""}`}
-                  onClick={() => setPricingBilling("yearly")}
-                >
-                  Yearly <span style={{ fontSize: "10px", color: "#22c55e" }}>-20%</span>
-                </button>
-              </div>
-            </div>
-            <div className="pricing-grid">
-              {landingPlans
-                .filter(p => p.isActive)
-                .sort((a, b) => (a.sortOrder ?? 99) - (b.sortOrder ?? 99))
-                .map((plan) => {
-                  const ac = plan.color || "#faff69";
-                  const isPaid = plan.price > 0;
-                  
-                  // Calculate price based on billingPeriod ("free" vs others) and monthly vs yearly toggle
-                  let displayPrice = plan.price;
-                  let periodText = plan.billingPeriod === "free" ? "free" : "month";
-                  
-                  if (isPaid && pricingBilling === "yearly") {
-                    displayPrice = Math.round(plan.price * 0.8); // 20% discount
-                    periodText = "month, billed yearly";
-                  }
+          {/* ============ METRICS ROW, WHY, TESTIMONIALS, PRICING, CTA ============ */}
+          {!currentUser && (
+            <>
+              {/* ============ E-COMMERCE CALCULATOR ============ */}
+              <section className="sheetai-calculator-section" style={{ padding: "80px 20px", position: "relative" }}>
+                <div className="sheetai-features-label" style={{ textAlign: "center", marginBottom: "12px" }}>Interactive Performance Calculator</div>
+                <h3 className="sheetai-features-title" style={{ textAlign: "center", marginBottom: "16px" }}>Audit your store's performance & growth levers</h3>
+                <p style={{ color: "var(--slate)", fontSize: "14.5px", textAlign: "center", maxWidth: "600px", margin: "-4px auto 36px auto", lineHeight: 1.6 }}>
+                  Adjust the inputs below to simulate your store's unit economics. Watch how conversion efficiency and ad spend scale your net profits in real-time.
+                </p>
 
-                  return (
-                    <div 
-                      key={plan.id || plan.name} 
-                      className={`pricing-card${plan.highlighted ? " featured" : ""}`}
-                      style={plan.highlighted ? { borderColor: ac, boxShadow: `0 0 30px ${ac}1a` } : undefined}
-                    >
-                      {plan.highlighted && (
-                        <span className="pricing-badge" style={{ background: ac, color: "#000" }}>Most Popular</span>
-                      )}
-                      <div className="pricing-plan-name" style={{ color: plan.highlighted ? ac : "var(--ink)" }}>{plan.name}</div>
-                      <div className="pricing-price">
-                        {plan.price === 0 ? "₹0" : `₹${displayPrice.toLocaleString()}`}
-                        <span>/ {periodText}</span>
-                      </div>
-                      {plan.description && <p className="pricing-desc">{plan.description}</p>}
-                      <ul className="pricing-features">
-                        {plan.features.map((feat, idx) => (
-                          <li key={idx}>{feat}</li>
-                        ))}
-                      </ul>
-                      
-                      {isPaid ? (
-                        <button
-                          type="button"
-                          className="pricing-cta-btn"
-                          style={plan.highlighted ? { background: ac, color: "#000" } : undefined}
-                          onClick={() => {
-                            if (!currentUser) {
-                              setAuthTab("login");
-                              setAuthError("");
-                              setAuthModalOpen(true);
-                            } else {
-                              setSelectedPlanId(plan.id || null);
-                              setCheckoutOpen(true);
-                            }
-                          }}
-                        >
-                          {currentUser?.isPro ? "⚡ Upgrade Now" : "Start with " + plan.name}
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          className="pricing-cta-btn"
-                          onClick={() => {
-                            if (!currentUser) {
-                              setAuthTab("login");
-                              setAuthError("");
-                              setAuthModalOpen(true);
-                            }
-                          }}
-                        >
-                          {currentUser ? "✓ Current Plan" : "Get Started Free"}
-                        </button>
-                      )}
+                <div className="calc-container" style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+                  gap: "28px",
+                  background: "rgba(255, 255, 255, 0.02)",
+                  border: "1px solid rgba(255, 255, 255, 0.04)",
+                  backdropFilter: "blur(20px)",
+                  borderRadius: "20px",
+                  padding: "32px",
+                  maxWidth: "960px",
+                  margin: "0 auto",
+                  boxShadow: "0 20px 40px rgba(0,0,0,0.5)"
+                }}>
+                  {/* Left Side: Inputs */}
+                  <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+                    <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--deep-green)", textTransform: "uppercase", letterSpacing: "0.1em", borderBottom: "1px solid rgba(255,255,255,0.06)", paddingBottom: "10px", marginBottom: "8px" }}>
+                      ⚙️ Simulation Parameters
                     </div>
-                  );
-                })}
-            </div>
-          </div>
 
-          {/* Trust Logo Strip */}
-          <div className="trust-logo-strip" style={{ marginTop: "1rem" }}>
-            <div className="trust-logo-title">Compatible Integrations &amp; formats</div>
-            <div className="trust-logos">
-              <span>SHIPROCKET</span>
-              <span>SHOPIFY</span>
-              <span>WOOCOMMERCE</span>
-              <span>EXCEL</span>
-              <span>CSV</span>
-              <span>PDF</span>
+                    {[
+                      {
+                        label: "Monthly Ad Spend",
+                        value: calcAdSpend,
+                        setter: setCalcAdSpend,
+                        min: 1000,
+                        max: 200000,
+                        step: 1000,
+                        isCurrency: true
+                      },
+                      {
+                        label: "Monthly Orders Placed",
+                        value: calcOrders,
+                        setter: setCalcOrders,
+                        min: 50,
+                        max: 5000,
+                        step: 50,
+                        isCurrency: false
+                      },
+                      {
+                        label: "Average Order Value (AOV)",
+                        value: calcAOV,
+                        setter: setCalcAOV,
+                        min: 100,
+                        max: 10000,
+                        step: 100,
+                        isCurrency: true
+                      },
+                      {
+                        label: "Cost of Goods Sold (COGS) Per Item",
+                        value: calcCOGS,
+                        setter: setCalcCOGS,
+                        min: 10,
+                        max: 5000,
+                        step: 10,
+                        isCurrency: true
+                      }
+                    ].map((input, idx) => {
+                      let displayVal = input.value;
+                      let minVal = input.min;
+                      let maxVal = input.max;
+                      let stepVal = input.step;
+
+                      if (input.isCurrency && currency !== "INR") {
+                        displayVal = Math.round(input.value / 80);
+                        minVal = Math.round(input.min / 80);
+                        maxVal = Math.round(input.max / 80);
+                        stepVal = Math.max(1, Math.round(input.step / 80));
+                      }
+
+                      const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+                        const rawVal = Number(e.target.value);
+                        if (input.isCurrency && currency !== "INR") {
+                          input.setter(rawVal * 80);
+                        } else {
+                          input.setter(rawVal);
+                        }
+                      };
+
+                      const sym = getCurrencySymbol(currency);
+
+                      return (
+                        <div key={idx} style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <span style={{ fontSize: "13px", color: "var(--slate)", fontWeight: 550 }}>{input.label}</span>
+                            <span style={{ fontSize: "13px", color: "var(--deep-green)", fontWeight: 700, fontFamily: "var(--font-technical)" }}>
+                              {input.isCurrency ? `${sym}${displayVal.toLocaleString()}` : displayVal.toLocaleString()}
+                            </span>
+                          </div>
+                          <input
+                            type="range"
+                            min={minVal}
+                            max={maxVal}
+                            step={stepVal}
+                            value={displayVal}
+                            onChange={handleSliderChange}
+                            style={{
+                              width: "100%",
+                              accentColor: "var(--deep-green)",
+                              background: "rgba(255,255,255,0.08)",
+                              height: "6px",
+                              borderRadius: "4px",
+                              outline: "none",
+                              cursor: "pointer"
+                            }}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Right Side: Results */}
+                  <div style={{
+                    background: "rgba(0, 255, 178, 0.01)",
+                    border: "1px solid rgba(0, 255, 178, 0.06)",
+                    borderRadius: "14px",
+                    padding: "24px",
+                    display: "flex",
+                    flexDirection: "column",
+                    justifyContent: "space-between",
+                    gap: "20px"
+                  }}>
+                    <div>
+                      <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--deep-green)", textTransform: "uppercase", letterSpacing: "0.1em", borderBottom: "1px solid rgba(0,255,178,0.1)", paddingBottom: "10px", marginBottom: "16px", display: "flex", justifyContent: "space-between" }}>
+                        <span>📊 Unit Economics</span>
+                        <span style={{ color: "var(--slate)", fontSize: "10.5px", textTransform: "none", letterSpacing: "normal" }}>Real-time scale</span>
+                      </div>
+
+                      {(() => {
+                        const sym = getCurrencySymbol(currency);
+                        const scale = currency === "INR" ? 1 : 1 / 80;
+
+                        const totalRevenue = calcOrders * calcAOV;
+                        const totalCOGS = calcOrders * calcCOGS;
+                        const netProfit = totalRevenue - totalCOGS - calcAdSpend;
+                        const roas = calcAdSpend > 0 ? (totalRevenue / calcAdSpend).toFixed(2) : "∞";
+                        const cac = calcOrders > 0 ? (calcAdSpend / calcOrders) : 0;
+                        const profitMargin = totalRevenue > 0 ? ((netProfit / totalRevenue) * 100).toFixed(1) : "0.0";
+
+                        const displayRevenue = totalRevenue * scale;
+                        const displayCOGS = totalCOGS * scale;
+                        const displayNetProfit = netProfit * scale;
+                        const displayCAC = cac * scale;
+
+                        const profitColor = netProfit >= 0 ? "var(--deep-green)" : "#ef4444";
+
+                        return (
+                          <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                            {/* Revenue & Profit Main Row */}
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                              <div style={{ background: "rgba(255,255,255,0.01)", border: "1px solid rgba(255,255,255,0.03)", padding: "12px", borderRadius: "10px" }}>
+                                <div style={{ fontSize: "11px", color: "var(--slate)", marginBottom: "4px" }}>Total Revenue</div>
+                                <div style={{ fontSize: "20px", fontWeight: 700, color: "#fff", fontFamily: "var(--font-technical)" }}>
+                                  {sym}{Math.round(displayRevenue).toLocaleString()}
+                                </div>
+                              </div>
+                              <div style={{ background: "rgba(255,255,255,0.01)", border: "1px solid rgba(255,255,255,0.03)", padding: "12px", borderRadius: "10px" }}>
+                                <div style={{ fontSize: "11px", color: "var(--slate)", marginBottom: "4px" }}>Net Profit</div>
+                                <div style={{ fontSize: "20px", fontWeight: 700, color: profitColor, fontFamily: "var(--font-technical)" }}>
+                                  {netProfit < 0 ? "-" : ""}{sym}{Math.round(Math.abs(displayNetProfit)).toLocaleString()}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Secondary Metrics Bar */}
+                            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                              {[
+                                { label: "Return on Ad Spend (ROAS)", val: `${roas}x`, extra: `Target: >3.0x`, color: Number(roas) >= 3 ? "var(--deep-green)" : "#f59e0b" },
+                                { label: "Customer Acquisition Cost (CAC)", val: `${sym}${Math.round(displayCAC)}`, extra: `AOV: ${sym}${Math.round(calcAOV * scale)}`, color: "#fff" },
+                                { label: "Product Net Margin", val: `${profitMargin}%`, extra: `COGS: ${sym}${Math.round(displayCOGS)}`, color: netProfit >= 0 ? "var(--deep-green)" : "#ef4444" }
+                              ].map((m, i) => (
+                                <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "12px", padding: "6px 0", borderBottom: "1px dashed rgba(255,255,255,0.04)" }}>
+                                  <span style={{ color: "var(--slate)" }}>{m.label}</span>
+                                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                                    <span style={{ fontSize: "10.5px", color: "var(--slate)", opacity: 0.6 }}>{m.extra}</span>
+                                    <span style={{ color: m.color, fontWeight: 700, fontFamily: "var(--font-technical)" }}>{m.val}</span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+
+                    <div style={{ background: "rgba(0, 255, 178, 0.04)", border: "1px solid rgba(0, 255, 178, 0.1)", borderRadius: "10px", padding: "12px", display: "flex", alignItems: "center", gap: "10px" }}>
+                      <span style={{ fontSize: "18px" }}>💡</span>
+                      <p style={{ margin: 0, fontSize: "11.5px", color: "var(--slate)", lineHeight: "1.4" }}>
+                        <strong>Avery Insight:</strong> {
+                          (calcAdSpend > 0 && (calcOrders * calcAOV / calcAdSpend) < 2) ?
+                          "Your ROAS is below standard target. Leverage Avery's Logistics Optimizer to audit COD return leaks and recover lost courier billing charges." :
+                          "Healthy economic framework! Clean your storefront exports through SheetCodeCrest's sandboxed layout parser to optimize logistics."
+                        }
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              {/* ============ METRICS ROW ============ */}
+              <div style={{ background: "#070707", borderTop: "1px solid #111", borderBottom: "1px solid #111" }}>
+                <div className="sheetai-metrics-row">
+                  {[
+                    { icon: "🎯", value: "<2%", label: "Error Rate" },
+                    { icon: "⚡", value: "+80%", label: "Time Saved" },
+                    { icon: "💰", value: "₹₹₹", label: "Cost Effective" },
+                    { icon: "🕐", value: "24/7", label: "Always Available" },
+                  ].map((m) => (
+                    <div className="sheetai-metric-item" key={m.label}>
+                      <div className="sheetai-metric-icon">{m.icon}</div>
+                      <div>
+                        <div className="sheetai-metric-value">{m.value}</div>
+                        <div className="sheetai-metric-label">{m.label}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* ============ WHY + TESTIMONIALS ============ */}
+              <div className="why-testimonials-section">
+                <div>
+                  <div className="sheetai-features-label" style={{ textAlign: "left", marginBottom: "12px" }}>Why SheetCodeCrest?</div>
+                  <h2 className="why-left-heading">
+                    Make better decisions<br />with data you can<br />actually <em>understand.</em>
+                  </h2>
+                  <ul className="why-bullets">
+                    {[
+                      "Save hours of manual spreadsheet analysis",
+                      "Detect insights you might otherwise miss",
+                      "Make data-driven decisions faster",
+                      "No technical skills required — ever",
+                    ].map((b) => (
+                      <li className="why-bullet-item" key={b}>
+                        <div className="why-bullet-check">✓</div>
+                        {b}
+                      </li>
+                    ))}
+                  </ul>
+                  <button
+                    type="button"
+                    className="btn-hero-primary"
+                    onClick={() => { setAuthTab("signup"); setAuthError(""); setAuthModalOpen(true); }}
+                  >
+                    Start analyzing now →
+                  </button>
+                </div>
+
+                <div className="testimonial-grid">
+                  {[
+                    { stars: 5, text: "\"SheetCodeCrest turned our messy Shopify exports into clear, actionable insights. Complete game changer for our D2C brand.\"", name: "Priya Mehta", title: "E-Commerce Director", avatar: "👩", bg: "rgba(34,197,94,0.1)" },
+                    { stars: 5, text: "\"I save at least 10 hours per week on data analysis. The AI insights are incredibly accurate and actionable.\"", name: "Rahul Sharma", title: "Operations Manager", avatar: "👨", bg: "rgba(59,130,246,0.1)" },
+                    { stars: 5, text: "\"Finally, a tool that makes data analytics accessible to everyone on my team, not just the data scientists.\"", name: "Anika Patel", title: "Head of Data", avatar: "👩‍💼", bg: "rgba(168,85,247,0.1)" },
+                    { stars: 5, text: "\"The anomaly detection caught a ₹2L shiprocket billing error we'd missed for 3 months. Incredible ROI.\"", name: "Vikas Kumar", title: "Logistics Analyst", avatar: "🧑‍💻", bg: "rgba(245,158,11,0.1)" },
+                  ].map((t) => (
+                    <div className="testimonial-card-new" key={t.name}>
+                      <div className="testimonial-stars">{"★".repeat(t.stars)}</div>
+                      <p className="testimonial-text-new">{t.text}</p>
+                      <div className="testimonial-author-row">
+                        <div className="testimonial-avatar" style={{ background: t.bg }}>{t.avatar}</div>
+                        <div>
+                          <div className="testimonial-author-name-new">{t.name}</div>
+                          <div className="testimonial-author-title-new">{t.title}</div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* ============ PRICING ============ */}
+              {(!currentUser || !currentUser.isPro) && (
+                <div id="pricing-section" className="pricing-section" style={{ position: "relative", overflow: "hidden", borderRadius: "24px" }}>
+                  {/* Premium Canvas Particle Backdrop */}
+                  <SaaSBackgroundParticles />
+
+                  <div className="pricing-header" style={{ position: "relative", zIndex: 1 }}>
+                    <div style={{ fontFamily: "var(--font-technical)", fontSize: "10.5px", fontWeight: 700, color: "#22c55e", textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: "6px" }}>Simple, Transparent Pricing</div>
+                    <h2>Choose your plan</h2>
+                    <p>Start free and upgrade as you grow.</p>
+                    
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "14px", marginTop: "1.25rem" }}>
+                      <div style={{ display: "inline-flex", alignItems: "center", gap: "10px" }}>
+                        <div className="pricing-toggle" style={{ marginTop: 0 }}>
+                          <button type="button" className={`pricing-toggle-btn${pricingBilling === "monthly" ? " active" : ""}`} onClick={() => setPricingBilling("monthly")}>Monthly</button>
+                          <button type="button" className={`pricing-toggle-btn${pricingBilling === "yearly" ? " active" : ""}`} onClick={() => setPricingBilling("yearly")}>Yearly</button>
+                        </div>
+                        <span className="pricing-save-badge">Save 20%</span>
+                      </div>
+                      
+                      {/* Interactive Currency Selection Capsule */}
+                      <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)", padding: "3px", borderRadius: "30px" }}>
+                        <span style={{ fontSize: "10px", color: "var(--slate)", fontWeight: 650, paddingLeft: "10px", paddingRight: "6px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Currency:</span>
+                        {(["INR", "USD", "EUR"] as const).map((curr) => (
+                          <button
+                            key={curr}
+                            type="button"
+                            onClick={() => setCurrency(curr)}
+                            style={{
+                              background: currency === curr ? "var(--deep-green)" : "transparent",
+                              border: "none",
+                              color: currency === curr ? "#030305" : "#fff",
+                              fontWeight: 750,
+                              fontSize: "10.5px",
+                              padding: "4px 10px",
+                              borderRadius: "20px",
+                              cursor: "pointer",
+                              transition: "all 0.15s ease",
+                              fontFamily: "var(--font-technical)",
+                            }}
+                          >
+                            {curr === "INR" ? "₹ INR" : curr === "EUR" ? "€ EUR" : "$ USD"}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="pricing-grid" style={{ position: "relative", zIndex: 1, padding: "10px 0" }}>
+                    {landingPlans
+                      .filter(p => p.isActive)
+                      .sort((a, b) => (a.sortOrder ?? 99) - (b.sortOrder ?? 99))
+                      .map((plan) => {
+                        const ac = plan.color || "#22c55e";
+                        const isPaid = plan.price > 0;
+                        const symbol = getCurrencySymbol(currency);
+                        const convertedBase = getConvertedPrice(plan.price, currency);
+                        let displayPrice = convertedBase;
+                        let periodText = plan.billingPeriod === "free" ? "free" : "month";
+                        
+                        if (isPaid && pricingBilling === "yearly") {
+                          displayPrice = Math.round(convertedBase * 0.8);
+                          periodText = "month, billed yearly";
+                        }
+                        
+                        return (
+                          <motion.div
+                            key={plan.id || plan.name}
+                            className={`pricing-card${plan.highlighted ? " featured" : ""}`}
+                            style={plan.highlighted ? { 
+                              borderColor: ac, 
+                              boxShadow: `0 0 35px ${ac}25`,
+                              zIndex: 2
+                            } : { 
+                              zIndex: 2 
+                            }}
+                            whileHover={{
+                              y: -10,
+                              scale: 1.025,
+                              boxShadow: plan.highlighted 
+                                ? "0 20px 45px rgba(0, 255, 178, 0.25), 0 0 0 1px var(--deep-green)" 
+                                : "0 20px 40px rgba(255, 255, 255, 0.05), 0 0 0 1px rgba(255, 255, 255, 0.12)",
+                              borderColor: plan.highlighted ? "var(--deep-green)" : "rgba(255,255,255,0.25)"
+                            }}
+                            transition={{ type: "spring", stiffness: 350, damping: 22 }}
+                          >
+                            {plan.highlighted && (<span className="pricing-badge" style={{ color: ac, borderColor: ac }}>Most Popular</span>)}
+                            <div className="pricing-plan-name">{plan.name}</div>
+                            <div className="pricing-price">
+                              {plan.price === 0 ? `${symbol}0` : `${symbol}${displayPrice.toLocaleString()}`}
+                              <span>/ {periodText}</span>
+                            </div>
+                            {plan.description && <p className="pricing-desc">{plan.description}</p>}
+                            <ul className="pricing-features">
+                              {plan.features.map((feat, idx) => {
+                                const parts = feat.split(":");
+                                if (parts.length > 1) {
+                                  return (
+                                    <li key={idx}>
+                                      <span>{parts[0].trim()}</span>
+                                      <span className="feature-badge">{parts[1].trim()}</span>
+                                    </li>
+                                  );
+                                }
+                                return <li key={idx}><span>{feat}</span></li>;
+                              })}
+                            </ul>
+                            {isPaid ? (
+                              <button type="button" className="pricing-cta-btn"
+                                onClick={() => { if (!currentUser) { setAuthTab("login"); setAuthError(""); setAuthModalOpen(true); } else { setSelectedPlanId(plan.id || null); setCheckoutOpen(true); } }}>
+                                {currentUser?.isPro ? "⚡ Upgrade Now" : `Start with ${plan.name}`}
+                              </button>
+                            ) : (
+                              <button type="button" className="pricing-cta-btn"
+                                onClick={() => { if (!currentUser) { setAuthTab("login"); setAuthError(""); setAuthModalOpen(true); } }}>
+                                {currentUser ? "✓ Current Plan" : "Get Started Free"}
+                              </button>
+                            )}
+                          </motion.div>
+                        );
+                      })}
+                  </div>
+                </div>
+              )}
+
+              {/* ============ FAQ ACCORDION SECTION ============ */}
+              <section className="sheetai-faq-section" style={{ padding: "80px 20px", maxWidth: "900px", margin: "0 auto", position: "relative" }}>
+                <div className="sheetai-features-label" style={{ textAlign: "center", marginBottom: "12px" }}>Frequently Asked Questions</div>
+                <h3 className="sheetai-features-title" style={{ textAlign: "center", marginBottom: "16px" }}>Got questions? We've got answers</h3>
+                <p style={{ color: "var(--slate)", fontSize: "14.5px", textAlign: "center", maxWidth: "600px", margin: "-4px auto 36px auto", lineHeight: 1.6 }}>
+                  Learn how SheetCodeCrest secures your financial datasets, resolves multi-channel logic, and automates courier audits.
+                </p>
+                
+                <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginTop: "32px" }}>
+                  {[
+                    {
+                      q: "How does the client-side sandboxed architecture protect my financial data?",
+                      a: "SheetCodeCrest operates on a zero-trust model. By utilizing IndexedDB sandboxing, all files, formulas, and customer records are processed and parsed 100% locally in your browser. Your raw ledger details never travel to external servers, protecting you from enterprise data leaks."
+                    },
+                    {
+                      q: "Can I connect my Shopify store, Shiprocket logs, and custom sheets simultaneously?",
+                      a: "Yes! Avery's multi-channel schema mapping matches different log structures (such as matching Shopify order IDs to Shiprocket courier tracking logs) to compile a unified, comprehensive growth ledger automatically."
+                    },
+                    {
+                      q: "How does the automatic timezone currency detector work?",
+                      a: "SheetCodeCrest queries your browser's timezone registry (e.g., Asia/Kolkata) and default language locale to automatically determine your currency (₹ INR for India, $ USD or € EUR for international). You can also switch manually at any time using the pricing toggles."
+                    },
+                    {
+                      q: "What kind of anomalies do the 70+ automated growth audits look for?",
+                      a: "Our parser automatically audits logistics billing errors (like weight discrepancies charged by couriers), redundant COD return profiles, overlapping zone fees, advertising ROAS drops, and customer retention velocity."
+                    },
+                    {
+                      q: "How does the 20% discount work for billing?",
+                      a: "When you select Yearly billing, a 20% discount is applied automatically across standard plans. For example, standard is reduced from ₹999/mo to ₹800/mo, and premium drops from ₹2,499/mo to ₹2,000/mo."
+                    }
+                  ].map((faq, index) => {
+                    const isOpen = expandedFaq === index;
+                    return (
+                      <div
+                        key={index}
+                        style={{
+                          background: "rgba(255, 255, 255, 0.02)",
+                          border: isOpen ? "1px solid var(--deep-green)" : "1px solid rgba(255, 255, 255, 0.04)",
+                          boxShadow: isOpen ? "0 0 20px rgba(0, 255, 178, 0.04)" : "none",
+                          borderRadius: "12px",
+                          overflow: "hidden",
+                          transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
+                        }}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => setExpandedFaq(isOpen ? null : index)}
+                          style={{
+                            width: "100%",
+                            background: "transparent",
+                            border: "none",
+                            padding: "20px 24px",
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            cursor: "pointer",
+                            textAlign: "left",
+                            color: "#fff",
+                            fontFamily: "inherit"
+                          }}
+                        >
+                          <span style={{ fontSize: "14.5px", fontWeight: 600, transition: "color 0.2s", color: isOpen ? "var(--deep-green)" : "#fff" }}>
+                            {faq.q}
+                          </span>
+                          <span style={{
+                            fontSize: "16px",
+                            color: isOpen ? "var(--deep-green)" : "var(--slate)",
+                            transform: isOpen ? "rotate(45deg)" : "rotate(0deg)",
+                            transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                            display: "inline-block",
+                            lineHeight: 1
+                          }}>
+                            ＋
+                          </span>
+                        </button>
+                        
+                        <div
+                          style={{
+                            maxHeight: isOpen ? "200px" : "0px",
+                            opacity: isOpen ? 1 : 0,
+                            overflow: "hidden",
+                            transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                            background: "rgba(0,0,0,0.1)"
+                          }}
+                        >
+                          <div style={{ padding: "0 24px 20px 24px", color: "var(--slate)", fontSize: "13px", lineHeight: "1.6" }}>
+                            {faq.a}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+
+              {/* ============ CTA BANNER ============ */}
+              <div className="cta-section-new">
+                <div className="cta-banner-new">
+                  <div style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}>
+                    <div className="cta-banner-icon">📊</div>
+                    <div>
+                      <div className="cta-banner-headline">Ready to transform your data?</div>
+                      <div className="cta-banner-sub">Join growing e-commerce brands making better decisions with AI-powered spreadsheet insights.</div>
+                    </div>
+                  </div>
+                  <div className="cta-banner-actions">
+                    <button type="button" className="btn-cta-green" onClick={() => { setAuthTab("signup"); setAuthError(""); setAuthModalOpen(true); }}>
+                      Get started free →
+                    </button>
+                    <div className="cta-no-cc">No credit card required</div>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* ============ FOOTER ============ */}
+          <footer className="site-footer">
+            <div className="site-footer-inner">
+              <div className="footer-brand">
+                <div className="footer-brand-name">
+                  <img src="/logo-dark.png" alt="SheetCodeCrest" style={{ height: "24px", width: "24px", borderRadius: "6px", objectFit: "contain" }} />
+                  SheetCodeCrest
+                </div>
+                <p className="footer-tagline">The AI-powered spreadsheet analyst that turns raw data into actionable insights.</p>
+                <div className="footer-social-row">
+                  <a href={CODECREST.instagram} target="_blank" rel="noopener noreferrer" className="footer-social-btn" title="Instagram">
+                    <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" style={{ display: "block" }}>
+                      <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+                      <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
+                      <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
+                    </svg>
+                  </a>
+                  <a href={`mailto:${CODECREST.email}`} className="footer-social-btn" title="Email">
+                    <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" style={{ display: "block" }}>
+                      <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                      <polyline points="22,6 12,13 2,6"></polyline>
+                    </svg>
+                  </a>
+                  <a href={CODECREST.website} target="_blank" rel="noopener noreferrer" className="footer-social-btn" title="Website">
+                    <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" style={{ display: "block" }}>
+                      <circle cx="12" cy="12" r="10"></circle>
+                      <line x1="2" y1="12" x2="22" y2="12"></line>
+                      <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                    </svg>
+                  </a>
+                </div>
+              </div>
             </div>
-          </div>
+            <div className="footer-bottom">
+              <span>© 2026 SheetCodeCrest. All rights reserved.</span>
+              <span>Made with ❤️ by <a href={CODECREST.website} target="_blank" rel="noopener noreferrer" style={{ color: "#22c55e", textDecoration: "none" }}>Codecrest Studio</a></span>
+            </div>
+          </footer>
         </>
       )}
+
 
       {/* Step 2: Live Processing Log console */}
       {isAdminActive && log.length > 0 && (
@@ -5239,8 +7290,148 @@ select.form-input option {
                   </div>
                 );
               })()}
+
+              {/* 💸 COD Premium & RTO Optimizer Simulator */}
+              {(() => {
+                const codCount = logisticsAnalytics.payCounts["cod"]?.orders || 0;
+                const prepaidCount = logisticsAnalytics.payCounts["prepaid"]?.orders || 0;
+                const codRto = logisticsAnalytics.payCounts["cod"]?.rto || 0;
+                const prepaidRto = logisticsAnalytics.payCounts["prepaid"]?.rto || 0;
+
+                const codRtoRate = codCount > 0 ? (codRto / codCount) : 0;
+                const prepaidRtoRate = prepaidCount > 0 ? (prepaidRto / prepaidCount) : 0;
+                const totalRtoLoss = (codRto + prepaidRto) * rtoCostPerOrder;
+
+                // Simulated Metrics
+                const switchCount = Math.round(codCount * (codSwitchRate / 100));
+                const remainingCodCount = Math.max(0, codCount - switchCount);
+                const codPremiumRevenue = remainingCodCount * codPremiumVal;
+                
+                const newPrepaidCount = prepaidCount + switchCount;
+                const expectedCodRto = remainingCodCount * codRtoRate;
+                const expectedPrepaidRto = newPrepaidCount * prepaidRtoRate;
+                
+                const newRtoCount = Math.round(expectedCodRto + expectedPrepaidRto);
+                const newRtoLoss = newRtoCount * rtoCostPerOrder;
+                const netRtoLoss = Math.max(0, newRtoLoss - codPremiumRevenue);
+                const savings = totalRtoLoss - netRtoLoss;
+
+                return (
+                  <div className="section-card" style={{ borderLeft: "4px solid var(--deep-green)", background: "rgba(16, 185, 129, 0.03)", marginTop: "20px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", gap: "10px" }}>
+                      <div>
+                        <h3 className="card-title" style={{ margin: 0, color: "var(--deep-green)" }}>💰 COD Premium & Cash Leakage Optimizer</h3>
+                        <p style={{ fontSize: "0.85rem", color: "var(--slate)", margin: "4px 0 0 0" }}>Impose a COD payment fee to reduce RTO risk and recover shipping losses.</p>
+                      </div>
+                      <span style={{ fontSize: "0.75rem", background: "rgba(16, 185, 129, 0.12)", color: "var(--deep-green)", padding: "4px 8px", borderRadius: "6px", fontWeight: 600 }}>PRO OPTIMIZER</span>
+                    </div>
+
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "24px" }}>
+                      {/* Left: Interactive Sliders */}
+                      <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                        <div>
+                          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.85rem", marginBottom: "6px" }}>
+                            <span style={{ color: "var(--slate)" }}>COD Premium Fee</span>
+                            <span style={{ fontWeight: 600, color: "var(--off-black)" }}>₹{codPremiumVal} per order</span>
+                          </div>
+                          <input 
+                            type="range" 
+                            min="0" 
+                            max="150" 
+                            step="5"
+                            value={codPremiumVal} 
+                            onChange={(e) => setCodPremiumVal(Number(e.target.value))}
+                            style={{ width: "100%", accentColor: "var(--deep-green)", cursor: "pointer" }}
+                          />
+                          <span style={{ fontSize: "0.7rem", color: "var(--slate)" }}>Surcharging COD orders incentivizes prepaid transactions.</span>
+                        </div>
+
+                        <div>
+                          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.85rem", marginBottom: "6px" }}>
+                            <span style={{ color: "var(--slate)" }}>Prepaid Switch Rate</span>
+                            <span style={{ fontWeight: 600, color: "var(--off-black)" }}>{codSwitchRate}% of buyers</span>
+                          </div>
+                          <input 
+                            type="range" 
+                            min="0" 
+                            max="50" 
+                            step="1"
+                            value={codSwitchRate} 
+                            onChange={(e) => setCodSwitchRate(Number(e.target.value))}
+                            style={{ width: "100%", accentColor: "var(--deep-green)", cursor: "pointer" }}
+                          />
+                          <span style={{ fontSize: "0.7rem", color: "var(--slate)" }}>Percent of COD buyers who switch to Prepaid due to fee.</span>
+                        </div>
+
+                        <div>
+                          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.85rem", marginBottom: "6px" }}>
+                            <span style={{ color: "var(--slate)" }}>Average RTO Cost Penalty</span>
+                            <span style={{ fontWeight: 600, color: "var(--off-black)" }}>₹{rtoCostPerOrder} / return</span>
+                          </div>
+                          <input 
+                            type="range" 
+                            min="50" 
+                            max="300" 
+                            step="10"
+                            value={rtoCostPerOrder} 
+                            onChange={(e) => setRtoCostPerOrder(Number(e.target.value))}
+                            style={{ width: "100%", accentColor: "var(--deep-green)", cursor: "pointer" }}
+                          />
+                          <span style={{ fontSize: "0.7rem", color: "var(--slate)" }}>Includes forward/return freight, repackaging, and stock blockage costs.</span>
+                        </div>
+                      </div>
+
+                      {/* Right: Output projections */}
+                      <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--hairline)", borderRadius: "12px", padding: "16px", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.85rem" }}>
+                            <span style={{ color: "var(--slate)" }}>Current RTO Loss:</span>
+                            <span style={{ color: "#ef4444", fontWeight: 600 }}>₹{totalRtoLoss.toLocaleString("en-IN")}</span>
+                          </div>
+                          
+                          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.85rem" }}>
+                            <span style={{ color: "var(--slate)" }}>COD Premium Collected:</span>
+                            <span style={{ color: "#10b981", fontWeight: 600 }}>+₹{codPremiumRevenue.toLocaleString("en-IN")}</span>
+                          </div>
+
+                          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.85rem" }}>
+                            <span style={{ color: "var(--slate)" }}>Simulated RTO Damage:</span>
+                            <span style={{ color: "#ef4444", fontWeight: 600 }}>₹{newRtoLoss.toLocaleString("en-IN")}</span>
+                          </div>
+
+                          <div style={{ borderTop: "1px dashed var(--hairline)", paddingTop: "8px", marginTop: "4px" }} />
+
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <div>
+                              <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--off-black)" }}>Net Financial Recovery</span>
+                              <div style={{ fontSize: "0.7rem", color: "var(--slate)" }}>Total leakage prevented</div>
+                            </div>
+                            <span style={{ fontSize: "1.25rem", fontWeight: 800, color: savings >= 0 ? "#10b981" : "#ef4444" }}>
+                              {savings >= 0 ? `₹${Math.round(savings).toLocaleString("en-IN")}` : `-₹${Math.round(Math.abs(savings)).toLocaleString("en-IN")}`}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Recommendation */}
+                        <div style={{ background: "rgba(16, 185, 129, 0.08)", padding: "10px", borderRadius: "8px", marginTop: "16px", border: "1px solid rgba(16, 185, 129, 0.15)" }}>
+                          <div style={{ fontWeight: 600, fontSize: "0.8rem", color: "var(--deep-green)", display: "flex", alignItems: "center", gap: "6px" }}>
+                            💡 Smart Recommendation
+                          </div>
+                          <p style={{ fontSize: "0.75rem", color: "var(--slate)", margin: "4px 0 0 0", lineHeight: "1.3" }}>
+                            {savings > 0 
+                              ? `Imposing a ₹${codPremiumVal} COD Premium is highly recommended. It will convert ~${codSwitchRate}% of buyers (reducing RTO counts by ${Math.max(0, codRto - expectedCodRto - expectedPrepaidRto).toFixed(0)} orders) and generate ₹${codPremiumRevenue.toLocaleString("en-IN")} in premium fees, saving you ₹${Math.round(savings).toLocaleString("en-IN")} total.`
+                              : `Impose a COD premium of at least ₹30 to start offsetting your forward return losses. This will incentivize users to pay online via UPI, lowering returns.`
+                            }
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
             </>
           )}
+
 
           {/* RENDER MODE B: UNIVERSAL EXCEL PROFILER */}
           {mode === "universal" && dataProfile && (
@@ -5501,7 +7692,7 @@ select.form-input option {
           </div>
 
           {/* AI Audit & Strategy Assistant - Conversational Chat Console */}
-          {!isSharedViewOnly && (
+          {!isSharedViewOnly && adminFeatureAI && (
             <div className="section-card ai-insights-card">
             <h3 className="card-title" style={{ fontSize: "1.15rem", fontWeight: 700, display: "flex", alignItems: "center", gap: "8px" }}>
               <span>🧠</span> Avery Smith — Senior AI Data Analyst
@@ -5735,67 +7926,22 @@ select.form-input option {
         </>
       )}
 
-      {/* Yellow CTA Band — ClickHouse-style pre-footer */}
-      {step === "upload" && (
-        <div style={{ padding: "0 1.5rem" }}>
-          <div className="cta-yellow-band">
-            <h3 className="cta-band-headline">Ready to transform your data?</h3>
-            <p className="cta-band-sub">Upload your Shopify, Shiprocket, or custom sheet and get a professional analytics workbook in seconds.</p>
-            <button
-              type="button"
-              className="cta-band-btn"
-              onClick={() => {
-                if (!currentUser) {
-                  setAuthTab("login");
-                  setAuthError("");
-                  setAuthModalOpen(true);
-                } else {
-                  inputRef.current?.click();
-                }
-              }}
-            >
-              {currentUser ? "⚡ Upload & Analyze" : "🔑 Get Started Free"}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Footer */}
-      <footer className="app-footer">
-        <div style={{ maxWidth: "900px", margin: "0 auto" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "10px", marginBottom: "1rem" }}>
-            <img
-              src={theme === "dark" ? "/logo-dark.png" : "/logo-light.png"}
-              alt="SheetCodeCrest"
-              style={{ height: "28px", width: "28px", borderRadius: "6px", objectFit: "contain" }}
-            />
-            <span style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: "1rem", color: "var(--ink)" }}>SheetCodeCrest</span>
-          </div>
-          <div style={{ fontSize: "13px", color: "var(--slate)", marginBottom: "0.5rem" }}>
-            Runs 100% in your browser — zero data leaves your device.
-          </div>
-          <div style={{ fontSize: "12px", color: "var(--muted)", marginBottom: "1rem" }}>
-            Built with ❤️ by{" "}
-            <a href={CODECREST.website} target="_blank" rel="noopener noreferrer" style={{ color: "var(--focus-blue)", textDecoration: "none", fontWeight: 600 }}>Codecrest Studio</a>
-          </div>
-          <div className="footer-links">
-            <a className="icon-only" href={CODECREST.instagram} target="_blank" rel="noopener noreferrer" aria-label="Open Codecrest Studio Instagram" title="Instagram">
-              <svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>
-            </a>
-            <a className="icon-only" href={`mailto:${CODECREST.email}`} aria-label="Email Codecrest Studio" title="Email">
-              <svg viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
-            </a>
-            <a className="icon-only" href={CODECREST.website} target="_blank" rel="noopener noreferrer" aria-label="Open Codecrest Studio website" title="Website">
-              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
-            </a>
-          </div>
-        </div>
-      </footer>
-
       {/* 1. Auth Modal (Login/Signup Tabs) */}
       {authModalOpen && (
-        <div className="modal-overlay" onClick={() => setAuthModalOpen(false)}>
-          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+        <motion.div 
+          className="modal-overlay" 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.2 }}
+          onClick={() => setAuthModalOpen(false)}
+        >
+          <motion.div 
+            className="modal-card" 
+            initial={{ scale: 0.95, y: 15, opacity: 0 }}
+            animate={{ scale: 1, y: 0, opacity: 1 }}
+            transition={{ type: "spring", damping: 25, stiffness: 350 }}
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="modal-header">
               <h3 className="modal-title" style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                 <img src="/logo-icon.png" alt="SheetCodeCrest Icon" style={{ height: "24px", width: "24px", borderRadius: "5px", objectFit: "contain" }} />
@@ -5872,12 +8018,12 @@ select.form-input option {
                 <div className="form-group">
                   <label className="form-label">Username</label>
                   <input 
-                    type="text" 
-                    className="form-input" 
-                    placeholder="e.g. sheet_analyst" 
-                    value={authUsername}
-                    onChange={(e) => setAuthUsername(e.target.value)}
-                    required 
+                     type="text" 
+                     className="form-input" 
+                     placeholder="e.g. sheet_analyst" 
+                     value={authUsername}
+                     onChange={(e) => setAuthUsername(e.target.value)}
+                     required 
                   />
                 </div>
                 <div className="form-group">
@@ -5895,19 +8041,23 @@ select.form-input option {
                   {authTab === "login" ? "🔑 Sign In" : "📋 Register"}
                 </button>
 
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", margin: "1.25rem 0", gap: "10px" }}>
-                  <div style={{ flex: 1, height: "1px", background: "var(--hairline)" }}></div>
-                  <span style={{ fontSize: "11px", color: "var(--slate)", textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 600 }}>or</span>
-                  <div style={{ flex: 1, height: "1px", background: "var(--hairline)" }}></div>
-                </div>
+                {adminFeatureGoogleLogin && (
+                  <>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", margin: "1.25rem 0", gap: "10px" }}>
+                      <div style={{ flex: 1, height: "1px", background: "var(--hairline)" }}></div>
+                      <span style={{ fontSize: "11px", color: "var(--slate)", textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 600 }}>or</span>
+                      <div style={{ flex: 1, height: "1px", background: "var(--hairline)" }}></div>
+                    </div>
 
-                <div style={{ display: "flex", justifyContent: "center", width: "100%" }}>
-                  <div id="google-signin-div" style={{ minHeight: "44px", width: "320px" }}></div>
-                </div>
+                    <div style={{ display: "flex", justifyContent: "center", width: "100%" }}>
+                      <div id="google-signin-div" style={{ minHeight: "44px", width: "320px" }}></div>
+                    </div>
+                  </>
+                )}
               </form>
             </div>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       )}
 
       {/* 2. Checkout Modal (Razorpay & UPI Only Gateway) */}
@@ -6035,7 +8185,7 @@ select.form-input option {
                         🔒 Pay ₹{((checkoutPlans.find(p => p.id === selectedPlanId) || checkoutPlans[0])?.price || 1599).toLocaleString()} Securely via Razorpay
                       </button>
                     </form>
-                  ) : (
+                  ) : adminFeatureUPI ? (
                     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "1.25rem" }}>
                       <div className="qr-simulator-wrapper" style={{ padding: "12px", background: "#ffffff", borderRadius: "12px", border: "1px solid var(--hairline)" }}>
                         <img 
@@ -6066,6 +8216,14 @@ select.form-input option {
                           🔒 Verify & Upgrade Instantly
                         </button>
                       </form>
+                    </div>
+                  ) : (
+                    <div style={{ textAlign: "center", padding: "1.5rem 0", background: "rgba(255,255,255,0.01)", border: "1px solid var(--hairline)", borderRadius: "8px" }}>
+                      <span style={{ fontSize: "1.75rem" }}>⚠️</span>
+                      <h4 style={{ margin: "0.75rem 0 0.5rem 0", color: "var(--coral)", fontSize: "13px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>UPI Manual Checkout Disabled</h4>
+                      <p style={{ fontSize: "12px", color: "var(--slate)", lineHeight: "1.6", maxWidth: "320px", margin: "0 auto" }}>
+                        The manual UPI QR payment channel is currently closed for maintenance. Please email us at <strong style={{ color: "var(--action-blue)" }}>codecreststudio@gmail.com</strong> for assistance with your premium upgrade.
+                      </p>
                     </div>
                   )}
                 </div>

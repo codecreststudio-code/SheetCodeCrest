@@ -141,7 +141,7 @@ export function computeAnalytics(data: OrderRow[]): AnalyticsResult {
       map[key].cod += cod;
       map[key].freight += freight;
       if (status === "DELIVERED") map[key].delivered++;
-      if (status === "RTO DELIVERED") map[key].rto++;
+      if (status.includes("RTO")) map[key].rto++;
       if (status === "CANCELED") map[key].canceled++;
       if (pay === "prepaid") map[key].prepaid++;
       if (pay === "cod") map[key].codOrders++;
@@ -150,13 +150,18 @@ export function computeAnalytics(data: OrderRow[]): AnalyticsResult {
     if (!qtyCounts[qty]) qtyCounts[qty] = { orders: 0, revenue: 0, delivered: 0, rto: 0, cod: 0 };
     qtyCounts[qty].orders++; qtyCounts[qty].revenue += rev; qtyCounts[qty].cod += cod;
     if (status === "DELIVERED") qtyCounts[qty].delivered++;
-    if (status === "RTO DELIVERED") qtyCounts[qty].rto++;
+    if (status.includes("RTO")) qtyCounts[qty].rto++;
 
     if (ndr) { ndrCounts[ndr] = (ndrCounts[ndr] || 0) + 1; }
   });
 
   const delivered = statusCounts["DELIVERED"]?.orders || 0;
-  const rto = statusCounts["RTO DELIVERED"]?.orders || 0;
+  let rto = 0;
+  Object.keys(statusCounts).forEach((statusName) => {
+    if (statusName.includes("RTO")) {
+      rto += statusCounts[statusName].orders;
+    }
+  });
 
   return { total, totalRev, totalQty, totalCOD, totalFreight, delivered, rto, deliveryRate: total ? delivered / total : 0, rtoRate: total ? rto / total : 0, statusCounts, pickupCounts, qtyCounts, courierCounts, zoneCounts, stateCounts, ndrCounts, payCounts };
 }

@@ -580,9 +580,80 @@ export async function dbUpdatePaymentStatus(paymentId: string, status: string): 
   } catch (e) {}
 }
 
-// ----------------------------------------------------
-// 📦 PLANS CRUD
-// ----------------------------------------------------
+export function getDefaultPlans(): Plan[] {
+  return [
+    {
+      id: "basic",
+      name: "Basic",
+      price: 0,
+      billingPeriod: "free" as const,
+      features: [
+        "File uploads: 3 / month",
+        "AI insights per report: 5 insights",
+        "Auto chart generation: 4 charts",
+        "Schema & column detection",
+        "Data profiler (basic stats)",
+        "CSV, XLSX, JSON, TSV support",
+        "100% client-side — data never leaves your device"
+      ],
+      isActive: true,
+      description: "Perfect for exploring your data. No credit card needed.",
+      highlighted: false,
+      color: "#3b82f6",
+      maxReports: 3,
+      sortOrder: 0
+    },
+    {
+      id: "standard",
+      name: "Standard",
+      price: 999,
+      billingPeriod: "monthly" as const,
+      features: [
+        "Everything in Basic",
+        "File uploads: 250 / month",
+        "AI chat questions: 500 / month",
+        "AI insights per report: unlimited",
+        "Charts per dashboard: 20 charts",
+        "AI analyst chat — plain English queries",
+        "Advanced filters & live dashboard",
+        "Export charts as PNG & CSV",
+        "Saved report history: 30 days",
+        "Email support"
+      ],
+      isActive: true,
+      description: "For analysts and teams running regular reports on any data.",
+      highlighted: true,
+      color: "#2563eb",
+      maxReports: 250,
+      sortOrder: 1
+    },
+    {
+      id: "premium",
+      name: "Premium",
+      price: 2499,
+      billingPeriod: "monthly" as const,
+      features: [
+        "Everything in Standard",
+        "File uploads: unlimited",
+        "AI chat questions: unlimited",
+        "Team seats: up to 10 users",
+        "White-label reports with your logo",
+        "Custom column mapping rules",
+        "Saved report history: 90 days",
+        "API access: coming soon",
+        "Dedicated account manager",
+        "Priority WhatsApp support"
+      ],
+      isActive: true,
+      description: "For agencies and power users needing full control and team access.",
+      highlighted: false,
+      color: "#a855f7",
+      maxReports: 0,
+      sortOrder: 2
+    }
+  ];
+}
+
 export async function dbGetPlans(): Promise<Plan[]> {
   if (isSupabaseConfigured) {
     try {
@@ -591,7 +662,7 @@ export async function dbGetPlans(): Promise<Plan[]> {
         .select("*")
         .order("sort_order", { ascending: true });
       if (error) throw error;
-      if (data) {
+      if (data && data.length > 0) {
         return data.map((d: any) => ({
           id: d.id,
           name: d.name,
@@ -606,6 +677,14 @@ export async function dbGetPlans(): Promise<Plan[]> {
           sortOrder: d.sort_order ?? 99,
           createdAt: d.created_at
         }));
+      } else {
+        // Dynamic seeding for Supabase if table is empty
+        console.log("🌱 plans table is empty. Seeding default plans to Supabase...");
+        const defaults = getDefaultPlans();
+        for (const p of defaults) {
+          await dbSavePlan(p);
+        }
+        return defaults;
       }
     } catch (err) {
       console.error("❌ Supabase get plans error:", err);
@@ -619,65 +698,10 @@ export async function dbGetPlans(): Promise<Plan[]> {
       if (plans.length > 0) return plans.sort((a, b) => (a.sortOrder ?? 99) - (b.sortOrder ?? 99));
     }
   } catch (e) {}
-  // Return default plans as fallback if no Supabase
-  return [
-    {
-      id: "basic",
-      name: "Basic",
-      price: 0,
-      billingPeriod: "free" as const,
-      features: [
-        "3 free report generations",
-        "Shopify & Shiprocket modes",
-        "Interactive data mockup viewer",
-        "100% client-side — no data stored"
-      ],
-      isActive: true,
-      description: "Perfect for trying SheetCodeCrest on your first few exports",
-      highlighted: false,
-      color: "#3b82f6",
-      maxReports: 3,
-      sortOrder: 0
-    },
-    {
-      id: "standard",
-      name: "Standard",
-      price: 1599,
-      billingPeriod: "monthly" as const,
-      features: [
-        "Unlimited report generations",
-        "All Starter features included",
-        "AI Analyst (Avery) — conversational mode",
-        "Saved report history & cloud sync",
-        "Standard support"
-      ],
-      isActive: true,
-      description: "For growing e-commerce brands running weekly reports",
-      highlighted: true,
-      color: "#faff69", // Electric Yellow ClickHouse style
-      maxReports: 0,
-      sortOrder: 1
-    },
-    {
-      id: "premium",
-      name: "Premium",
-      price: 3999,
-      billingPeriod: "monthly" as const,
-      features: [
-        "Everything in Standard",
-        "Multi-user team access",
-        "Custom column mapping rules",
-        "Dedicated account manager",
-        "API access (coming soon)"
-      ],
-      isActive: true,
-      description: "For agencies, D2C brands, and teams needing multi-user and custom integrations",
-      highlighted: false,
-      color: "#a855f7",
-      maxReports: 0,
-      sortOrder: 2
-    }
-  ];
+  // Return default plans as fallback if no Supabase or empty local plans
+  const defaults = getDefaultPlans();
+  localStorage.setItem("sheetcc_plans_local", JSON.stringify(defaults));
+  return defaults;
 }
 
 export async function dbSavePlan(plan: Plan): Promise<string> {
@@ -695,7 +719,7 @@ export async function dbSavePlan(plan: Plan): Promise<string> {
         max_reports: plan.maxReports ?? 0,
         sort_order: plan.sortOrder ?? 99
       };
-      if (plan.id) {
+      if (plan.id && plan.id !== "basic" && plan.id !== "standard" && plan.id !== "premium") {
         payload.id = plan.id;
       }
       const { data, error } = await supabase
