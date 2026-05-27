@@ -12,13 +12,17 @@
   "dependencies": {
     "@supabase/ssr": "^0.10.3",
     "@supabase/supabase-js": "^2.39.0",
+    "gsap": "^3.15.0",
+    "locomotive-scroll": "^5.0.1",
     "motion": "^12.40.0",
+    "papaparse": "^5.5.3",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@types/node": "^25.9.1",
+    "@types/papaparse": "^5.5.2",
     "@types/react": "^18.0.0",
     "@types/react-dom": "^18.0.0",
     "typescript": "^5.0.0",

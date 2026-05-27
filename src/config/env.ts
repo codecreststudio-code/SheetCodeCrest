@@ -12,7 +12,7 @@ export function validateEnv() {
   const requiredVars = [
     'VITE_PROXY_URL',
     'VITE_RAZORPAY_KEY_ID',
-    'GOOGLE_CLIENT_ID'
+    'VITE_GOOGLE_CLIENT_ID'
   ] as const;
 
   const missing = requiredVars.filter(varName => !import.meta.env[varName]);
@@ -25,7 +25,7 @@ export function validateEnv() {
   return {
     proxyUrl: import.meta.env.VITE_PROXY_URL || 'http://localhost:5001',
     razorpayKey: import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_placeholder',
-    googleClientId: import.meta.env.VITE_GOOGLE_CLIENT_ID || import.meta.env.GOOGLE_CLIENT_ID || '',
+    googleClientId: import.meta.env.VITE_GOOGLE_CLIENT_ID || '',
     personalUpiId: import.meta.env.VITE_PERSONAL_UPI_ID || 'codecreststudio@okaxis',
     isDev
   };

@@ -88,7 +88,7 @@ function countNonEmpty(row: any[]) {
   return Array.isArray(row) ? row.reduce((count, cell) => count + (String(cell ?? "").trim() ? 1 : 0), 0) : 0;
 }
 
-function detectHeaderRowForSheet(raw: any[][], maxRows = 12) {
+export function detectHeaderRowForSheet(raw: any[][], maxRows = 12) {
   let bestScore = -Infinity;
   let bestRow = 0;
   for (let i = 0; i < Math.min(raw.length, maxRows); i++) {
@@ -111,7 +111,7 @@ function detectHeaderRowForSheet(raw: any[][], maxRows = 12) {
   return bestRow;
 }
 
-function normalizeHeaders(rawHeaders: any[]) {
+export function normalizeHeaders(rawHeaders: any[]) {
   const headers = Array.isArray(rawHeaders) ? rawHeaders.map(normalizeHeader) : [];
   const uniqueHeaders: string[] = [];
   headers.forEach((name, idx) => {
@@ -126,7 +126,7 @@ function normalizeHeaders(rawHeaders: any[]) {
   return uniqueHeaders;
 }
 
-function buildTable(raw: any[][], headerRow: number) {
+export function buildTable(raw: any[][], headerRow: number) {
   const rawHeaders = Array.isArray(raw[headerRow]) ? raw[headerRow] : [];
   const headers = normalizeHeaders(rawHeaders);
   const rows = raw.slice(headerRow + 1).filter((r: any) => Array.isArray(r) && r.some((c: any) => String(c ?? "").trim() !== ""));
@@ -140,7 +140,7 @@ function buildTable(raw: any[][], headerRow: number) {
   return { headers, data };
 }
 
-function chooseBestSheet(wb: XLSX.WorkBook) {
+export function chooseBestSheet(wb: XLSX.WorkBook) {
   let best: { sheetName: string; headerRow: number; headers: string[]; data: DataRow[]; score: number } | null = null;
   for (const sheetName of wb.SheetNames) {
     const sheet = wb.Sheets[sheetName];
@@ -165,7 +165,7 @@ function isDateValue(value: any) {
   return !Number.isNaN(parsed);
 }
 
-function parseWorkbook(wb: XLSX.WorkBook) {
+export function parseWorkbook(wb: XLSX.WorkBook) {
   const candidate = chooseBestSheet(wb);
   if (candidate) {
     return { data: candidate.data, originalRows: candidate.data.length, headerRow: candidate.headerRow, sheetName: candidate.sheetName, headers: candidate.headers };
@@ -709,6 +709,7 @@ export function buildLogisticsWorkbook(fileName: string, data: any[], mergedCoun
   const cellCur = (v: any) => ({ v: numVal(v), t: "n", z: '"₹"#,##0.00' });
   const cellPct = (v: number) => ({ v: isNaN(v) ? 0 : v, t: "n", z: '0.0%' });
   const cellNum = (v: any) => ({ v: Math.round(numVal(v)), t: "n", z: '#,##0' });
+  const cellDec = (v: any) => ({ v: numVal(v), t: "n", z: '#,##0.00' });
 
   const cod = payCounts["cod"] || {};
   const pre = payCounts["prepaid"] || {};
@@ -816,13 +817,142 @@ export function buildLogisticsWorkbook(fileName: string, data: any[], mergedCoun
     return val;
   }));
 
+  // 3. Freight & Weight Billing Audit Sheet
+  const auditData = auditLogisticsData(data);
+  const auditRows = auditData.map((r) => {
+    const weightAnomalyText = r.isWeightAnomaly ? "⚠️ OVERBILLED (Ratio > 1.5x)" : "✅ Normal";
+    const freightLeakText = r.isFreightLeak ? "⚠️ LEAKAGE (Freight > 30%)" : "✅ Normal";
+    let recommendation = "✅ Passed Audit";
+    if (r.isWeightAnomaly && r.isFreightLeak) {
+      recommendation = "🚨 CRITICAL: Dispute weight with courier AND review shipping zones!";
+    } else if (r.isWeightAnomaly) {
+      recommendation = "⚠️ DISPUTE WEIGHT: Charged weight significantly exceeds physical weight!";
+    } else if (r.isFreightLeak) {
+      recommendation = "⚠️ REVIEW PRICING: High shipping fee relative to order value!";
+    }
+    
+    return [
+      r.orderId,
+      r.courier,
+      cellDec(r.chargedWeight),
+      cellDec(r.physicalWeight),
+      cellPct(r.weightRatio),
+      weightAnomalyText,
+      cellCur(r.freightCost),
+      cellCur(r.orderRevenue),
+      cellPct(r.freightRatio),
+      freightLeakText,
+      r.rtoStatus,
+      r.state,
+      recommendation
+    ];
+  });
+
+  addSheet("🚨 Billing Audit", [
+    ["🚨 Freight Cost & Courier Weight Overcharge Audit Ledger"],
+    ["Automated logistics auditor mapping weight discrepancies (Charged > 1.5x Physical) and freight leakage (Freight > 30% of revenue)."],
+    [],
+    [
+      "Order ID",
+      "Courier Company",
+      "Charged Weight (kg)",
+      "Physical Weight (kg)",
+      "Weight Ratio",
+      "Weight Audit",
+      "Freight Cost (₹)",
+      "Order Revenue (₹)",
+      "Freight % of Revenue",
+      "Freight Audit",
+      "RTO Status",
+      "State",
+      "Operational Action Recommendation"
+    ],
+    ...auditRows
+  ], [16, 20, 18, 18, 14, 24, 18, 18, 18, 24, 16, 16, 48]);
+
   addSheet("📋 Merged Clean Data", [
     presentCols,
     ...formattedDataRows,
   ], presentCols.map((c) => c === "Product Name" ? 65 : c === "Order ID" ? 12 : 18));
 
+  // 4. Courier Claims Ledger Sheet
+  const claimsRows = auditData.filter(r => r.isWeightAnomaly).map((r) => {
+    const claimLetter = generateDisputeLetterText(r);
+    return [
+      r.orderId,
+      r.courier,
+      cellDec(r.chargedWeight),
+      cellDec(r.physicalWeight),
+      cellPct(r.weightRatio),
+      cellCur(r.freightCost),
+      claimLetter
+    ];
+  });
+  addSheet("Courier Claims Ledger", [
+    ["📋 Automated Courier Billing Claims & Weight Dispute Letters"],
+    ["Pre-drafted dispute claim letters ready to copy-paste for all orders flagged with weight anomalies."],
+    [],
+    ["Order ID", "Courier Company", "Charged Weight (kg)", "Physical Weight (kg)", "Weight Discrepancy", "Freight Cost Charged", "Legally Assertive Claim Dispute Letter"],
+    ...claimsRows
+  ], [16, 20, 20, 20, 18, 20, 120]);
+
   return wb;
 }
+
+export type MarketBasketRule = {
+  itemA: string;
+  itemB: string;
+  support: number;
+  confidence: number;
+  lift: number;
+  coPurchaseCount: number;
+};
+
+export type CustomerRfmProfile = {
+  key?: string;
+  customerId: string;
+  customerName: string;
+  email: string;
+  phone: string;
+  recencyDays: number;
+  frequency: number;
+  monetary: number;
+  rScore: number;
+  fScore: number;
+  mScore: number;
+  cohort: "Champions" | "Loyal Shoppers" | "Recent Starters" | "At Risk" | "Lost" | "Unknown";
+};
+
+export type LogisticsLeakageAnomaly = {
+  orderId: string;
+  courier: string;
+  chargedWeight: number;
+  physicalWeight: number;
+  weightRatio: number;
+  freightCost: number;
+  orderRevenue: number;
+  freightRatio: number;
+  isFreightLeak: boolean;
+  isWeightAnomaly: boolean;
+  rtoStatus: string;
+  state: string;
+};
+
+export type CohortRetentionData = {
+  cohortMonth: string;
+  totalCustomers: number;
+  months: number[];
+  rates: number[];
+};
+
+export type OrderRtoRisk = {
+  orderId: string;
+  customerName: string;
+  paymentMethod: string;
+  state: string;
+  riskScore: number;
+  riskLevel: "High" | "Medium" | "Low";
+};
 
 export type ShopifyAnalyticsSummary = {
   totalRows: number;
@@ -835,6 +965,9 @@ export type ShopifyAnalyticsSummary = {
   topCity: string;
   segmentCounts: Record<string, number>;
   statusCounts: Record<string, number>;
+  aprioriRules?: MarketBasketRule[];
+  rfmMatrix?: CustomerRfmProfile[];
+  cohortRetention?: CohortRetentionData[];
 };
 
 type ShopifyOrderLine = {
@@ -989,6 +1122,362 @@ function sortedEntries<T = any>(obj: Record<string, T>, metric?: string): Array<
   });
 }
 
+export function mineAssociationRules(lines: ShopifyOrderLine[], totalOrders: number): MarketBasketRule[] {
+  if (totalOrders === 0) return [];
+  const orderItems = new Map<string, Set<string>>();
+  const itemCounts: Record<string, number> = {};
+
+  for (const line of lines) {
+    const key = line.orderNo || `${line.email}-${line.date?.toISOString() || ""}`;
+    if (!key) continue;
+    if (!orderItems.has(key)) orderItems.set(key, new Set());
+    const prod = line.product;
+    orderItems.get(key)!.add(prod);
+    itemCounts[prod] = (itemCounts[prod] || 0) + line.qty;
+  }
+
+  const pairCounts: Record<string, number> = {};
+  orderItems.forEach((items) => {
+    const arr = Array.from(items);
+    for (let i = 0; i < arr.length; i++) {
+      for (let j = i + 1; j < arr.length; j++) {
+        const itemA = arr[i];
+        const itemB = arr[j];
+        const pairKey = itemA < itemB ? `${itemA}|||${itemB}` : `${itemB}|||${itemA}`;
+        pairCounts[pairKey] = (pairCounts[pairKey] || 0) + 1;
+      }
+    }
+  });
+
+  const rules: MarketBasketRule[] = [];
+  for (const [pairKey, count] of Object.entries(pairCounts)) {
+    if (count < 2) continue;
+    const [itemA, itemB] = pairKey.split("|||");
+    const countA = itemCounts[itemA] || 1;
+    const countB = itemCounts[itemB] || 1;
+
+    const support = count / totalOrders;
+    const confidenceA = count / countA;
+    const lift = support / ((countA / totalOrders) * (countB / totalOrders));
+
+    rules.push({
+      itemA,
+      itemB,
+      support,
+      confidence: confidenceA,
+      lift,
+      coPurchaseCount: count
+    });
+  }
+
+  return rules
+    .filter(r => r.lift > 1.0)
+    .sort((a, b) => b.lift - a.lift)
+    .slice(0, 10);
+}
+
+export function computeRfmSegmentation(lines: ShopifyOrderLine[]): CustomerRfmProfile[] {
+  const customerMap: Record<string, {
+    name: string;
+    email: string;
+    phone: string;
+    spent: number;
+    orders: number;
+    lastOrderDate: Date;
+    customerId: string;
+  }> = {};
+
+  let maxDateTime = -Infinity;
+
+  for (const line of lines) {
+    const key = line.email || line.phone || line.customerName || line.orderNo;
+    if (!key) continue;
+
+    const lineDate = line.date || new Date();
+    if (lineDate.getTime() > maxDateTime) {
+      maxDateTime = lineDate.getTime();
+    }
+
+    if (!customerMap[key]) {
+      customerMap[key] = {
+        name: line.customerName || "Customer",
+        email: line.email || "",
+        phone: line.phone || "",
+        spent: 0,
+        orders: 0,
+        lastOrderDate: lineDate,
+        customerId: line.customerId || "",
+      };
+    }
+
+    customerMap[key].orders += 1;
+    customerMap[key].spent += line.lineRevenue;
+    if (lineDate.getTime() > customerMap[key].lastOrderDate.getTime()) {
+      customerMap[key].lastOrderDate = lineDate;
+    }
+  }
+
+  const maxDate = maxDateTime === -Infinity ? new Date() : new Date(maxDateTime);
+  const profiles = Object.entries(customerMap).map(([key, c]) => {
+    const diffTime = Math.max(0, maxDate.getTime() - c.lastOrderDate.getTime());
+    const recencyDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    return {
+      key,
+      customerId: c.customerId,
+      customerName: c.name,
+      email: c.email,
+      phone: c.phone,
+      recencyDays,
+      frequency: c.orders,
+      monetary: c.spent,
+      rScore: 1,
+      fScore: 1,
+      mScore: 1,
+      cohort: "Unknown" as CustomerRfmProfile["cohort"]
+    };
+  });
+
+  if (profiles.length === 0) return [];
+
+  const rSorted = [...profiles].sort((a, b) => a.recencyDays - b.recencyDays);
+  const fSorted = [...profiles].sort((a, b) => b.frequency - a.frequency);
+  const mSorted = [...profiles].sort((a, b) => b.monetary - a.monetary);
+
+  const N = profiles.length;
+  const getTertileScore = (rank: number, total: number) => {
+    if (rank < total / 3) return 3;
+    if (rank < (2 * total) / 3) return 2;
+    return 1;
+  };
+
+  profiles.forEach(p => {
+    const rRank = rSorted.findIndex(x => x.key === p.key);
+    const fRank = fSorted.findIndex(x => x.key === p.key);
+    const mRank = mSorted.findIndex(x => x.key === p.key);
+
+    p.rScore = getTertileScore(rRank, N);
+    p.fScore = getTertileScore(fRank, N);
+    p.mScore = getTertileScore(mRank, N);
+
+    const rfm = `${p.rScore}${p.fScore}${p.mScore}`;
+    if (p.rScore === 3 && p.fScore === 3 && p.mScore === 3) {
+      p.cohort = "Champions";
+    } else if (p.rScore >= 2 && p.fScore >= 2 && p.mScore >= 2) {
+      p.cohort = "Loyal Shoppers";
+    } else if (p.rScore === 3 && p.fScore === 1) {
+      p.cohort = "Recent Starters";
+    } else if (p.rScore === 1 && (p.fScore >= 2 || p.mScore >= 2)) {
+      p.cohort = "At Risk";
+    } else {
+      p.cohort = "Lost";
+    }
+  });
+
+  return profiles;
+}
+
+export function auditLogisticsData(data: DataRow[]): LogisticsLeakageAnomaly[] {
+  return data.map((r) => {
+    const keys = Object.keys(r || {});
+    const normalize = (key: string) => key.replace(/\s+/g, "").toLowerCase();
+    const findKey = (pred: (k: string) => boolean) => keys.find((k) => !!k && pred(normalize(k))) as string | undefined;
+
+    const idField = findKey((k) => k.includes("orderid") || (k.includes("order") && k.includes("id"))) || "Order ID";
+    const courierField = findKey((k) => k.includes("courier.*company") || k.includes("courier") || k.includes("logisticspartner")) || "Courier Company";
+    
+    const chargedWeightField = findKey((k) => k.includes("chargedweight") || k.includes("billedweight") || k.includes("weightcharged")) || "Charged Weight";
+    const physicalWeightField = findKey((k) => k.includes("physicalweight") || k.includes("actualweight") || k.includes("weightphysical")) || "Physical Weight";
+    
+    const freightField = findKey((k) => k.includes("freight.*total") || k.includes("shippingcharge") || k.includes("freight") || k.includes("couriercharge")) || "Freight Total Amount";
+    const revenueField = findKey((k) => k.includes("order.*total") || k.includes("ordertotal") || k.includes("totalamount") || k.includes("invoiceamount") || k.includes("revenue")) || "Order Total";
+    const stateField = findKey((k) => k.includes("address.*state") || k.includes("state") || k.includes("province")) || "State";
+    const statusField = findKey((k) => k.includes("status") || k.includes("shipmentstatus") || k.includes("orderstatus")) || "Status";
+
+    const orderId = String(r[idField] || "").trim();
+    const courier = String(r[courierField] || "Unknown");
+    const chargedWeight = toNumber(r[chargedWeightField]);
+    const physicalWeight = toNumber(r[physicalWeightField]);
+    const freightCost = toNumber(r[freightField]);
+    const orderRevenue = toNumber(r[revenueField]);
+    const state = String(r[stateField] || "Unknown");
+    const rtoStatus = String(r[statusField] || "UNKNOWN");
+
+    const weightRatio = physicalWeight > 0 ? chargedWeight / physicalWeight : 0;
+    const freightRatio = orderRevenue > 0 ? freightCost / orderRevenue : 0;
+
+    const isWeightAnomaly = physicalWeight > 0 && chargedWeight > 1.5 * physicalWeight;
+    const isFreightLeak = orderRevenue > 0 && freightRatio > 0.30;
+
+    return {
+      orderId,
+      courier,
+      chargedWeight,
+      physicalWeight,
+      weightRatio,
+      freightCost,
+      orderRevenue,
+      freightRatio,
+      isFreightLeak,
+      isWeightAnomaly,
+      rtoStatus,
+      state
+    };
+  }).filter(item => item.orderId);
+}
+
+export function calculateCohortRetention(lines: ShopifyOrderLine[]): CohortRetentionData[] {
+  const customerFirstOrder: Record<string, Date> = {};
+  const customerKeyToCohort: Record<string, string> = {};
+
+  for (const line of lines) {
+    const key = line.email || line.phone || line.customerName || line.orderNo;
+    if (!key) continue;
+    
+    const lineDate = line.date || new Date();
+    if (!customerFirstOrder[key] || lineDate.getTime() < customerFirstOrder[key].getTime()) {
+      customerFirstOrder[key] = lineDate;
+    }
+  }
+
+  // Assign cohort month (YYYY-MM)
+  const cohortCustomers: Record<string, Set<string>> = {}; // cohortMonth -> Set of customerKeys
+  Object.entries(customerFirstOrder).forEach(([key, firstDate]) => {
+    const monthStr = `${firstDate.getFullYear()}-${String(firstDate.getMonth() + 1).padStart(2, "0")}`;
+    customerKeyToCohort[key] = monthStr;
+    if (!cohortCustomers[monthStr]) cohortCustomers[monthStr] = new Set();
+    cohortCustomers[monthStr].add(key);
+  });
+
+  // cohortMonth -> Map of monthIndex -> Set of customerKeys who bought in that month
+  const cohortActivity: Record<string, Record<number, Set<string>>> = {};
+
+  for (const line of lines) {
+    const key = line.email || line.phone || line.customerName || line.orderNo;
+    if (!key) continue;
+
+    const lineDate = line.date || new Date();
+    const firstDate = customerFirstOrder[key];
+    const cohortMonth = customerKeyToCohort[key];
+    if (!firstDate || !cohortMonth) continue;
+
+    const diffMonths = (lineDate.getFullYear() - firstDate.getFullYear()) * 12 + (lineDate.getMonth() - firstDate.getMonth());
+    if (diffMonths < 0 || diffMonths > 12) continue;
+
+    if (!cohortActivity[cohortMonth]) cohortActivity[cohortMonth] = {};
+    if (!cohortActivity[cohortMonth][diffMonths]) cohortActivity[cohortMonth][diffMonths] = new Set();
+    cohortActivity[cohortMonth][diffMonths].add(key);
+  }
+
+  const cohorts = Object.keys(cohortCustomers).sort();
+  return cohorts.map((cohortMonth) => {
+    const totalCustomers = cohortCustomers[cohortMonth].size;
+    const months: number[] = [];
+    const rates: number[] = [];
+
+    for (let m = 0; m <= 5; m++) {
+      const activeCount = cohortActivity[cohortMonth]?.[m]?.size || 0;
+      months.push(activeCount);
+      rates.push(totalCustomers > 0 ? (activeCount / totalCustomers) * 100 : 0);
+    }
+
+    return {
+      cohortMonth,
+      totalCustomers,
+      months,
+      rates
+    };
+  });
+}
+
+export function calculatePredictiveRtoRisk(data: DataRow[]): OrderRtoRisk[] {
+  return data.map((r) => {
+    const keys = Object.keys(r || {});
+    const normalize = (key: string) => key.replace(/\s+/g, "").toLowerCase();
+    const findKey = (pred: (k: string) => boolean) => keys.find((k) => !!k && pred(normalize(k))) as string | undefined;
+
+    const idField = findKey((k) => k.includes("orderid") || (k.includes("order") && k.includes("id"))) || "Order ID";
+    const nameField = findKey((k) => k.includes("customername") || k.includes("customer") || k.includes("consigneename")) || "Customer Name";
+    const paymentField = findKey((k) => k.includes("paymentmethod") || k.includes("paymentmode") || k.includes("payment")) || "Payment Method";
+    const stateField = findKey((k) => k.includes("address.*state") || k.includes("state") || k.includes("province")) || "State";
+
+    const orderId = String(r[idField] || "").trim();
+    const customerName = String(r[nameField] || "Customer");
+    const paymentMethod = String(r[paymentField] || "Prepaid");
+    const state = String(r[stateField] || "Unknown");
+
+    let riskScore = 15;
+    
+    const payNorm = paymentMethod.toUpperCase();
+    if (payNorm.includes("COD") || payNorm.includes("CASH")) {
+      riskScore += 35;
+    }
+
+    const normalizedState = state.toLowerCase();
+    if (
+      normalizedState.includes("bihar") || 
+      normalizedState.includes("uttar pradesh") || 
+      normalizedState.includes("up") ||
+      normalizedState.includes("west bengal") || 
+      normalizedState.includes("bengal") ||
+      normalizedState.includes("jharkhand") || 
+      normalizedState.includes("assam") ||
+      normalizedState.includes("northeast")
+    ) {
+      riskScore += 25;
+    }
+
+    const qtyField = findKey((k) => k.includes("productquantity") || k.includes("quantity") || k.includes("qty")) || "Product Quantity";
+    const qty = toNumber(r[qtyField]);
+    if (qty > 3) {
+      riskScore += 15;
+    }
+
+    riskScore = Math.min(100, riskScore);
+
+    let riskLevel: "High" | "Medium" | "Low" = "Low";
+    if (riskScore >= 70) {
+      riskLevel = "High";
+    } else if (riskScore >= 40) {
+      riskLevel = "Medium";
+    }
+
+    return {
+      orderId,
+      customerName,
+      paymentMethod,
+      state,
+      riskScore,
+      riskLevel
+    };
+  }).filter(item => item.orderId);
+}
+
+export function generateDisputeLetterText(r: LogisticsLeakageAnomaly): string {
+  return `CLAIM REF: WT-DISPUTE-${r.orderId}
+DATE: ${new Date().toLocaleDateString("en-IN")}
+TO: Shiprocket Operations & Courier Billing Team
+SUBJECT: Billing Dispute - Incorrect Weight Charged on Order ID #${r.orderId}
+
+Dear Billing Team,
+
+We are formalizing an immediate billing dispute regarding shipping charges for Order ID #${r.orderId}, shipped via ${r.courier || "our courier partner"}.
+
+The audit of our warehouse logistics ledger highlights a significant weight discrepancy:
+- Physical Weight (Actual weight of packed box): ${r.physicalWeight.toFixed(2)} kg
+- Charged Weight (Billed by Courier): ${r.chargedWeight.toFixed(2)} kg
+- Discrepancy Overcharge Ratio: ${r.weightRatio.toFixed(2)}x
+- Total Freight Cost Charged: INR ${r.freightCost.toFixed(2)}
+
+Under the standard courier service level agreement (SLA), billing must represent actual physical weight or volumetric weight, whichever is higher. Billed weight exceeds the physical weight by ${(r.chargedWeight - r.physicalWeight).toFixed(2)} kg, representing an audit failure.
+
+We request an immediate credit note adjustment for the excess freight fee billed and a review of the courier dimensions scan for this shipment.
+
+We have attached the package dimensions logs from our warehouse catalog for your quick resolution.
+
+Sincerely,
+Logistics Audit Manager, SheetCodeCrest Merchant Network`;
+}
+
 export function analyzeShopifyData(data: DataRow[]): ShopifyAnalyticsSummary {
   const lines = mapShopifyRows(data);
   const orders = uniqueOrders(lines);
@@ -1014,6 +1503,10 @@ export function analyzeShopifyData(data: DataRow[]): ShopifyAnalyticsSummary {
     segmentCounts[segment] = (segmentCounts[segment] || 0) + 1;
   });
 
+  const aprioriRules = mineAssociationRules(lines, orders.length);
+  const rfmMatrix = computeRfmSegmentation(lines);
+  const cohortRetention = calculateCohortRetention(lines);
+
   return {
     totalRows: data.length,
     totalOrders: orders.length,
@@ -1025,6 +1518,9 @@ export function analyzeShopifyData(data: DataRow[]): ShopifyAnalyticsSummary {
     topCity: sortedEntries(cities)[0]?.[0] || "N/A",
     segmentCounts,
     statusCounts,
+    aprioriRules,
+    rfmMatrix,
+    cohortRetention,
   };
 }
 
@@ -1309,6 +1805,77 @@ export function buildShopifyAnalyticsWorkbook(fileName: string, data: DataRow[])
       }),
     ], [14, 12, 24, 18, 16, 18, 30, 18, 18, 10, 34, 42, 10, 16, 16, 18, 14, 22, 16, 18, 12, 12, 10]);
   });
+
+  // 1. Apriori Association Rules Sheet
+  const rulesRows = (summary.aprioriRules || []).map((rule) => [
+    rule.itemA,
+    rule.itemB,
+    pct(rule.support),
+    pct(rule.confidence),
+    number(rule.lift),
+    number(rule.coPurchaseCount),
+    rule.lift > 2.5 ? "Highly recommended bundle package opportunity!" : "Active cross-selling package opportunity."
+  ]);
+  addSheet("Growth Association Rules", [
+    ["🧠 E-Commerce Growth Association Rules (Market Basket Analysis)"],
+    ["Groups shopify order lines by order ID to isolate products regularly purchased together."],
+    [],
+    ["Item A", "Item B", "Support (Rule Frequency)", "Confidence (Rule Reliability)", "Lift (Association Strength)", "Co-Purchase Count", "Growth Action Recommendation"],
+    ...rulesRows
+  ], [36, 36, 24, 26, 26, 20, 42]);
+
+  // 2. RFM Customer Segments Matrix Sheet
+  const rfmRows = (summary.rfmMatrix || []).map((r) => {
+    const action = r.cohort === "Champions"
+      ? "Exclusive VIP discounts & Early access product reveals"
+      : r.cohort === "Loyal Shoppers"
+      ? "Introduce referral incentives & cross-sell programs"
+      : r.cohort === "Recent Starters"
+      ? "Welcome onboarding flow & standard discount vouchers"
+      : r.cohort === "At Risk"
+      ? "High-priority win-back retargeting campaigns"
+      : "Standard low-frequency re-engagement newsletters";
+    return [
+      r.customerName,
+      r.email,
+      r.phone,
+      number(r.recencyDays),
+      number(r.frequency),
+      currency(r.monetary),
+      number(r.rScore),
+      number(r.fScore),
+      number(r.mScore),
+      r.cohort,
+      action
+    ];
+  });
+  addSheet("RFM Segment Cohorts", [
+    ["👥 Customer RFM Segment Cohort Matrix"],
+    ["Grades all customer records chronologically across Recency (R), Frequency (F), and Monetary (M) scores (1 to 3)."],
+    [],
+    ["Customer Name", "Email", "Phone", "Recency (Days)", "Frequency (Orders)", "Monetary Spent (INR)", "R-Score (Recency)", "F-Score (Frequency)", "M-Score (Monetary)", "RFM Cohort Category", "Targeted Retention Action"],
+    ...rfmRows
+  ], [24, 30, 18, 16, 18, 18, 16, 16, 16, 22, 48]);
+
+  // 3. Cohort Retention Heatmap Sheet
+  const cohortData = calculateCohortRetention(lines);
+  const cohortRows = cohortData.map((c) => [
+    c.cohortMonth,
+    number(c.totalCustomers),
+    pct(c.rates[0] / 100),
+    pct(c.rates[1] / 100),
+    pct(c.rates[2] / 100),
+    pct(c.rates[3] / 100),
+    pct(c.rates[4] / 100),
+    pct(c.rates[5] / 100)
+  ]);
+  addSheet("Cohort Retention Heatmap", [
+    ["👥 Customer Cohort Retention Matrix (N-Month Retention Grid)"],
+    ["Tracks customer cohorts monthly repeat transactions to measure long-term brand loyalty and churn."],
+    [],
+    ["Cohort Month", "Acquired Customers", "Month 0 (Acquisition)", "Month 1 (Repeat)", "Month 2 (Repeat)", "Month 3 (Repeat)", "Month 4 (Repeat)", "Month 5 (Repeat)"],
+    ...cohortRows
+  ], [16, 20, 24, 20, 20, 20, 20, 20]);
 
   return wb;
 }

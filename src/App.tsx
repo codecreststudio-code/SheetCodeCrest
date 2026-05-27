@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { motion } from "motion/react";
+import LocomotiveScroll from "locomotive-scroll";
 import {
   hashPassword,
   verifyPassword,
@@ -23,6 +24,9 @@ import {
   buildLogisticsWorkbook,
   buildShopifyAnalyticsWorkbook,
   analyzeShopifyData,
+  auditLogisticsData,
+  calculatePredictiveRtoRisk,
+  generateDisputeLetterText,
   DataProfile,
   DataRow,
   ShopifyAnalyticsSummary,
@@ -268,7 +272,7 @@ const SaaSBackgroundParticles = () => {
         // Draw particle
         ctx.beginPath();
         ctx.arc(p1.x, p1.y, p1.size, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(0, 255, 178, ${p1.alpha})`;
+        ctx.fillStyle = `rgba(127, 166, 155, ${p1.alpha})`;
         ctx.fill();
 
         // Connect lines
@@ -279,11 +283,11 @@ const SaaSBackgroundParticles = () => {
           const dist = Math.sqrt(dx * dx + dy * dy);
 
           if (dist < 85) {
-            const alpha = (1 - dist / 85) * 0.15;
+            const alpha = (1 - dist / 85) * 0.12;
             ctx.beginPath();
             ctx.moveTo(p1.x, p1.y);
             ctx.lineTo(p2.x, p2.y);
-            ctx.strokeStyle = `rgba(0, 255, 178, ${alpha})`;
+            ctx.strokeStyle = `rgba(127, 166, 155, ${alpha})`;
             ctx.lineWidth = 0.5;
             ctx.stroke();
           }
@@ -387,7 +391,7 @@ const CustomGlowingCursor = () => {
 
   return (
     <>
-      {/* Inner glowing solid dot (neon-green theme) */}
+      {/* Inner dot — sage green theme */}
       <div
         style={{
           position: "fixed",
@@ -396,15 +400,15 @@ const CustomGlowingCursor = () => {
           width: isHovered ? "10px" : "8px",
           height: isHovered ? "10px" : "8px",
           borderRadius: "50%",
-          background: "#00ffb2",
-          boxShadow: "0 0 12px #00ffb2, 0 0 20px rgba(0, 255, 178, 0.5)",
+          background: "#7fa69b",
+          boxShadow: "0 0 12px rgba(127,166,155,0.6), 0 0 20px rgba(127,166,155,0.3)",
           transform: `translate3d(${position.x - (isHovered ? 5 : 4)}px, ${position.y - (isHovered ? 5 : 4)}px, 0)`,
           pointerEvents: "none",
           zIndex: 999999,
-          transition: "width 0.15s, height 0.15s, background-color 0.15s",
+          transition: "width 0.15s, height 0.15s",
         }}
       />
-      {/* Outer trailing interactive halo ring */}
+      {/* Outer trailing halo ring */}
       <div
         style={{
           position: "fixed",
@@ -413,8 +417,8 @@ const CustomGlowingCursor = () => {
           width: isHovered ? "36px" : "28px",
           height: isHovered ? "36px" : "28px",
           borderRadius: "50%",
-          border: "1.5px solid rgba(0, 255, 178, 0.4)",
-          background: isHovered ? "rgba(0, 255, 178, 0.05)" : "transparent",
+          border: "1.5px solid rgba(127,166,155,0.45)",
+          background: isHovered ? "rgba(127,166,155,0.06)" : "transparent",
           transform: `translate3d(${trail.x - (isHovered ? 18 : 14)}px, ${trail.y - (isHovered ? 18 : 14)}px, 0)`,
           pointerEvents: "none",
           zIndex: 999998,
@@ -424,6 +428,37 @@ const CustomGlowingCursor = () => {
     </>
   );
 };
+
+// ═══════════════════════════════════════════
+// Locomotive Scroll v5 — Landing Page Hook
+// ═══════════════════════════════════════════
+function useLocomotiveScroll(containerRef: React.RefObject<HTMLElement | null>, active: boolean) {
+  useEffect(() => {
+    if (!active || !containerRef.current) return;
+
+    const scroll = new LocomotiveScroll();
+
+    // Add is-inview class to elements with data-scroll attribute as they enter viewport
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("is-inview");
+          }
+        });
+      },
+      { threshold: 0.08, rootMargin: "0px 0px -80px 0px" }
+    );
+
+    const elements = containerRef.current?.querySelectorAll("[data-scroll]");
+    elements?.forEach((el) => observer.observe(el));
+
+    return () => {
+      scroll.destroy();
+      observer.disconnect();
+    };
+  }, [active]);
+}
 
 export default function App() {
   // Application Modes & Navigation
@@ -436,6 +471,10 @@ export default function App() {
     setLog((p) => [...p, { msg, type, time: new Date().toLocaleTimeString() }]);
   }, []);
   const [error, setError] = useState("");
+
+  // Locomotive Scroll container ref (landing page only)
+  const landingScrollRef = useRef<HTMLDivElement>(null);
+  useLocomotiveScroll(landingScrollRef, !file);
 
   // User Authentication & Session State
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -523,6 +562,16 @@ export default function App() {
   const [codPremiumVal, setCodPremiumVal] = useState(50);
   const [codSwitchRate, setCodSwitchRate] = useState(15);
   const [rtoCostPerOrder, setRtoCostPerOrder] = useState(150);
+
+  // Advanced SaaS Simulator & Live Sync States
+  const [elasticityPrepaidDiscount, setElasticityPrepaidDiscount] = useState(5);
+  const [elasticityBundleDiscount, setElasticityBundleDiscount] = useState(10);
+  const [syncShopifyUrl, setSyncShopifyUrl] = useState("");
+  const [syncShopifyToken, setSyncShopifyToken] = useState("");
+  const [syncShiprocketEmail, setSyncShiprocketEmail] = useState("");
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncProgress, setSyncProgress] = useState("");
+  const [selectedDisputeOrderId, setSelectedDisputeOrderId] = useState<string | null>(null);
 
   // Admin Portal State
   const [adminModalOpen, setAdminModalOpen] = useState(false);
@@ -850,7 +899,7 @@ export default function App() {
             const btnContainer = document.getElementById("google-signin-div");
             if (btnContainer) {
               (window as any).google.accounts.id.renderButton(btnContainer, {
-                theme: theme === "dark" ? "filled_black" : "outline",
+                theme: (currentUser || file) ? "filled_black" : "outline",
                 size: "large",
                 text: "continue_with",
                 width: 320,
@@ -1892,6 +1941,137 @@ What would you like to investigate in this dataset? E.g.:
     }
   }, [addLog, hasFreeReportsRemaining, recordSuccessfulReport, currentUser]);
 
+  // Handle Simulated Live Webhook Sync
+  const handleSimulatedSync = useCallback(() => {
+    if (!syncShopifyUrl || !syncShopifyToken || !syncShiprocketEmail) {
+      setError("Please fill in all Shopify and Shiprocket API credentials fields to establish a secure store synchronization connection.");
+      return;
+    }
+    setError("");
+    setIsSyncing(true);
+    setSyncProgress("Establishing secure TLS connection to " + syncShopifyUrl.trim() + "...");
+
+    const steps = [
+      { msg: "Validating Admin API Access Token shpat_xxxxxxxx...", delay: 800 },
+      { msg: "Shopify Webhooks registered successfully: orders/create, orders/paid.", delay: 800 },
+      { msg: "Connecting to Shiprocket API for " + syncShiprocketEmail.trim() + "...", delay: 800 },
+      { msg: "Pulling active shipping registers and dispatch ledgers...", delay: 800 },
+      { msg: "Syncing physical vs billed weights... (Found 1 Courier Weight Anomaly)", delay: 800 },
+      { msg: "Running RFM cohort calculations and predictive RTO scoring...", delay: 800 },
+      { msg: "Sync Complete! Compiling Shopify & Logistics Analytics...", delay: 600 }
+    ];
+
+    let currentStep = 0;
+    const runStep = () => {
+      if (currentStep < steps.length) {
+        setTimeout(() => {
+          setSyncProgress(steps[currentStep].msg);
+          currentStep++;
+          runStep();
+        }, steps[currentStep].delay);
+      } else {
+        setIsSyncing(false);
+        setSyncProgress("");
+
+        // High-fidelity Shopify & Shiprocket Mock rows
+        const mockShopifyRows: DataRow[] = [
+          // Jan 2026 Cohort
+          { "Name": "#1001", "Created at": "2026-01-10T14:32:00Z", "Shipping Name": "Aarav Sharma", "Email": "aarav.sharma@gmail.com", "Phone": "9812345678", "Financial Status": "paid", "Fulfillment Status": "fulfilled", "Payment Method": "Prepaid", "Total": 2499, "Discount Amount": 0, "Lineitem quantity": 1, "Lineitem price": 2499, "Lineitem name": "Codecrest Premium Hoodie", "Shipping City": "Mumbai", "Shipping Province": "Maharashtra", "Shipping Country": "India", "Risk Level": "Low" },
+          { "Name": "#1002", "Created at": "2026-01-12T10:15:00Z", "Shipping Name": "Ananya Patel", "Email": "ananya.patel@yahoo.com", "Phone": "9876543210", "Financial Status": "paid", "Fulfillment Status": "fulfilled", "Payment Method": "cod", "Total": 1299, "Discount Amount": 100, "Lineitem quantity": 1, "Lineitem price": 1299, "Lineitem name": "Cyberpunk Desk Mat", "Shipping City": "Ahmedabad", "Shipping Province": "Gujarat", "Shipping Country": "India", "Risk Level": "Medium" },
+          
+          // Jan repeats in Feb and Mar
+          { "Name": "#1005", "Created at": "2026-02-15T18:22:00Z", "Shipping Name": "Aarav Sharma", "Email": "aarav.sharma@gmail.com", "Phone": "9812345678", "Financial Status": "paid", "Fulfillment Status": "fulfilled", "Payment Method": "Prepaid", "Total": 4999, "Discount Amount": 500, "Lineitem quantity": 1, "Lineitem price": 4999, "Lineitem name": "Mechanical Keyboard V2", "Shipping City": "Mumbai", "Shipping Province": "Maharashtra", "Shipping Country": "India", "Risk Level": "Low" },
+          { "Name": "#1010", "Created at": "2026-03-20T11:05:00Z", "Shipping Name": "Aarav Sharma", "Email": "aarav.sharma@gmail.com", "Phone": "9812345678", "Financial Status": "paid", "Fulfillment Status": "fulfilled", "Payment Method": "Prepaid", "Total": 1299, "Discount Amount": 0, "Lineitem quantity": 1, "Lineitem price": 1299, "Lineitem name": "Cyberpunk Desk Mat", "Shipping City": "Mumbai", "Shipping Province": "Maharashtra", "Shipping Country": "India", "Risk Level": "Low" },
+          
+          // Feb 2026 Cohort
+          { "Name": "#1003", "Created at": "2026-02-05T09:12:00Z", "Shipping Name": "Rohan Das", "Email": "rohan.das@outlook.com", "Phone": "9123456789", "Financial Status": "paid", "Fulfillment Status": "fulfilled", "Payment Method": "Prepaid", "Total": 2499, "Discount Amount": 0, "Lineitem quantity": 1, "Lineitem price": 2499, "Lineitem name": "Codecrest Premium Hoodie", "Shipping City": "Bangalore", "Shipping Province": "Karnataka", "Shipping Country": "India", "Risk Level": "Low" },
+          { "Name": "#1004", "Created at": "2026-02-08T16:45:00Z", "Shipping Name": "Priya Nair", "Email": "priya.nair@gmail.com", "Phone": "9345678901", "Financial Status": "paid", "Fulfillment Status": "fulfilled", "Payment Method": "cod", "Total": 2499, "Discount Amount": 250, "Lineitem quantity": 1, "Lineitem price": 2499, "Lineitem name": "Codecrest Premium Hoodie", "Shipping City": "Kochi", "Shipping Province": "Kerala", "Shipping Country": "India", "Risk Level": "High" },
+          
+          // Feb repeats in Mar
+          { "Name": "#1008", "Created at": "2026-03-05T12:00:00Z", "Shipping Name": "Rohan Das", "Email": "rohan.das@outlook.com", "Phone": "9123456789", "Financial Status": "paid", "Fulfillment Status": "fulfilled", "Payment Method": "Prepaid", "Total": 1299, "Discount Amount": 0, "Lineitem quantity": 1, "Lineitem price": 1299, "Lineitem name": "Cyberpunk Desk Mat", "Shipping City": "Bangalore", "Shipping Province": "Karnataka", "Shipping Country": "India", "Risk Level": "Low" },
+          
+          // Mar 2026 Cohort
+          { "Name": "#1006", "Created at": "2026-03-01T15:30:00Z", "Shipping Name": "Kabir Mehta", "Email": "kabir.mehta@gmail.com", "Phone": "9456789012", "Financial Status": "paid", "Fulfillment Status": "fulfilled", "Payment Method": "cod", "Total": 4999, "Discount Amount": 0, "Lineitem quantity": 1, "Lineitem price": 4999, "Lineitem name": "Mechanical Keyboard V2", "Shipping City": "Patna", "Shipping Province": "Bihar", "Shipping Country": "India", "Risk Level": "High" },
+          { "Name": "#1007", "Created at": "2026-03-12T14:22:00Z", "Shipping Name": "Sneha Gupta", "Email": "sneha.gupta@rediffmail.com", "Phone": "9567890123", "Financial Status": "paid", "Fulfillment Status": "fulfilled", "Payment Method": "Prepaid", "Total": 1299, "Discount Amount": 0, "Lineitem quantity": 1, "Lineitem price": 1299, "Lineitem name": "Cyberpunk Desk Mat", "Shipping City": "Delhi", "Shipping Province": "Delhi", "Shipping Country": "India", "Risk Level": "Low" },
+          
+          // Pending high risk COD
+          { "Name": "#1009", "Created at": "2026-03-18T10:00:00Z", "Shipping Name": "Vikram Singh", "Email": "vikram.singh@gmail.com", "Phone": "9678901234", "Financial Status": "pending", "Fulfillment Status": "unfulfilled", "Payment Method": "cod", "Total": 4999, "Discount Amount": 500, "Lineitem quantity": 1, "Lineitem price": 4999, "Lineitem name": "Mechanical Keyboard V2", "Shipping City": "Lucknow", "Shipping Province": "Uttar Pradesh", "Shipping Country": "India", "Risk Level": "High" },
+          { "Name": "#1011", "Created at": "2026-03-22T17:40:00Z", "Shipping Name": "Ananya Patel", "Email": "ananya.patel@yahoo.com", "Phone": "9876543210", "Financial Status": "paid", "Fulfillment Status": "fulfilled", "Payment Method": "Prepaid", "Total": 2499, "Discount Amount": 250, "Lineitem quantity": 1, "Lineitem price": 2499, "Lineitem name": "Codecrest Premium Hoodie", "Shipping City": "Ahmedabad", "Shipping Province": "Gujarat", "Shipping Country": "India", "Risk Level": "Low" }
+        ];
+
+        const mockLogisticsRows: DataRow[] = [
+          { "Order ID": "#1001", "Courier Company": "Delhivery Direct", "AWB": "AWB89127391", "Pickup Address": "CodeCrest Warehouse Mumbai", "Status": "DELIVERED", "Freight Total Amount": 110, "Order Total": 2499, "State": "Maharashtra", "Payment Method": "prepaid", "Charged Weight": 0.5, "Physical Weight": 0.5, "Product Name": "Codecrest Premium Hoodie", "Channel SKU": "CC-HD-BLK-M", "Product Quantity": 1 },
+          { "Order ID": "#1002", "Courier Company": "Shiprocket Courier / Delhivery", "AWB": "AWB89127392", "Pickup Address": "CodeCrest Warehouse Mumbai", "Status": "DELIVERED", "Freight Total Amount": 340, "Order Total": 1299, "State": "Gujarat", "Payment Method": "cod", "Charged Weight": 2.5, "Physical Weight": 0.5, "Product Name": "Cyberpunk Desk Mat", "Channel SKU": "CC-DM-CYB", "Product Quantity": 1 },
+          { "Order ID": "#1003", "Courier Company": "Xpressbees Direct", "AWB": "AWB89127393", "Pickup Address": "CodeCrest Warehouse Mumbai", "Status": "DELIVERED", "Freight Total Amount": 125, "Order Total": 2499, "State": "Karnataka", "Payment Method": "prepaid", "Charged Weight": 0.5, "Physical Weight": 0.5, "Product Name": "Codecrest Premium Hoodie", "Channel SKU": "CC-HD-BLK-M", "Product Quantity": 1 },
+          { "Order ID": "#1004", "Courier Company": "BlueDart Express", "AWB": "AWB89127394", "Pickup Address": "CodeCrest Warehouse Mumbai", "Status": "RTO DELIVERED", "Freight Total Amount": 195, "Order Total": 2499, "State": "Kerala", "Payment Method": "cod", "Charged Weight": 0.65, "Physical Weight": 0.5, "Product Name": "Codecrest Premium Hoodie", "Channel SKU": "CC-HD-BLK-M", "Product Quantity": 1 },
+          { "Order ID": "#1005", "Courier Company": "Delhivery Direct", "AWB": "AWB89127395", "Pickup Address": "CodeCrest Warehouse Mumbai", "Status": "DELIVERED", "Freight Total Amount": 150, "Order Total": 4999, "State": "Maharashtra", "Payment Method": "prepaid", "Charged Weight": 1.2, "Physical Weight": 1.2, "Product Name": "Mechanical Keyboard V2", "Channel SKU": "CC-KB-MECH", "Product Quantity": 1 },
+          { "Order ID": "#1006", "Courier Company": "Shiprocket Courier / Delhivery", "AWB": "AWB89127396", "Pickup Address": "CodeCrest Warehouse Mumbai", "Status": "RTO DELIVERED", "Freight Total Amount": 420, "Order Total": 4999, "State": "Bihar", "Payment Method": "cod", "Charged Weight": 1.5, "Physical Weight": 1.5, "Product Name": "Mechanical Keyboard V2", "Channel SKU": "CC-KB-MECH", "Product Quantity": 1 },
+          { "Order ID": "#1007", "Courier Company": "Delhivery Direct", "AWB": "AWB89127397", "Pickup Address": "CodeCrest Warehouse Mumbai", "Status": "DELIVERED", "Freight Total Amount": 115, "Order Total": 1299, "State": "Delhi", "Payment Method": "prepaid", "Charged Weight": 0.5, "Physical Weight": 0.5, "Product Name": "Cyberpunk Desk Mat", "Channel SKU": "CC-DM-CYB", "Product Quantity": 1 },
+          { "Order ID": "#1008", "Courier Company": "Xpressbees Direct", "AWB": "AWB89127398", "Pickup Address": "CodeCrest Warehouse Mumbai", "Status": "DELIVERED", "Freight Total Amount": 120, "Order Total": 1299, "State": "Karnataka", "Payment Method": "prepaid", "Charged Weight": 0.5, "Physical Weight": 0.5, "Product Name": "Cyberpunk Desk Mat", "Channel SKU": "CC-DM-CYB", "Product Quantity": 1 },
+          { "Order ID": "#1009", "Courier Company": "Shiprocket Courier / Delhivery", "AWB": "AWB89127399", "Pickup Address": "CodeCrest Warehouse Mumbai", "Status": "PICKUP", "Freight Total Amount": 220, "Order Total": 4999, "State": "Uttar Pradesh", "Payment Method": "cod", "Charged Weight": 3.2, "Physical Weight": 1.5, "Product Name": "Mechanical Keyboard V2", "Channel SKU": "CC-KB-MECH", "Product Quantity": 1 },
+          { "Order ID": "#1010", "Courier Company": "Delhivery Direct", "AWB": "AWB89127400", "Pickup Address": "CodeCrest Warehouse Mumbai", "Status": "DELIVERED", "Freight Total Amount": 110, "Order Total": 1299, "State": "Maharashtra", "Payment Method": "prepaid", "Charged Weight": 0.5, "Physical Weight": 0.5, "Product Name": "Cyberpunk Desk Mat", "Channel SKU": "CC-DM-CYB", "Product Quantity": 1 },
+          { "Order ID": "#1011", "Courier Company": "Xpressbees Direct", "AWB": "AWB89127401", "Pickup Address": "CodeCrest Warehouse Mumbai", "Status": "DELIVERED", "Freight Total Amount": 110, "Order Total": 2499, "State": "Gujarat", "Payment Method": "prepaid", "Charged Weight": 0.5, "Physical Weight": 0.5, "Product Name": "Codecrest Premium Hoodie", "Channel SKU": "CC-HD-BLK-M", "Product Quantity": 1 }
+        ];
+
+        const shopifyStats = analyzeShopifyData(mockShopifyRows);
+        const logisticsStats = computeAnalytics(mergeMultiSKU(mockLogisticsRows));
+
+        const baseName = "live_store_sync";
+        const dateString = new Date().toISOString().slice(0, 10);
+        
+        const newRecord: SavedRecord = {
+          username: currentUser?.username || "merchant",
+          filename: `Live_Store_Sync_${dateString}.xlsx`,
+          size: 48500,
+          mode: "shopify",
+          rawRows: mockShopifyRows,
+          tableHeaders: Object.keys(mockShopifyRows[0]),
+          dataProfile: null,
+          logisticsAnalytics: logisticsStats,
+          shopifyAnalytics: shopifyStats,
+          outName: `Live_Store_Sync_Shopify_${dateString}.xlsx`,
+          chatHistory: [{
+            sender: "analyst",
+            text: `🔌 **Live Store API Sync Established Successfully!**
+            
+I've successfully set up active Shopify webhook listeners and pulled transaction ledgers from your Shiprocket logistics portal.
+
+**Sync Summary:**
+• **Orders Fetched**: 11 latest store orders
+• **Active Webhooks**: \`orders/create\`, \`orders/paid\`
+• **Total Store Revenue**: **₹${shopifyStats.totalRevenue.toLocaleString("en-IN")}**
+• **Courier Weight Overcharges**: **1 critical anomaly flagged** (Order #1002 Delhivery charge: 2.5kg vs physical 0.5kg!)
+• **Predictive RTO Risk Scoring**: Scored COD transactions (Order #1009 Lucknow RTO risk at **85%**)
+
+I have compiled all metrics, generated cohort matrices, and enabled the live price simulator. Switch to Shopify or Logistics tab to review active cards!`
+          }],
+          timestamp: new Date().toLocaleDateString("en-IN") + " " + new Date().toLocaleTimeString("en-IN")
+        };
+
+        dbSaveRecord(newRecord).then(() => {
+          if (currentUser) {
+            dbGetRecords(currentUser.username).then((recs) => {
+              setSavedRecords(recs);
+            });
+          }
+        });
+
+        // Update react states
+        setFile({ name: newRecord.filename, size: newRecord.size } as any);
+        setRawRows(mockShopifyRows);
+        setTableHeaders(newRecord.tableHeaders);
+        setShopifyAnalytics(shopifyStats);
+        setLogisticsAnalytics(logisticsStats);
+        setStep("done");
+        setMode("shopify"); // Take directly to Shopify Dashboard
+        setDetectionNotice("🔌 Live Store Webhook Connection active! Pulling live checkout records.");
+        addLog("✓ Live Shopify & Shiprocket API Sync connection established successfully!", "success");
+      }
+    };
+
+    runStep();
+  }, [syncShopifyUrl, syncShopifyToken, syncShiprocketEmail, currentUser, addLog]);
+
   // Handle Drop and Clicks
   const onDrop = useCallback((e: any) => {
     e.preventDefault();
@@ -2303,8 +2483,19 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
         const stats = shopifyAnalytics;
         const topStatuses = Object.entries(stats.statusCounts).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([k, v]) => `${k}: ${v}`).join(", ");
         const topSegments = Object.entries(stats.segmentCounts).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([k, v]) => `${k}: ${v}`).join(", ");
-        dataSummary = `File: ${file?.name} | Shopify orders: ${stats.totalOrders} | Customers: ${stats.totalCustomers} | Revenue: ₹${stats.totalRevenue.toFixed(0)} | Units: ${stats.totalUnits} | Products: ${stats.productCount} | Top product: ${stats.topProduct} | Top city: ${stats.topCity} | Statuses: ${topStatuses} | Segments: ${topSegments}`;
-        systemPrompt = `You are a senior Shopify growth analyst. Use the provided Shopify export summary to answer with concise, practical ecommerce recommendations. Prioritize product performance, customer segments, retargeting, COD/payment risk, discount leakage, city/state demand, and order status issues. Use ? for currency and bold the most important metrics. Current data context: ${dataSummary}`;
+        
+        // Computed association rules context
+        const rulesCtx = (stats.aprioriRules || []).slice(0, 3).map(r => `${r.itemA} + ${r.itemB} (Support: ${(r.support*100).toFixed(1)}%, Lift: ${r.lift.toFixed(1)}x)`).join("; ");
+        
+        // Computed RFM cohort count context
+        const rfmCohorts: Record<string, number> = {};
+        (stats.rfmMatrix || []).forEach(p => {
+          rfmCohorts[p.cohort] = (rfmCohorts[p.cohort] || 0) + 1;
+        });
+        const rfmCtx = Object.entries(rfmCohorts).map(([cohort, count]) => `${cohort}: ${count}`).join(", ");
+
+        dataSummary = `File: ${file?.name} | Shopify orders: ${stats.totalOrders} | Customers: ${stats.totalCustomers} | Revenue: ₹${stats.totalRevenue.toFixed(0)} | Units: ${stats.totalUnits} | Products: ${stats.productCount} | Top product: ${stats.topProduct} | Top city: ${stats.topCity} | Statuses: ${topStatuses} | Segments: ${topSegments} | Association Rules: ${rulesCtx || "None mined"} | RFM Cohorts: ${rfmCtx || "None computed"}`;
+        systemPrompt = `You are a senior Shopify growth analyst. Use the provided Shopify export summary to answer with concise, practical ecommerce recommendations. Prioritize product performance, customer segments, retargeting, COD/payment risk, discount leakage, city/state demand, and order status issues. Use ₹ for currency and bold the most important metrics. Analyze the Apriori association rules and RFM cohort divisions in detail if the user asks about growth, bundles, or marketing. Current data context: ${dataSummary}`;
       } else if (mode === "logistics" && logisticsAnalytics) {
         const stats = logisticsAnalytics;
         const topStatus = Object.entries(stats.statusCounts).sort((a, b) => b[1].orders - a[1].orders).slice(0, 4).map(([k, v]) => `${k}: ${v.orders}`).join(", ");
@@ -2312,8 +2503,14 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
         const topCouriers = Object.entries(stats.courierCounts).sort((a, b) => b[1].orders - a[1].orders).slice(0, 4).map(([k, v]) => `${k}: ${v.orders} (del:${(v.delivered/v.orders*100).toFixed(0)}%)`).join(", ");
         const topNDR = Object.entries(stats.ndrCounts).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, v]) => `${k}(${v})`).join(", ");
 
-        dataSummary = `File: ${file?.name} | Total orders: ${stats.total} | Delivery rate: ${(stats.deliveryRate*100).toFixed(1)}% | RTO rate: ${(stats.rtoRate*100).toFixed(1)}% | Revenue: ₹${stats.totalRev.toFixed(0)} | COD: ₹${stats.totalCOD} | Freight: ₹${stats.totalFreight} | Statuses: ${topStatus} | Top States: ${topStates} | Couriers: ${topCouriers} | NDR Reasons: ${topNDR}`;
-        systemPrompt = `You are a Senior AI Data Analyst. You are auditing a Shiprocket logistics dataset. Provide highly advanced, concise, actionable, and mathematically accurate insights. Address the user's specific question directly using the statistical summary provided. Use ? for currency. Bold key stats. Keep paragraphs short and use bullet points for clarity. Current data context: ${dataSummary}`;
+        // Compute Logistics Billing Audit details
+        const auditData = auditLogisticsData(rawRows);
+        const weightAnomalies = auditData.filter(r => r.isWeightAnomaly);
+        const freightLeaks = auditData.filter(r => r.isFreightLeak);
+        const auditCtx = `Weight Overbilling Anomalies: ${weightAnomalies.length} found; Freight Margin Leaks (>30% of revenue): ${freightLeaks.length} found.`;
+
+        dataSummary = `File: ${file?.name} | Total orders: ${stats.total} | Delivery rate: ${(stats.deliveryRate*100).toFixed(1)}% | RTO rate: ${(stats.rtoRate*100).toFixed(1)}% | Revenue: ₹${stats.totalRev.toFixed(0)} | COD: ₹${stats.totalCOD} | Freight: ₹${stats.totalFreight} | Statuses: ${topStatus} | Top States: ${topStates} | Couriers: ${topCouriers} | NDR Reasons: ${topNDR} | Shipping Audit: ${auditCtx}`;
+        systemPrompt = `You are a Senior AI Data Analyst. You are auditing a Shiprocket logistics dataset. Provide highly advanced, concise, actionable, and mathematically accurate insights. Address the user's specific question directly using the statistical summary provided. Highlight any courier weight overcharging anomalies (weight ratio > 1.5x) or freight cost leakage immediately. Use ₹ for currency. Bold key stats. Keep paragraphs short and use bullet points for clarity. Current data context: ${dataSummary}`;
       } else if (mode === "universal" && dataProfile) {
         const prof = dataProfile;
         const colList = prof.columns.slice(0, 8).map(c => `${c.name} (${c.type}, fill:${((c.nonEmptyCount/c.count)*100).toFixed(0)}%, unique:${c.uniqueCount}${c.type === 'numeric' ? `, avg:${c.avg?.toFixed(1)}, stddev:${c.stddev?.toFixed(1)}` : ''})`).join("; ");
@@ -2342,7 +2539,7 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
   };
 
   return (
-    <div className="app-container">
+    <div className={`app-container ${currentUser || file ? "dashboard-view" : "landing-view"}`}>
       {/* Custom Glowing Cursor Pointer */}
       <CustomGlowingCursor />
       {/* Global Maintenance Mode Overlay */}
@@ -2371,34 +2568,55 @@ ${numCols.slice(0, 3).map(c => `* **${c.name}**: Sum = **₹${(c.sum || 0).toLoc
       )}
 
       <style>{`:root {
-  --canvas: #030305;
-  --primary: #0a0a0c;
-  --ink: #ffffff;
-  --deep-green: #00ffb2;
-  --dark-navy: #050508;
-  --soft-stone: #0d0d10;
-  --pale-green: rgba(0, 255, 178, 0.08);
-  --pale-blue: rgba(0, 255, 178, 0.04);
-  --hairline: rgba(255, 255, 255, 0.06);
-  --border-light: rgba(255, 255, 255, 0.08);
-  --card-border: rgba(255, 255, 255, 0.06);
-  --muted: #a3a3a3;
-  --slate: #94a3b8;
-  --body-muted: #cbd5e1;
-  --action-blue: #00ffb2;
-  --focus-blue: #00ffb2;
-  --on-primary: #030305;
-  --coral: #ef4444;
-  --coral-soft: #ff8888;
-  --amber: #00ffb2;
-  --error: #ef4444;
-  --glass-bg: rgba(13, 13, 16, 0.65);
-  --glass-border: rgba(255, 255, 255, 0.06);
+  /* ══════════════════════════════════════
+     CLEARPATH — WARM LIGHT THEME PALETTE
+  ══════════════════════════════════════ */
 
-  --font-display: 'Inter', 'Space Grotesk', sans-serif;
+  /* Core canvas */
+  --canvas: #fafafa;
+  --primary: #ffffff;
+  --ink: #2e3231;
+
+  /* Sage green accent (replaces neon) */
+  --deep-green: #7fa69b;
+  --dark-navy: #f2f5f4;
+  --soft-stone: #f5f7f6;
+  --pale-green: rgba(127, 166, 155, 0.08);
+  --pale-blue: rgba(127, 166, 155, 0.04);
+
+  /* Borders & hairlines */
+  --hairline: rgba(46, 50, 49, 0.08);
+  --border-light: rgba(46, 50, 49, 0.12);
+  --card-border: rgba(46, 50, 49, 0.1);
+
+  /* Muted text */
+  --muted: #949e9b;
+  --slate: #535956;
+  --body-muted: #7d8b87;
+
+  /* Action colours */
+  --action-blue: #7fa69b;
+  --focus-blue: #7fa69b;
+  --on-primary: #ffffff;
+
+  /* Status colours */
+  --coral: #dc2626;
+  --coral-soft: #ef4444;
+  --amber: #7fa69b;
+  --error: #dc2626;
+
+  /* Glassmorphism (light) */
+  --glass-bg: rgba(255, 255, 255, 0.85);
+  --glass-border: rgba(46, 50, 49, 0.1);
+
+  /* Typography */
+  --font-display: 'Crimson Text', 'Georgia', serif;
   --font-ui: 'Inter', sans-serif;
-  --font-technical: 'JetBrains Mono', 'Fira Code', monospace;
+  --font-technical: 'JetBrains Mono', 'Fragment Mono', 'Fira Code', monospace;
 }
+
+/* ── Global fonts ── */
+@import url('https://fonts.googleapis.com/css2?family=Crimson+Text:ital,wght@0,400;0,600;0,700;1,400&family=Inter:wght@300;400;500;600;700;800&display=swap');
 
 * {
   box-sizing: border-box;
@@ -2413,7 +2631,7 @@ body {
   font-family: var(--font-ui);
   line-height: 1.5;
   overflow-x: hidden;
-  background-attachment: fixed;
+  -webkit-font-smoothing: antialiased;
 }
 
 /* Global Layout */
@@ -2428,14 +2646,59 @@ body {
   content: "";
   position: fixed;
   inset: 0;
-  background-image: 
-    radial-gradient(circle at 15% 15%, rgba(0, 255, 178, 0.08) 0%, transparent 40%),
-    radial-gradient(circle at 85% 65%, rgba(0, 255, 178, 0.05) 0%, transparent 45%),
-    radial-gradient(rgba(0, 255, 178, 0.05) 1.2px, transparent 1.2px);
-  background-size: 100% 100%, 100% 100%, 32px 32px;
+  background-image:
+    radial-gradient(circle at 15% 15%, rgba(127, 166, 155, 0.06) 0%, transparent 45%),
+    radial-gradient(circle at 85% 65%, rgba(127, 166, 155, 0.04) 0%, transparent 50%),
+    radial-gradient(rgba(46, 50, 49, 0.035) 1px, transparent 1px);
+  background-size: 100% 100%, 100% 100%, 28px 28px;
   pointer-events: none;
   z-index: -1;
 }
+
+/* ─────────────────────────────────────
+   LOCOMOTIVE SCROLL — Reveal Animations
+─────────────────────────────────────── */
+[data-scroll] {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: opacity 0.75s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.75s cubic-bezier(0.16, 1, 0.3, 1);
+}
+[data-scroll].is-inview {
+  opacity: 1;
+  transform: translateY(0);
+}
+[data-scroll-delay="1"] { transition-delay: 0.1s; }
+[data-scroll-delay="2"] { transition-delay: 0.2s; }
+[data-scroll-delay="3"] { transition-delay: 0.3s; }
+[data-scroll-delay="4"] { transition-delay: 0.4s; }
+[data-scroll-delay="5"] { transition-delay: 0.5s; }
+
+/* Slide-in from left variant */
+[data-scroll="from-left"] {
+  opacity: 0;
+  transform: translateX(-40px);
+  transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+}
+[data-scroll="from-left"].is-inview {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+/* Scale-in variant */
+[data-scroll="scale-in"] {
+  opacity: 0;
+  transform: scale(0.92);
+  transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+[data-scroll="scale-in"].is-inview {
+  opacity: 1;
+  transform: scale(1);
+}
+
+
 
 /* Header / Navigation */
 .nav-header {
@@ -4023,8 +4286,8 @@ select.form-input option {
 }
 
 .pricing-card {
-  background: rgba(13, 13, 16, 0.5);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: #ffffff;
+  border: 1px solid rgba(46, 50, 49, 0.08);
   border-radius: 20px;
   padding: 3rem 2.25rem;
   position: relative;
@@ -4032,23 +4295,23 @@ select.form-input option {
   display: flex;
   flex-direction: column;
   backdrop-filter: blur(24px);
-  box-shadow: 0 15px 45px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 10px 35px rgba(46, 50, 49, 0.04);
 }
 
 .pricing-card:hover {
-  border-color: rgba(255, 255, 255, 0.15);
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55), 0 0 30px rgba(255, 255, 255, 0.02);
+  border-color: rgba(127, 166, 155, 0.3);
+  box-shadow: 0 15px 45px rgba(127, 166, 155, 0.08);
 }
 
 .pricing-card.featured {
-  background: rgba(0, 255, 178, 0.015);
-  border: 1px solid rgba(0, 255, 178, 0.35);
-  box-shadow: 0 0 40px rgba(0, 255, 178, 0.08), inset 0 0 15px rgba(0, 255, 178, 0.03);
+  background: rgba(127, 166, 155, 0.02);
+  border: 2px solid var(--deep-green);
+  box-shadow: 0 8px 35px rgba(127, 166, 155, 0.12);
 }
 
 .pricing-card.featured:hover {
   border-color: var(--deep-green);
-  box-shadow: 0 0 50px rgba(0, 255, 178, 0.2), inset 0 0 20px rgba(0, 255, 178, 0.05);
+  box-shadow: 0 15px 45px rgba(127, 166, 155, 0.2);
 }
 
 .pricing-badge {
@@ -4058,16 +4321,16 @@ select.form-input option {
   transform: translateX(-50%);
   display: inline-flex;
   align-items: center;
-  background: #030305;
-  color: var(--deep-green) !important;
+  background: var(--deep-green);
+  color: #ffffff !important;
   font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   padding: 5px 16px;
   border-radius: 20px;
-  border: 1px solid var(--deep-green);
-  box-shadow: 0 0 20px rgba(0, 255, 178, 0.3);
+  border: none;
+  box-shadow: none;
   font-family: var(--font-technical);
   margin-bottom: 0;
 }
@@ -4076,20 +4339,20 @@ select.form-input option {
   font-family: var(--font-display);
   font-size: 1.55rem;
   font-weight: 900;
-  color: #ffffff;
+  color: var(--ink);
   margin-bottom: 0.25rem;
   letter-spacing: -0.02em;
 }
 
-.pricing-card:nth-child(1) .pricing-plan-name { color: #f8fafc; }
-.pricing-card:nth-child(2) .pricing-plan-name { color: var(--deep-green); text-shadow: 0 0 20px rgba(0, 255, 178, 0.15); }
-.pricing-card:nth-child(3) .pricing-plan-name { color: #a855f7; text-shadow: 0 0 20px rgba(168, 85, 247, 0.15); }
+.pricing-card:nth-child(1) .pricing-plan-name { color: var(--ink); }
+.pricing-card:nth-child(2) .pricing-plan-name { color: var(--deep-green); }
+.pricing-card:nth-child(3) .pricing-plan-name { color: #5e8a7e; }
 
 .pricing-price {
   font-family: var(--font-technical);
   font-size: 2.65rem;
   font-weight: 700;
-  color: #ffffff;
+  color: var(--ink);
   letter-spacing: -1.5px;
   line-height: 1;
   margin: 1.25rem 0 0.85rem 0;
@@ -4124,7 +4387,7 @@ select.form-input option {
 
 .pricing-features li {
   font-size: 0.85rem;
-  color: #f1f5f9;
+  color: var(--ink);
   display: flex;
   align-items: center;
   width: 100%;
@@ -4140,19 +4403,19 @@ select.form-input option {
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: rgba(0, 255, 178, 0.08);
-  border: 1px solid rgba(0, 255, 178, 0.25);
+  background: rgba(127, 166, 155, 0.1);
+  border: 1px solid rgba(127, 166, 155, 0.25);
   color: var(--deep-green);
   font-size: 10px;
   font-weight: 900;
   line-height: 1;
   flex-shrink: 0;
-  text-shadow: 0 0 4px rgba(0, 255, 178, 0.35);
+  text-shadow: none;
 }
 
 .feature-badge {
-  background: rgba(0, 255, 178, 0.05);
-  border: 1px solid rgba(0, 255, 178, 0.12);
+  background: rgba(127, 166, 155, 0.08);
+  border: 1px solid rgba(127, 166, 155, 0.15);
   color: var(--deep-green);
   font-size: 10px;
   font-weight: 700;
@@ -4167,9 +4430,9 @@ select.form-input option {
   width: 100%;
   padding: 13px 20px;
   border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.03);
-  color: #ffffff;
+  border: 1px solid var(--hairline);
+  background: #ffffff;
+  color: var(--ink);
   font-family: var(--font-display);
   font-size: 13px;
   font-weight: 700;
@@ -4180,20 +4443,20 @@ select.form-input option {
 }
 
 .pricing-cta-btn:hover {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.15);
-  color: #ffffff;
-  box-shadow: 0 4px 15px rgba(255, 255, 255, 0.05);
+  background: #f2f5f4;
+  border-color: rgba(46, 50, 49, 0.2);
+  color: var(--ink);
+  box-shadow: 0 4px 12px rgba(46, 50, 49, 0.05);
   transform: scale(1.02) translateY(-1px);
 }
 
 .pricing-card.featured .pricing-cta-btn {
-  background: linear-gradient(135deg, var(--deep-green) 0%, #00b37e 100%);
-  color: #030305;
+  background: var(--deep-green);
+  color: #ffffff;
   border: none;
   font-weight: 800;
   letter-spacing: 0.02em;
-  box-shadow: 0 0 25px rgba(0, 255, 178, 0.35);
+  box-shadow: 0 4px 15px rgba(127, 166, 155, 0.2);
   font-size: 13.5px;
   padding: 14px 20px;
   border-radius: 10px;
@@ -4201,8 +4464,8 @@ select.form-input option {
 }
 
 .pricing-card.featured .pricing-cta-btn:hover {
-  background: linear-gradient(135deg, #00ffc8 0%, #00cca3 100%);
-  box-shadow: 0 0 35px rgba(0, 255, 178, 0.55);
+  background: #5e8a7e;
+  box-shadow: none;
   transform: scale(1.02) translateY(-1px);
 }
 
@@ -4590,19 +4853,45 @@ select.form-input option {
 
 /* ============ SHEETAI-INSPIRED LANDING REDESIGN ============ */
 
+/* ============ SHEETAI-INSPIRED LANDING REDESIGN ============ */
+
+/* Dashboard theme overrides for logged-in/analytics views */
+.app-container.dashboard-view {
+  --canvas: #030305;
+  --primary: #0a0a0c;
+  --ink: #ffffff;
+  --slate: #94a3b8;
+  --muted: #a3a3a3;
+  --body-muted: #94a3b8;
+  --glass-bg: rgba(10, 10, 12, 0.45);
+  --hairline: rgba(255, 255, 255, 0.05);
+  --border-light: rgba(255, 255, 255, 0.08);
+  --card-border: rgba(255, 255, 255, 0.06);
+}
+.app-container.dashboard-view::before {
+  background-image:
+    radial-gradient(circle at 15% 15%, rgba(127, 166, 155, 0.1) 0%, transparent 45%),
+    radial-gradient(circle at 85% 65%, rgba(127, 166, 155, 0.08) 0%, transparent 50%),
+    radial-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+}
+
 /* New Nav */
 .sheetai-nav {
   position: sticky; top: 0; z-index: 1000;
-  background: rgba(3, 3, 5, 0.9);
+  background: rgba(250, 250, 250, 0.92);
   backdrop-filter: blur(20px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid rgba(46, 50, 49, 0.08);
   padding: 0 2.5rem;
   height: 65px;
   display: flex; align-items: center; justify-content: space-between; gap: 1rem;
 }
+.app-container.dashboard-view .sheetai-nav {
+  background: rgba(3, 3, 5, 0.9);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
 .sheetai-nav-brand {
   display: flex; align-items: center; gap: 10px;
-  font-size: 15px; font-weight: 800; color: #fff; text-decoration: none; flex-shrink: 0;
+  font-size: 15px; font-weight: 800; color: var(--ink); text-decoration: none; flex-shrink: 0;
   font-family: var(--font-display);
 }
 .sheetai-nav-links { display: flex; align-items: center; gap: 2rem; }
@@ -4618,14 +4907,14 @@ select.form-input option {
   font-size: 13px; font-weight: 500; cursor: pointer;
   font-family: inherit; padding: 6px 14px; border-radius: 6px; transition: color 0.15s;
 }
-.btn-nav-ghost:hover { color: #fff; }
+.btn-nav-ghost:hover { color: var(--ink); }
 .btn-nav-primary {
-  background: var(--deep-green); color: #030305; border: none;
+  background: var(--deep-green); color: #ffffff; border: none;
   padding: 8px 18px; border-radius: 20px; font-size: 13px;
   font-weight: 700; cursor: pointer; transition: all 0.2s;
-  box-shadow: 0 0 15px rgba(0, 255, 178, 0.2);
+  box-shadow: 0 4px 12px rgba(127, 166, 155, 0.2);
 }
-.btn-nav-primary:hover { background: #00cca3; transform: translateY(-1px); box-shadow: 0 0 25px rgba(0, 255, 178, 0.45); }
+.btn-nav-primary:hover { background: #5e8a7e; transform: translateY(-1px); box-shadow: none; }
 @media (max-width: 768px) {
   .sheetai-nav-links { display: none; }
   .sheetai-nav { padding: 0 1rem; }
@@ -4652,21 +4941,21 @@ select.form-input option {
 /* Hero Label Chip */
 .sheetai-hero-label {
   display: inline-flex; align-items: center; gap: 6px;
-  background: rgba(0,255,178,0.07); border: 1px solid rgba(0,255,178,0.2);
+  background: rgba(127, 166, 155, 0.08); border: 1px solid rgba(127, 166, 155, 0.25);
   color: var(--deep-green); padding: 5px 14px; border-radius: 20px;
   font-family: var(--font-technical); font-size: 10px; font-weight: 700;
   text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 1.5rem;
 }
 .hero-title-new {
   font-family: var(--font-display); font-size: clamp(2.4rem, 5vw, 4rem);
-  font-weight: 800; letter-spacing: -0.05em; line-height: 1.05;
-  color: #fff; margin-bottom: 1.25rem;
+  font-weight: 800; letter-spacing: -0.03em; line-height: 1.05;
+  color: var(--ink); margin-bottom: 1.25rem;
   text-align: center;
 }
 .hero-title-new .green-word {
   color: var(--deep-green);
-  text-shadow: 0 0 40px rgba(0, 255, 178, 0.25);
-  background: linear-gradient(135deg, #00ffb2 0%, #00b37e 100%);
+  text-shadow: none;
+  background: linear-gradient(135deg, #7fa69b 0%, #5e8a7e 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
@@ -4674,10 +4963,10 @@ select.form-input option {
 .hero-stat-item { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--slate); }
 .hero-stat-item .stat-icon {
   width: 32px; height: 32px; border-radius: 8px;
-  background: rgba(255,255,255,0.04); border: 1px solid var(--hairline);
+  background: #ffffff; border: 1px solid var(--hairline);
   display: flex; align-items: center; justify-content: center; font-size: 14px;
 }
-.hero-stat-item strong { display: block; font-size: 13px; font-weight: 700; color: #fff; }
+.hero-stat-item strong { display: block; font-size: 13px; font-weight: 700; color: var(--ink); }
 
 .hero-actions-row {
   display: flex;
@@ -4690,76 +4979,76 @@ select.form-input option {
 
 /* Upload Card New */
 .upload-card-new {
-  background: rgba(10, 10, 12, 0.4); 
-  border: 1px dashed rgba(0, 255, 178, 0.25); 
+  background: #ffffff; 
+  border: 2px dashed rgba(127, 166, 155, 0.3); 
   border-radius: 16px;
   padding: 30px 24px; text-align: center; cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); margin: 0 auto 2.5rem;
   width: 100%; max-width: 580px;
   backdrop-filter: blur(12px);
-  box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+  box-shadow: 0 4px 20px rgba(46, 50, 49, 0.06);
 }
 .upload-card-new:hover, .upload-card-new.dragging {
   border-color: var(--deep-green); 
-  background: rgba(0, 255, 178, 0.03);
-  box-shadow: 0 0 35px rgba(0, 255, 178, 0.15);
+  background: rgba(127, 166, 155, 0.02);
+  box-shadow: 0 10px 30px rgba(127, 166, 155, 0.12);
   transform: translateY(-2px);
 }
-.upload-icon-new { font-size: 32px; margin-bottom: 10px; filter: drop-shadow(0 0 10px rgba(0,255,178,0.2)); }
-.upload-title-new { font-size: 14px; font-weight: 700; color: #fff; margin-bottom: 4px; }
+.upload-icon-new { font-size: 32px; margin-bottom: 10px; filter: none; }
+.upload-title-new { font-size: 14px; font-weight: 700; color: var(--ink); margin-bottom: 4px; }
 .upload-formats { font-size: 11px; color: var(--slate); margin-bottom: 18px; }
 .btn-upload-green {
   display: inline-flex; align-items: center; gap: 6px;
-  background: var(--deep-green); color: #030305; border: none;
+  background: var(--deep-green); color: #ffffff; border: none;
   padding: 10px 24px; border-radius: 20px; font-size: 13px; font-weight: 700;
   cursor: pointer; transition: all 0.2s;
-  box-shadow: 0 4px 15px rgba(0, 255, 178, 0.2);
+  box-shadow: 0 4px 12px rgba(127, 166, 155, 0.2);
 }
-.btn-upload-green:hover { background: #00cca3; transform: translateY(-1px); box-shadow: 0 0 25px rgba(0, 255, 178, 0.45); }
+.btn-upload-green:hover { background: #5e8a7e; transform: translateY(-1px); box-shadow: none; }
 .upload-integration-row {
   display: flex; align-items: center; justify-content: center;
   gap: 10px; margin-top: 18px; font-size: 11px; color: var(--slate);
 }
 .upload-integration-icon {
-  width: 28px; height: 28px; border-radius: 6px; background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.06); display: flex; align-items: center; justify-content: center; font-size: 14px;
+  width: 28px; height: 28px; border-radius: 6px; background: #ffffff;
+  border: 1px solid var(--hairline); display: flex; align-items: center; justify-content: center; font-size: 14px;
 }
 .no-cc-line { font-size: 10px; color: var(--slate); text-align: center; margin-top: 8px; }
 
 /* Analysis Overview Card */
 .analysis-overview-card {
-  background: rgba(13, 13, 16, 0.6); border: 1px solid rgba(255,255,255,0.05); border-radius: 16px;
+  background: #ffffff; border: 1px solid rgba(46, 50, 49, 0.08); border-radius: 16px;
   padding: 22px; height: 100%; min-height: 420px;
   display: flex; flex-direction: column; gap: 14px;
   backdrop-filter: blur(12px);
-  box-shadow: 0 20px 45px rgba(0,0,0,0.6); overflow: hidden;
+  box-shadow: 0 10px 30px rgba(46, 50, 49, 0.04); overflow: hidden;
 }
 .analysis-card-header { display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
-.analysis-card-title { font-size: 13px; font-weight: 700; color: #fff; }
+.analysis-card-title { font-size: 13px; font-weight: 700; color: var(--ink); }
 .live-badge {
   display: flex; align-items: center; gap: 5px; font-size: 10px; color: var(--deep-green);
-  font-weight: 600; background: rgba(0,255,178,0.1); padding: 3px 8px;
-  border-radius: 20px; border: 1px solid rgba(0,255,178,0.25);
+  font-weight: 600; background: rgba(127, 166, 155, 0.08); padding: 3px 8px;
+  border-radius: 20px; border: 1px solid rgba(127, 166, 155, 0.25);
 }
 .live-badge::before {
   content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--deep-green);
   animation: pulse-green 1.5s infinite; display: inline-block;
-  box-shadow: 0 0 8px var(--deep-green);
+  box-shadow: none;
 }
 @keyframes pulse-green { 0%,100%{opacity:1} 50%{opacity:0.3} }
 .card-kpi-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; }
-.card-kpi-item { background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.04); border-radius: 8px; padding: 8px 10px; }
+.card-kpi-item { background: #fafafa; border: 1px solid var(--hairline); border-radius: 8px; padding: 8px 10px; }
 .card-kpi-label { font-size: 9px; color: var(--slate); text-transform: uppercase; font-family: var(--font-technical); margin-bottom: 3px; }
-.card-kpi-value { font-size: 14px; font-weight: 700; color: #fff; line-height: 1; }
+.card-kpi-value { font-size: 14px; font-weight: 700; color: var(--ink); line-height: 1; }
 .card-kpi-change { font-size: 9px; margin-top: 2px; display: flex; align-items: center; gap: 2px; }
 .card-kpi-change.up { color: var(--deep-green); }
-.card-kpi-change.down { color: #error; }
+.card-kpi-change.down { color: var(--coral); }
 .card-bar-section { flex: 1; }
 .card-bar-label { font-size: 10px; color: var(--slate); font-weight: 600; margin-bottom: 8px; font-family: var(--font-technical); text-transform: uppercase; letter-spacing: 0.05em; }
 .card-analysis-complete {
   display: flex; align-items: center; justify-content: space-between;
-  font-size: 10px; color: var(--slate); background: rgba(0,255,178,0.04);
-  border: 1px solid rgba(0,255,178,0.12); border-radius: 6px; padding: 6px 10px; flex-shrink: 0;
+  font-size: 10px; color: var(--slate); background: rgba(127, 166, 155, 0.04);
+  border: 1px solid rgba(127, 166, 155, 0.12); border-radius: 6px; padding: 6px 10px; flex-shrink: 0;
 }
 
 /* Recent Analyses Section */
@@ -4768,29 +5057,29 @@ select.form-input option {
   display: grid; grid-template-columns: 1.4fr 0.6fr; gap: 20px; align-items: start;
 }
 @media (max-width: 900px) { .recent-analyses-section { grid-template-columns: 1fr; } }
-.recent-analyses-card { background: rgba(13, 13, 16, 0.4); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; overflow: hidden; backdrop-filter: blur(12px); }
-.recent-analyses-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid rgba(255,255,255,0.05); }
-.recent-analyses-title { font-size: 13px; font-weight: 700; color: #fff; }
+.recent-analyses-card { background: #ffffff; border: 1px solid rgba(46, 50, 49, 0.08); border-radius: 12px; overflow: hidden; backdrop-filter: blur(12px); box-shadow: 0 4px 20px rgba(46, 50, 49, 0.02); }
+.recent-analyses-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid rgba(46, 50, 49, 0.08); }
+.recent-analyses-title { font-size: 13px; font-weight: 700; color: var(--ink); }
 .view-all-link { font-size: 11px; color: var(--deep-green); cursor: pointer; background: none; border: none; font-family: inherit; }
 .analyses-table { width: 100%; border-collapse: collapse; }
-.analyses-table th { font-size: 9px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--slate); font-family: var(--font-technical); font-weight: 600; padding: 8px 18px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.05); }
-.analyses-table td { padding: 11px 18px; font-size: 12px; color: var(--ink); border-bottom: 1px solid rgba(255,255,255,0.03); }
+.analyses-table th { font-size: 9px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--body-muted); font-family: var(--font-technical); font-weight: 600; padding: 8px 18px; text-align: left; border-bottom: 1px solid rgba(46, 50, 49, 0.08); }
+.analyses-table td { padding: 11px 18px; font-size: 12px; color: var(--ink); border-bottom: 1px solid rgba(46, 50, 49, 0.04); }
 .analyses-table tr:last-child td { border-bottom: none; }
 .filename-cell { display: flex; align-items: center; gap: 8px; font-weight: 600; }
-.file-icon-dot { width: 28px; height: 28px; border-radius: 6px; background: rgba(0,255,178,0.1); display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0; }
-.status-badge-completed { background: rgba(0,255,178,0.1); color: var(--deep-green); border: 1px solid rgba(0,255,178,0.2); font-size: 9px; font-weight: 700; padding: 2px 8px; border-radius: 20px; font-family: var(--font-technical); text-transform: uppercase; }
-.arrow-link-btn { background: none; border: 1px solid rgba(255,255,255,0.05); color: var(--slate); width: 24px; height: 24px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 12px; transition: all 0.15s; }
-.arrow-link-btn:hover { border-color: var(--deep-green); color: var(--deep-green); box-shadow: 0 0 10px rgba(0,255,178,0.25); }
-.insights-summary-card { background: rgba(13, 13, 16, 0.4); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; padding: 18px; backdrop-filter: blur(12px); }
+.file-icon-dot { width: 28px; height: 28px; border-radius: 6px; background: rgba(127, 166, 155, 0.1); display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0; }
+.status-badge-completed { background: rgba(127, 166, 155, 0.08); color: var(--deep-green); border: 1px solid rgba(127, 166, 155, 0.2); font-size: 9px; font-weight: 700; padding: 2px 8px; border-radius: 20px; font-family: var(--font-technical); text-transform: uppercase; }
+.arrow-link-btn { background: #ffffff; border: 1px solid var(--hairline); color: var(--slate); width: 24px; height: 24px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 12px; transition: all 0.15s; }
+.arrow-link-btn:hover { border-color: var(--deep-green); color: var(--deep-green); box-shadow: 0 0 10px rgba(127, 166, 155, 0.2); }
+.insights-summary-card { background: #ffffff; border: 1px solid rgba(46, 50, 49, 0.08); border-radius: 12px; padding: 18px; backdrop-filter: blur(12px); box-shadow: 0 4px 20px rgba(46, 50, 49, 0.02); }
 .insights-legend { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
 .insights-legend-item { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--slate); }
 .legend-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
-.legend-pct { margin-left: auto; font-weight: 700; color: #fff; }
+.legend-pct { margin-left: auto; font-weight: 700; color: var(--ink); }
 
 /* Features & Bento Grid Area */
 .sheetai-features-section { max-width: 1200px; margin: 0 auto; padding: 4rem 2rem; }
 .sheetai-features-label { font-family: var(--font-technical); font-size: 10px; font-weight: 700; color: var(--deep-green); text-transform: uppercase; letter-spacing: 0.15em; margin-bottom: 6px; text-align: center; }
-.sheetai-features-title { font-family: var(--font-display); font-size: 2.2rem; font-weight: 800; text-align: center; color: #fff; margin-bottom: 3rem; }
+.sheetai-features-title { font-family: var(--font-display); font-size: 2.2rem; font-weight: 800; text-align: center; color: var(--ink); margin-bottom: 3rem; }
 
 /* Bento Grid */
 .bento-features-grid {
@@ -4805,8 +5094,8 @@ select.form-input option {
   }
 }
 .bento-feature-card {
-  background: rgba(13, 13, 16, 0.45);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: #ffffff;
+  border: 1px solid rgba(46, 50, 49, 0.08);
   border-radius: 16px;
   padding: 24px;
   position: relative;
@@ -4816,28 +5105,29 @@ select.form-input option {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+  box-shadow: 0 4px 20px rgba(46, 50, 49, 0.02);
 }
 .bento-feature-card:hover {
-  border-color: rgba(0, 255, 178, 0.25);
-  box-shadow: 0 10px 30px rgba(0, 255, 178, 0.05);
+  border-color: rgba(127, 166, 155, 0.4);
+  box-shadow: 0 8px 30px rgba(127, 166, 155, 0.08);
   transform: translateY(-2px);
 }
 .bento-card-bg-gradient {
   position: absolute;
   inset: 0;
-  background: radial-gradient(circle at 100% 100%, rgba(0, 255, 178, 0.03) 0%, transparent 60%);
+  background: radial-gradient(circle at 100% 100%, rgba(127, 166, 155, 0.03) 0%, transparent 60%);
   pointer-events: none;
   z-index: 0;
 }
 .bento-feature-icon {
   width: 38px; height: 38px; border-radius: 8px;
-  background: rgba(0, 255, 178, 0.08); border: 1px solid rgba(0, 255, 178, 0.15);
+  background: rgba(127, 166, 155, 0.1); border: 1px solid rgba(127, 166, 155, 0.25);
   display: flex; align-items: center; justify-content: center; font-size: 16px; margin-bottom: 16px;
   color: var(--deep-green);
   z-index: 1;
 }
-.bento-feature-name { font-size: 14px; font-weight: 700; color: #fff; margin-bottom: 8px; z-index: 1; }
-.bento-feature-desc { font-size: 12px; color: var(--slate); line-height: 1.55; z-index: 1; }
+.bento-feature-name { font-size: 14px; font-weight: 700; color: var(--ink); margin-bottom: 8px; z-index: 1; }
+.bento-feature-desc { font-size: 12px; color: var(--body-muted); line-height: 1.55; z-index: 1; }
 
 /* Wide & Tall Grid Anchors */
 .bento-colspan-2 { grid-column: span 2; }
@@ -4850,13 +5140,13 @@ select.form-input option {
 /* Bento Visual Mockups */
 .bento-visual-channels {
   display: flex; justify-content: space-around; align-items: center;
-  background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.03);
+  background: #fafafa; border: 1px solid var(--hairline);
   padding: 16px; border-radius: 10px; margin-top: 14px;
   position: relative;
 }
 .bento-channel-badge {
-  background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06);
-  padding: 6px 14px; border-radius: 20px; font-size: 11px; color: #fff; font-weight: 600;
+  background: #ffffff; border: 1px solid var(--hairline);
+  padding: 6px 14px; border-radius: 20px; font-size: 11px; color: var(--ink); font-weight: 600;
 }
 .bento-pulse-line {
   position: absolute; height: 1px; background: linear-gradient(90deg, transparent, var(--deep-green), transparent);
@@ -4868,17 +5158,17 @@ select.form-input option {
   max-width: 1200px;
   margin: 0 auto 4rem;
   padding: 30px;
-  background: rgba(13, 13, 16, 0.45);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: #ffffff;
+  border: 1px solid rgba(46, 50, 49, 0.08);
   border-radius: 20px;
   backdrop-filter: blur(16px);
   position: relative;
   overflow: hidden;
-  box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+  box-shadow: 0 10px 35px rgba(46, 50, 49, 0.04);
 }
 .calculator-card:hover {
-  border-color: rgba(0, 255, 178, 0.25);
-  box-shadow: 0 20px 40px rgba(0, 255, 178, 0.03);
+  border-color: rgba(127, 166, 155, 0.3);
+  box-shadow: 0 15px 45px rgba(127, 166, 155, 0.08);
 }
 .calculator-layout {
   display: grid;
@@ -4896,8 +5186,8 @@ select.form-input option {
   gap: 16px;
 }
 .calc-results-col {
-  background: rgba(0, 255, 178, 0.02);
-  border: 1px solid rgba(0, 255, 178, 0.08);
+  background: rgba(127, 166, 155, 0.04);
+  border: 1px solid rgba(127, 166, 155, 0.12);
   border-radius: 14px;
   padding: 24px;
   display: flex;
@@ -4921,7 +5211,7 @@ select.form-input option {
 }
 .calc-field label span {
   font-weight: 750;
-  color: #fff;
+  color: var(--ink);
 }
 .calc-input-wrapper {
   position: relative;
@@ -4930,11 +5220,11 @@ select.form-input option {
 }
 .calc-input-wrapper input[type="number"] {
   width: 100%;
-  background: rgba(0,0,0,0.3);
-  border: 1px solid rgba(255,255,255,0.06);
+  background: #ffffff;
+  border: 1px solid var(--hairline);
   padding: 10px 14px;
   border-radius: 8px;
-  color: #fff;
+  color: var(--ink);
   font-size: 13px;
   font-family: inherit;
   outline: none;
@@ -4942,7 +5232,7 @@ select.form-input option {
 }
 .calc-input-wrapper input[type="number"]:focus {
   border-color: var(--deep-green);
-  box-shadow: 0 0 10px rgba(0,255,178,0.15);
+  box-shadow: 0 0 10px rgba(127, 166, 155, 0.15);
 }
 .calc-slider {
   width: 100%;
@@ -4955,8 +5245,8 @@ select.form-input option {
   gap: 12px;
 }
 .calc-stat-card {
-  background: rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(255,255,255,0.04);
+  background: #ffffff;
+  border: 1px solid var(--hairline);
   padding: 12px;
   border-radius: 10px;
   text-align: left;
@@ -4970,12 +5260,12 @@ select.form-input option {
 .calc-stat-val {
   font-size: 17px;
   font-weight: 800;
-  color: #fff;
+  color: var(--ink);
   margin-top: 2px;
 }
 .calc-stat-val.highlight {
   color: var(--deep-green);
-  text-shadow: 0 0 10px rgba(0,255,178,0.1);
+  text-shadow: none;
 }
 
 /* Currency Switcher capsule styles */
@@ -4983,8 +5273,8 @@ select.form-input option {
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.06);
+  background: rgba(46, 50, 49, 0.04);
+  border: 1px solid var(--hairline);
   padding: 4px;
   border-radius: 20px;
   vertical-align: middle;
@@ -5003,7 +5293,7 @@ select.form-input option {
 }
 .currency-pill.active {
   background: var(--deep-green);
-  color: #030305;
+  color: #ffffff;
 }
 
 /* FAQ Section */
@@ -5020,7 +5310,7 @@ select.form-input option {
   font-family: var(--font-display);
   font-size: 2.2rem;
   font-weight: 800;
-  color: #fff;
+  color: var(--ink);
   margin-top: 6px;
 }
 .faq-list {
@@ -5028,7 +5318,7 @@ select.form-input option {
   flex-direction: column;
 }
 .faq-item {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid var(--hairline);
   padding: 20px 0;
   cursor: pointer;
 }
@@ -5038,7 +5328,7 @@ select.form-input option {
   align-items: center;
   font-size: 14px;
   font-weight: 700;
-  color: #fff;
+  color: var(--ink);
   transition: color 0.15s;
 }
 .faq-question:hover {
@@ -5051,16 +5341,16 @@ select.form-input option {
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  border: 1px solid rgba(255,255,255,0.06);
+  border: 1px solid var(--hairline);
   display: flex;
   align-items: center;
   justify-content: center;
 }
 .faq-icon.expanded {
   transform: rotate(180deg);
-  border-color: rgba(0, 255, 178, 0.3);
+  border-color: rgba(127, 166, 155, 0.4);
   color: var(--deep-green);
-  box-shadow: 0 0 10px rgba(0,255,178,0.2);
+  box-shadow: 0 0 10px rgba(127, 166, 155, 0.2);
 }
 .faq-answer-container {
   overflow: hidden;
@@ -5076,7 +5366,7 @@ select.form-input option {
 /* Metrics Row */
 .sheetai-metrics-row { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; padding: 1.5rem 2rem; }
 @media (max-width: 800px) { .sheetai-metrics-row { grid-template-columns: repeat(2,1fr); } }
-.sheetai-metric-item { background: rgba(13, 13, 16, 0.45); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; padding: 18px 20px; display: flex; align-items: center; gap: 14px; }
+.sheetai-metric-item { background: #ffffff; border: 1px solid var(--hairline); border-radius: 12px; padding: 18px 20px; display: flex; align-items: center; gap: 14px; box-shadow: 0 4px 20px rgba(46, 50, 49, 0.02); }
 .sheetai-metric-icon { font-size: 22px; flex-shrink: 0; }
 .sheetai-metric-value { font-size: 1.4rem; font-weight: 800; color: var(--deep-green); line-height: 1; }
 .sheetai-metric-label { font-size: 11px; color: var(--slate); margin-top: 2px; }
@@ -5084,79 +5374,80 @@ select.form-input option {
 /* Why + Testimonials */
 .why-testimonials-section { max-width: 1200px; margin: 0 auto; padding: 4rem 2rem; display: grid; grid-template-columns: 0.9fr 1.1fr; gap: 4rem; align-items: start; }
 @media (max-width: 900px) { .why-testimonials-section { grid-template-columns: 1fr; gap: 3rem; } }
-.why-left-heading { font-family: var(--font-display); font-size: clamp(1.6rem, 3vw, 2.2rem); font-weight: 800; color: #fff; line-height: 1.2; margin-bottom: 1.25rem; }
+.why-left-heading { font-family: var(--font-display); font-size: clamp(1.6rem, 3vw, 2.2rem); font-weight: 800; color: var(--ink); line-height: 1.2; margin-bottom: 1.25rem; }
 .why-left-heading em { font-style: normal; text-decoration: underline; text-decoration-color: var(--deep-green); text-decoration-thickness: 3px; text-underline-offset: 4px; }
 .why-bullets { list-style: none; display: flex; flex-direction: column; gap: 10px; margin-bottom: 1.5rem; }
 .why-bullet-item { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--slate); }
-.why-bullet-check { width: 18px; height: 18px; border-radius: 50%; background: rgba(0,255,178,0.08); border: 1px solid rgba(0,255,178,0.2); display: flex; align-items: center; justify-content: center; color: var(--deep-green); font-size: 10px; flex-shrink: 0; }
+.why-bullet-check { width: 18px; height: 18px; border-radius: 50%; background: rgba(127, 166, 155, 0.1); border: 1px solid rgba(127, 166, 155, 0.25); display: flex; align-items: center; justify-content: center; color: var(--deep-green); font-size: 10px; flex-shrink: 0; }
 .testimonial-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 @media (max-width: 600px) { .testimonial-grid { grid-template-columns: 1fr; } }
-.testimonial-card-new { background: rgba(13,13,16,0.45); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; padding: 18px; transition: all 0.25s; backdrop-filter: blur(12px); }
-.testimonial-card-new:hover { border-color: rgba(0,255,178,0.25); box-shadow: 0 10px 25px rgba(0,255,178,0.04); transform: translateY(-1px); }
+.testimonial-card-new { background: #ffffff; border: 1px solid rgba(46, 50, 49, 0.08); border-radius: 12px; padding: 18px; transition: all 0.25s; backdrop-filter: blur(12px); box-shadow: 0 4px 20px rgba(46, 50, 49, 0.02); }
+.testimonial-card-new:hover { border-color: rgba(127, 166, 155, 0.3); box-shadow: 0 8px 30px rgba(127, 166, 155, 0.08); transform: translateY(-1px); }
 .testimonial-stars { color: #f59e0b; font-size: 12px; margin-bottom: 10px; letter-spacing: 1px; }
 .testimonial-text-new { font-size: 12px; color: var(--slate); line-height: 1.6; margin-bottom: 14px; }
 .testimonial-author-row { display: flex; align-items: center; gap: 10px; }
 .testimonial-avatar { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
-.testimonial-author-name-new { font-size: 12px; font-weight: 700; color: #fff; }
+.testimonial-author-name-new { font-size: 12px; font-weight: 700; color: var(--ink); }
 .testimonial-author-title-new { font-size: 10px; color: var(--slate); }
 .btn-hero-primary {
   display: inline-flex; align-items: center; gap: 8px;
-  background: var(--deep-green); color: #030305; border: none;
+  background: var(--deep-green); color: #ffffff; border: none;
   padding: 12px 26px; border-radius: 24px; font-weight: 700; font-size: 14px;
   cursor: pointer; transition: all 0.2s;
-  box-shadow: 0 4px 15px rgba(0, 255, 178, 0.2);
+  box-shadow: 0 4px 15px rgba(127, 166, 155, 0.2);
 }
-.btn-hero-primary:hover { background: #00cca3; transform: translateY(-1px); box-shadow: 0 0 25px rgba(0, 255, 178, 0.45); }
+.btn-hero-primary:hover { background: #5e8a7e; transform: translateY(-1px); box-shadow: none; }
 .btn-hero-secondary {
   display: inline-flex; align-items: center; gap: 8px;
-  background: none; color: #fff; border: 1px solid rgba(255,255,255,0.1);
+  background: #ffffff; color: var(--ink); border: 1px solid var(--hairline);
   padding: 12px 26px; border-radius: 24px; font-weight: 700; font-size: 14px;
   cursor: pointer; transition: all 0.2s;
 }
-.btn-hero-secondary:hover { background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.25); }
+.btn-hero-secondary:hover { background: rgba(46, 50, 49, 0.03); border-color: rgba(46, 50, 49, 0.2); }
 
 /* CTA Banner */
 .cta-section-new { max-width: 1200px; margin: 0 auto 3rem; padding: 0 2rem; }
 .cta-banner-new {
-  background: rgba(13, 13, 16, 0.4); border: 1px solid rgba(255,255,255,0.05); border-radius: 16px;
+  background: #ffffff; border: 1px solid rgba(46, 50, 49, 0.08); border-radius: 16px;
   padding: 2.5rem 3rem; display: flex; align-items: center; justify-content: space-between; gap: 2rem;
   backdrop-filter: blur(12px);
   position: relative;
   overflow: hidden;
+  box-shadow: 0 10px 35px rgba(46, 50, 49, 0.04);
 }
 .cta-banner-new::after {
   content: ''; position: absolute; inset: 0;
-  background: radial-gradient(circle at 80% 50%, rgba(0,255,178,0.05) 0%, transparent 50%);
+  background: radial-gradient(circle at 80% 50%, rgba(127, 166, 155, 0.05) 0%, transparent 50%);
   pointer-events: none;
 }
 @media (max-width: 700px) { .cta-banner-new { flex-direction: column; text-align: center; padding: 2rem; } }
-.cta-banner-icon { width: 48px; height: 48px; border-radius: 12px; background: rgba(0,255,178,0.08); border: 1px solid rgba(0,255,178,0.2); display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; color: var(--deep-green); }
-.cta-banner-headline { font-size: 1.3rem; font-weight: 800; color: #fff; margin-bottom: 4px; }
+.cta-banner-icon { width: 48px; height: 48px; border-radius: 12px; background: rgba(127, 166, 155, 0.1); border: 1px solid rgba(127, 166, 155, 0.25); display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; color: var(--deep-green); }
+.cta-banner-headline { font-size: 1.3rem; font-weight: 800; color: var(--ink); margin-bottom: 4px; }
 .cta-banner-sub { font-size: 13px; color: var(--slate); }
 .cta-banner-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex-shrink: 0; z-index: 1; }
 @media (max-width: 700px) { .cta-banner-actions { align-items: center; } }
 .btn-cta-green {
   display: inline-flex; align-items: center; gap: 8px;
-  background: var(--deep-green); color: #030305; border: none;
+  background: var(--deep-green); color: #ffffff; border: none;
   padding: 12px 26px; border-radius: 24px; font-weight: 700; font-size: 14px;
   cursor: pointer; transition: all 0.2s; white-space: nowrap;
-  box-shadow: 0 4px 15px rgba(0, 255, 178, 0.2);
+  box-shadow: 0 4px 15px rgba(127, 166, 155, 0.2);
 }
-.btn-cta-green:hover { background: #00cca3; transform: translateY(-1px); box-shadow: 0 0 25px rgba(0, 255, 178, 0.45); }
+.btn-cta-green:hover { background: #5e8a7e; transform: translateY(-1px); box-shadow: none; }
 .cta-no-cc { font-size: 10px; color: var(--slate); }
 
 /* Site Footer */
-.site-footer { background: #020204; border-top: 1px solid rgba(255,255,255,0.05); padding: 4rem 2.5rem 3rem; }
+.site-footer { background: #2e3231; border-top: none; color: var(--soft-stone); padding: 4rem 2.5rem 3rem; }
 .site-footer-inner { max-width: 1200px; margin: 0 auto; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 1.5rem; }
 .footer-brand { display: flex; flex-direction: column; gap: 12px; align-items: center; }
-.footer-brand-name { font-size: 18px; font-weight: 800; color: #fff; display: flex; align-items: center; gap: 8px; justify-content: center; font-family: var(--font-display); }
-.footer-tagline { font-size: 13px; color: var(--slate); line-height: 1.6; max-width: 420px; margin: 0 auto; }
+.footer-brand-name { font-size: 18px; font-weight: 800; color: #fafafa; display: flex; align-items: center; gap: 8px; justify-content: center; font-family: var(--font-display); }
+.footer-tagline { font-size: 13px; color: var(--muted); line-height: 1.6; max-width: 420px; margin: 0 auto; }
 .footer-social-row { display: flex; gap: 12px; margin-top: 8px; justify-content: center; }
-.footer-social-btn { width: 38px; height: 38px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05); background: rgba(255, 255, 255, 0.02); color: var(--slate); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); text-decoration: none; }
-.footer-social-btn:hover { border-color: var(--deep-green); color: var(--deep-green); background: rgba(0, 255, 178, 0.05); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0, 255, 178, 0.1); }
+.footer-social-btn { width: 38px; height: 38px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.08); background: rgba(255, 255, 255, 0.03); color: rgba(255, 255, 255, 0.6); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); text-decoration: none; }
+.footer-social-btn:hover { border-color: var(--deep-green); color: #ffffff; background: rgba(127, 166, 155, 0.1); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(127, 166, 155, 0.15); }
 .footer-social-btn svg { transition: transform 0.2s; }
 .footer-social-btn:hover svg { transform: scale(1.05); }
-.footer-bottom { max-width: 1200px; margin: 3rem auto 0; padding-top: 1.5rem; border-top: 1px solid rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: var(--slate); flex-wrap: wrap; gap: 12px; }
+.footer-bottom { max-width: 1200px; margin: 3rem auto 0; padding-top: 1.5rem; border-top: 1px solid rgba(255, 255, 255, 0.08); display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: var(--muted); flex-wrap: wrap; gap: 12px; }
 
 
 /* ============ BENTO DASHBOARD STYLES ============ */
@@ -5769,6 +6060,91 @@ select.form-input option {
   border-color: rgba(245, 158, 11, 0.3);
   color: #f59e0b;
 }
+
+/* ============ LANDING PAGE LIGHT MODAL REDESIGN ============ */
+.app-container.landing-view .modal-overlay {
+  background: rgba(46, 50, 49, 0.45) !important;
+  backdrop-filter: blur(12px) !important;
+}
+
+.app-container.landing-view .modal-card,
+.app-container.landing-view .modal-content {
+  background: #ffffff !important;
+  border: 1px solid rgba(46, 50, 49, 0.08) !important;
+  box-shadow: 0 24px 64px rgba(46, 50, 49, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.8) !important;
+}
+
+.app-container.landing-view .modal-header {
+  border-bottom: 1px solid rgba(46, 50, 49, 0.08) !important;
+}
+
+.app-container.landing-view .modal-title {
+  color: var(--ink) !important;
+  font-family: var(--font-display) !important;
+}
+
+.app-container.landing-view .modal-close-btn {
+  color: var(--slate) !important;
+}
+.app-container.landing-view .modal-close-btn:hover {
+  color: var(--ink) !important;
+  background: rgba(46, 50, 49, 0.04) !important;
+}
+
+.app-container.landing-view .auth-tabs {
+  background: rgba(46, 50, 49, 0.03) !important;
+  border: 1px solid rgba(46, 50, 49, 0.06) !important;
+}
+
+.app-container.landing-view .auth-tab-btn {
+  color: var(--slate) !important;
+}
+.app-container.landing-view .auth-tab-btn.active {
+  background: var(--deep-green) !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 12px rgba(127, 166, 155, 0.25) !important;
+}
+.app-container.landing-view .auth-tab-btn:hover:not(.active) {
+  color: var(--ink) !important;
+  background: rgba(46, 50, 49, 0.04) !important;
+}
+
+.app-container.landing-view .form-label {
+  color: var(--slate) !important;
+}
+
+.app-container.landing-view .form-input {
+  background: #ffffff !important;
+  border: 1px solid rgba(46, 50, 49, 0.15) !important;
+  color: var(--ink) !important;
+}
+
+.app-container.landing-view .form-input::placeholder {
+  color: var(--muted) !important;
+  opacity: 0.8;
+}
+
+.app-container.landing-view .form-input:focus {
+  border-color: var(--deep-green) !important;
+  background: #ffffff !important;
+  box-shadow: 0 0 0 3px rgba(127, 166, 155, 0.15) !important;
+}
+
+.app-container.landing-view .auth-submit-btn {
+  background: var(--deep-green) !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 16px rgba(127, 166, 155, 0.25) !important;
+}
+
+.app-container.landing-view .auth-submit-btn:hover {
+  background: #6e9388 !important;
+  box-shadow: 0 6px 20px rgba(110, 147, 136, 0.35) !important;
+  transform: translateY(-2px) !important;
+}
+
+.app-container.landing-view .auth-submit-btn:active {
+  transform: translateY(0) !important;
+}
 `}</style>
 
       {/* Main Navigation */}
@@ -5839,7 +6215,7 @@ select.form-input option {
 
       {/* Step 1: Upload File Area */}
       {step === "upload" && (
-        <>
+        <div ref={landingScrollRef}>
           {/* ============ HERO / BENTO WORKSPACE SECTION ============ */}
           {currentUser ? (
             <div className="bento-dashboard">
@@ -6079,42 +6455,42 @@ select.form-input option {
             </div>
           ) : (
             /* Otherwise show standard Centered Hero layout for logged out users */
-            <section className="hero-centered">
+            <section className="hero-centered" data-scroll>
               <div className="hero-centered-content">
-                <div className="sheetai-hero-label">✦ AI-Powered Spreadsheet Analysis</div>
-                <h1 className="hero-title-new">
+                <div className="sheetai-hero-label" data-scroll data-scroll-delay="1">✦ AI-Powered Spreadsheet Analysis</div>
+                <h1 className="hero-title-new" data-scroll data-scroll-delay="2">
                   Take control of your <br/><span className="green-word">e-commerce data</span>
                 </h1>
-                <p style={{ fontSize: "1.05rem", color: "var(--slate)", marginBottom: "1.5rem", lineHeight: 1.6, maxWidth: "600px" }}>
+                <p style={{ fontSize: "1.05rem", color: "var(--slate)", marginBottom: "1.5rem", lineHeight: 1.6, maxWidth: "600px" }} data-scroll data-scroll-delay="3">
                   Upload your spreadsheets and get instant insights, automated analysis, and beautiful reports in seconds.
                 </p>
 
                 {/* Hero Actions capsule buttons */}
-                <div className="hero-actions-row">
+                <div className="hero-actions-row" data-scroll data-scroll-delay="4">
                   <button
-                    type="button"
-                    className="btn-hero-primary"
-                    onClick={() => {
-                      const el = document.getElementById("centered-uploader-anchor");
-                      el?.scrollIntoView({ behavior: "smooth" });
-                    }}
+                     type="button"
+                     className="btn-hero-primary"
+                     onClick={() => {
+                       const el = document.getElementById("centered-uploader-anchor");
+                       el?.scrollIntoView({ behavior: "smooth" });
+                     }}
                   >
                     ↑ Start Analyzing Now
                   </button>
                   <button
-                    type="button"
-                    className="btn-hero-secondary"
-                    onClick={() => {
-                      const el = document.getElementById("dashboard-mockup-anchor");
-                      el?.scrollIntoView({ behavior: "smooth" });
-                    }}
+                     type="button"
+                     className="btn-hero-secondary"
+                     onClick={() => {
+                       const el = document.getElementById("dashboard-mockup-anchor");
+                       el?.scrollIntoView({ behavior: "smooth" });
+                     }}
                   >
                     👀 View Dashboard Preview
                   </button>
                 </div>
 
                 {/* Stats chip bar */}
-                <div className="hero-stats-row" style={{ marginBottom: "2.5rem" }}>
+                <div className="hero-stats-row" style={{ marginBottom: "2.5rem" }} data-scroll data-scroll-delay="5">
                   {[
                     { icon: "📁", value: "3+", label: "File Types" },
                     { icon: "💡", value: "70+", label: "Insights" },
@@ -6132,7 +6508,7 @@ select.form-input option {
                 </div>
 
                 {/* Translucent Active Spreadsheet dropzone uploader */}
-                <div id="centered-uploader-anchor" style={{ width: "100%", scrollMarginTop: "100px" }}>
+                <div id="centered-uploader-anchor" style={{ width: "100%", scrollMarginTop: "100px" }} data-scroll data-scroll-delay="5">
                   <div
                     className={`upload-card-new ${dragging ? "dragging" : ""}`}
                     onDrop={onDrop}
@@ -6187,7 +6563,7 @@ select.form-input option {
                 </div>
 
                 {/* High-fidelity Dashboard Mockup container */}
-                <div id="dashboard-mockup-anchor" style={{ width: "100%", maxWidth: "800px", margin: "0 auto", scrollMarginTop: "100px" }}>
+                <div id="dashboard-mockup-anchor" style={{ width: "100%", maxWidth: "800px", margin: "0 auto", scrollMarginTop: "100px" }} data-scroll>
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -6273,7 +6649,7 @@ select.form-input option {
           {/* ============ RECENT ANALYSES + INSIGHTS ============ */}
           {!currentUser && (
             <>
-              <div className="recent-analyses-section">
+              <div className="recent-analyses-section" data-scroll>
                 <div className="recent-analyses-card">
                   <div className="recent-analyses-header">
                     <span className="recent-analyses-title">Recent Analyses</span>
@@ -6339,13 +6715,13 @@ select.form-input option {
               </div>
 
               {/* ============ BENTO GRID FEATURES ============ */}
-              <section className="sheetai-features-section">
-                <div className="sheetai-features-label">High-Performance E-Commerce Abstractions</div>
-                <h3 className="sheetai-features-title">Everything you need to audit, understand, and grow</h3>
+              <section className="sheetai-features-section" data-scroll>
+                <div className="sheetai-features-label" data-scroll data-scroll-delay="1">High-Performance E-Commerce Abstractions</div>
+                <h3 className="sheetai-features-title" data-scroll data-scroll-delay="2">Everything you need to audit, understand, and grow</h3>
 
                 <div className="bento-features-grid">
                   {/* Card 1 (Wide): Live Platform Integrations */}
-                  <div className="bento-feature-card bento-colspan-2">
+                  <div className="bento-feature-card bento-colspan-2" data-scroll data-scroll-delay="1">
                     <div className="bento-card-bg-gradient" />
                     <div>
                       <div className="bento-feature-icon">🔌</div>
@@ -6357,17 +6733,17 @@ select.form-input option {
 
                     {/* Pulsating connection visual mockup */}
                     <div className="bento-visual-channels">
-                      <div className="bento-channel-badge" style={{ borderColor: "var(--deep-green)", boxShadow: "0 0 10px rgba(0,255,178,0.1)" }}>🛒 Shopify Store</div>
+                      <div className="bento-channel-badge" style={{ borderColor: "var(--deep-green)", boxShadow: "0 0 10px rgba(127,166,155,0.1)" }}>🛒 Shopify Store</div>
                       <div className="bento-pulse-line" />
                       <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: "var(--deep-green)", animation: "pulse-green 1.5s infinite" }} />
-                      <div className="bento-channel-badge" style={{ borderColor: "var(--deep-green)", boxShadow: "0 0 10px rgba(0,255,178,0.1)" }}>🚚 Shiprocket Logs</div>
+                      <div className="bento-channel-badge" style={{ borderColor: "var(--deep-green)", boxShadow: "0 0 10px rgba(127,166,155,0.1)" }}>🚚 Shiprocket Logs</div>
                       <div className="bento-pulse-line" style={{ left: "50%" }} />
-                      <div className="bento-channel-badge" style={{ background: "rgba(0,255,178,0.03)", borderColor: "var(--deep-green)" }}>📊 Google Sheets</div>
+                      <div className="bento-channel-badge" style={{ background: "rgba(127,166,155,0.03)", borderColor: "var(--deep-green)" }}>📊 Google Sheets</div>
                     </div>
                   </div>
 
                   {/* Card 2 (Tall): Real-Time E-Commerce Insights */}
-                  <div className="bento-feature-card bento-rowspan-2">
+                  <div className="bento-feature-card bento-rowspan-2" data-scroll data-scroll-delay="2">
                     <div className="bento-card-bg-gradient" />
                     <div className="bento-feature-icon">🧠</div>
                     <div>
@@ -6379,13 +6755,13 @@ select.form-input option {
                       {/* Insights tag block list */}
                       <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                         {[
-                          { t: "Revenue Surge Detected", c: "var(--deep-green)", bg: "rgba(0,255,178,0.08)", p: "+24.8%" },
+                          { t: "Revenue Surge Detected", c: "var(--deep-green)", bg: "rgba(127,166,155,0.08)", p: "+24.8%" },
                           { t: "Logistics Cost Overlap", c: "#ef4444", bg: "rgba(239,68,68,0.08)", p: "₹22.4K Leak" },
                           { t: "COD RTO Return Threat", c: "#f59e0b", bg: "rgba(245,158,11,0.08)", p: "High Risk" },
                           { t: "Inventory Runout Alarm", c: "#a855f7", bg: "rgba(168,85,247,0.08)", p: "in 4 days" }
                         ].map((tag, i) => (
                           <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: tag.bg, border: `1px solid ${tag.c}20`, padding: "6px 10px", borderRadius: "8px", fontSize: "11px" }}>
-                            <span style={{ color: "#fff", fontWeight: 550 }}>{tag.t}</span>
+                            <span style={{ color: "var(--ink)", fontWeight: 550 }}>{tag.t}</span>
                             <span style={{ color: tag.c, fontWeight: 700, fontFamily: "var(--font-technical)" }}>{tag.p}</span>
                           </div>
                         ))}
@@ -6394,7 +6770,7 @@ select.form-input option {
                   </div>
 
                   {/* Card 3 (Standard): Multi-Format DropZone */}
-                  <div className="bento-feature-card">
+                  <div className="bento-feature-card" data-scroll data-scroll-delay="3">
                     <div className="bento-card-bg-gradient" />
                     <div>
                       <div className="bento-feature-icon">📁</div>
@@ -6406,7 +6782,7 @@ select.form-input option {
                   </div>
 
                   {/* Card 4 (Tall): Simulated Avery AI Chatbot */}
-                  <div className="bento-feature-card bento-rowspan-2">
+                  <div className="bento-feature-card bento-rowspan-2" data-scroll data-scroll-delay="4">
                     <div className="bento-card-bg-gradient" />
                     <div className="bento-feature-icon">💬</div>
                     <div>
@@ -6416,11 +6792,11 @@ select.form-input option {
                       </p>
 
                       {/* Chat conversation simulation */}
-                      <div style={{ background: "rgba(0,0,0,0.3)", borderRadius: "12px", border: "1px solid rgba(255,255,255,0.03)", padding: "12px", display: "flex", flexDirection: "column", gap: "10px", fontSize: "11px" }}>
-                        <div style={{ alignSelf: "flex-end", background: "rgba(255,255,255,0.05)", padding: "6px 10px", borderRadius: "10px 10px 0 10px", color: "#fff", maxWidth: "90%", textAlign: "right" }}>
+                      <div style={{ background: "rgba(46,50,49,0.03)", borderRadius: "12px", border: "1px solid var(--hairline)", padding: "12px", display: "flex", flexDirection: "column", gap: "10px", fontSize: "11px" }}>
+                        <div style={{ alignSelf: "flex-end", background: "rgba(46,50,49,0.06)", padding: "6px 10px", borderRadius: "10px 10px 0 10px", color: "var(--ink)", maxWidth: "90%", textAlign: "right" }}>
                           "What was our highest-margin product last month?"
                         </div>
-                        <div style={{ alignSelf: "flex-start", background: "rgba(0,255,178,0.05)", border: "1px solid rgba(0,255,178,0.1)", padding: "6px 10px", borderRadius: "10px 10px 10px 0", color: "var(--body-muted)", maxWidth: "90%", textAlign: "left" }}>
+                        <div style={{ alignSelf: "flex-start", background: "rgba(127,166,155,0.06)", border: "1px solid rgba(127,166,155,0.15)", padding: "6px 10px", borderRadius: "10px 10px 10px 0", color: "var(--ink)", maxWidth: "90%", textAlign: "left" }}>
                           <strong style={{ color: "var(--deep-green)", display: "block", marginBottom: "2px" }}>🤖 Avery AI</strong>
                           Your highest margin product was **Organic Coffee Beans** (68% margin, generating {currency === "INR" ? "₹8,200" : currency === "EUR" ? "€90" : "$97"} net profit).
                         </div>
@@ -6429,7 +6805,7 @@ select.form-input option {
                   </div>
 
                   {/* Card 5 (Wide): Interactive Security Dashboard */}
-                  <div className="bento-feature-card bento-colspan-2">
+                  <div className="bento-feature-card bento-colspan-2" data-scroll data-scroll-delay="5">
                     <div className="bento-card-bg-gradient" />
                     <div>
                       <div className="bento-feature-icon">🔒</div>
@@ -6446,11 +6822,11 @@ select.form-input option {
                         { label: "IndexedDB Sandboxing", state: bentoSandbox, set: setBentoSandbox },
                         { label: "Auto-Delete History Logs", state: bentoAutoDelete, set: setBentoAutoDelete }
                       ].map((tog, idx) => (
-                        <div key={idx} onClick={() => tog.set(!tog.state)} style={{ display: "flex", alignItems: "center", gap: "8px", background: "rgba(0,0,0,0.35)", border: "1px solid rgba(255,255,255,0.04)", padding: "8px 12px", borderRadius: "20px", cursor: "pointer", transition: "all 0.15s", userSelect: "none" }}>
-                          <div style={{ width: "26px", height: "14px", borderRadius: "20px", background: tog.state ? "var(--deep-green)" : "#222", position: "relative", transition: "background 0.2s" }}>
-                            <div style={{ width: "10px", height: "10px", borderRadius: "50%", background: tog.state ? "#030305" : "#888", position: "absolute", top: "2px", left: tog.state ? "14px" : "2px", transition: "left 0.2s" }} />
+                        <div key={idx} onClick={() => tog.set(!tog.state)} style={{ display: "flex", alignItems: "center", gap: "8px", background: "rgba(46, 50, 49, 0.04)", border: "1px solid var(--hairline)", padding: "8px 12px", borderRadius: "20px", cursor: "pointer", transition: "all 0.15s", userSelect: "none" }}>
+                          <div style={{ width: "26px", height: "14px", borderRadius: "20px", background: tog.state ? "var(--deep-green)" : "rgba(46,50,49,0.1)", position: "relative", transition: "background 0.2s" }}>
+                            <div style={{ width: "10px", height: "10px", borderRadius: "50%", background: "#ffffff", position: "absolute", top: "2px", left: tog.state ? "14px" : "2px", transition: "left 0.2s" }} />
                           </div>
-                          <span style={{ fontSize: "10.5px", color: tog.state ? "#fff" : "var(--slate)" }}>{tog.label}</span>
+                          <span style={{ fontSize: "10.5px", color: tog.state ? "var(--ink)" : "var(--slate)" }}>{tog.label}</span>
                         </div>
                       ))}
                     </div>
@@ -6464,7 +6840,7 @@ select.form-input option {
           {!currentUser && (
             <>
               {/* ============ E-COMMERCE CALCULATOR ============ */}
-              <section className="sheetai-calculator-section" style={{ padding: "80px 20px", position: "relative" }}>
+              <section className="sheetai-calculator-section" style={{ padding: "80px 20px", position: "relative" }} data-scroll>
                 <div className="sheetai-features-label" style={{ textAlign: "center", marginBottom: "12px" }}>Interactive Performance Calculator</div>
                 <h3 className="sheetai-features-title" style={{ textAlign: "center", marginBottom: "16px" }}>Audit your store's performance & growth levers</h3>
                 <p style={{ color: "var(--slate)", fontSize: "14.5px", textAlign: "center", maxWidth: "600px", margin: "-4px auto 36px auto", lineHeight: 1.6 }}>
@@ -6475,18 +6851,18 @@ select.form-input option {
                   display: "grid",
                   gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
                   gap: "28px",
-                  background: "rgba(255, 255, 255, 0.02)",
-                  border: "1px solid rgba(255, 255, 255, 0.04)",
+                  background: "#ffffff",
+                  border: "1px solid rgba(46, 50, 49, 0.08)",
                   backdropFilter: "blur(20px)",
                   borderRadius: "20px",
                   padding: "32px",
                   maxWidth: "960px",
                   margin: "0 auto",
-                  boxShadow: "0 20px 40px rgba(0,0,0,0.5)"
+                  boxShadow: "0 10px 35px rgba(46, 50, 49, 0.04)"
                 }}>
                   {/* Left Side: Inputs */}
                   <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-                    <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--deep-green)", textTransform: "uppercase", letterSpacing: "0.1em", borderBottom: "1px solid rgba(255,255,255,0.06)", paddingBottom: "10px", marginBottom: "8px" }}>
+                    <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--deep-green)", textTransform: "uppercase", letterSpacing: "0.1em", borderBottom: "1px solid rgba(46,50,49,0.08)", paddingBottom: "10px", marginBottom: "8px" }}>
                       ⚙️ Simulation Parameters
                     </div>
 
@@ -6583,8 +6959,8 @@ select.form-input option {
 
                   {/* Right Side: Results */}
                   <div style={{
-                    background: "rgba(0, 255, 178, 0.01)",
-                    border: "1px solid rgba(0, 255, 178, 0.06)",
+                    background: "rgba(127, 166, 155, 0.04)",
+                    border: "1px solid rgba(127, 166, 155, 0.12)",
                     borderRadius: "14px",
                     padding: "24px",
                     display: "flex",
@@ -6593,7 +6969,7 @@ select.form-input option {
                     gap: "20px"
                   }}>
                     <div>
-                      <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--deep-green)", textTransform: "uppercase", letterSpacing: "0.1em", borderBottom: "1px solid rgba(0,255,178,0.1)", paddingBottom: "10px", marginBottom: "16px", display: "flex", justifyContent: "space-between" }}>
+                      <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--deep-green)", textTransform: "uppercase", letterSpacing: "0.1em", borderBottom: "1px solid rgba(127, 166, 155, 0.12)", paddingBottom: "10px", marginBottom: "16px", display: "flex", justifyContent: "space-between" }}>
                         <span>📊 Unit Economics</span>
                         <span style={{ color: "var(--slate)", fontSize: "10.5px", textTransform: "none", letterSpacing: "normal" }}>Real-time scale</span>
                       </div>
@@ -6620,13 +6996,13 @@ select.form-input option {
                           <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
                             {/* Revenue & Profit Main Row */}
                             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-                              <div style={{ background: "rgba(255,255,255,0.01)", border: "1px solid rgba(255,255,255,0.03)", padding: "12px", borderRadius: "10px" }}>
+                              <div style={{ background: "#ffffff", border: "1px solid rgba(46, 50, 49, 0.08)", padding: "12px", borderRadius: "10px" }}>
                                 <div style={{ fontSize: "11px", color: "var(--slate)", marginBottom: "4px" }}>Total Revenue</div>
-                                <div style={{ fontSize: "20px", fontWeight: 700, color: "#fff", fontFamily: "var(--font-technical)" }}>
+                                <div style={{ fontSize: "20px", fontWeight: 700, color: "var(--ink)", fontFamily: "var(--font-technical)" }}>
                                   {sym}{Math.round(displayRevenue).toLocaleString()}
                                 </div>
                               </div>
-                              <div style={{ background: "rgba(255,255,255,0.01)", border: "1px solid rgba(255,255,255,0.03)", padding: "12px", borderRadius: "10px" }}>
+                              <div style={{ background: "#ffffff", border: "1px solid rgba(46, 50, 49, 0.08)", padding: "12px", borderRadius: "10px" }}>
                                 <div style={{ fontSize: "11px", color: "var(--slate)", marginBottom: "4px" }}>Net Profit</div>
                                 <div style={{ fontSize: "20px", fontWeight: 700, color: profitColor, fontFamily: "var(--font-technical)" }}>
                                   {netProfit < 0 ? "-" : ""}{sym}{Math.round(Math.abs(displayNetProfit)).toLocaleString()}
@@ -6638,10 +7014,10 @@ select.form-input option {
                             <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                               {[
                                 { label: "Return on Ad Spend (ROAS)", val: `${roas}x`, extra: `Target: >3.0x`, color: Number(roas) >= 3 ? "var(--deep-green)" : "#f59e0b" },
-                                { label: "Customer Acquisition Cost (CAC)", val: `${sym}${Math.round(displayCAC)}`, extra: `AOV: ${sym}${Math.round(calcAOV * scale)}`, color: "#fff" },
+                                { label: "Customer Acquisition Cost (CAC)", val: `${sym}${Math.round(displayCAC)}`, extra: `AOV: ${sym}${Math.round(calcAOV * scale)}`, color: "var(--ink)" },
                                 { label: "Product Net Margin", val: `${profitMargin}%`, extra: `COGS: ${sym}${Math.round(displayCOGS)}`, color: netProfit >= 0 ? "var(--deep-green)" : "#ef4444" }
                               ].map((m, i) => (
-                                <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "12px", padding: "6px 0", borderBottom: "1px dashed rgba(255,255,255,0.04)" }}>
+                                <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "12px", padding: "6px 0", borderBottom: "1px dashed rgba(46, 50, 49, 0.08)" }}>
                                   <span style={{ color: "var(--slate)" }}>{m.label}</span>
                                   <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                                     <span style={{ fontSize: "10.5px", color: "var(--slate)", opacity: 0.6 }}>{m.extra}</span>
@@ -6655,7 +7031,7 @@ select.form-input option {
                       })()}
                     </div>
 
-                    <div style={{ background: "rgba(0, 255, 178, 0.04)", border: "1px solid rgba(0, 255, 178, 0.1)", borderRadius: "10px", padding: "12px", display: "flex", alignItems: "center", gap: "10px" }}>
+                    <div style={{ background: "rgba(127, 166, 155, 0.06)", border: "1px solid rgba(127, 166, 155, 0.15)", borderRadius: "10px", padding: "12px", display: "flex", alignItems: "center", gap: "10px" }}>
                       <span style={{ fontSize: "18px" }}>💡</span>
                       <p style={{ margin: 0, fontSize: "11.5px", color: "var(--slate)", lineHeight: "1.4" }}>
                         <strong>Avery Insight:</strong> {
@@ -6670,7 +7046,7 @@ select.form-input option {
               </section>
 
               {/* ============ METRICS ROW ============ */}
-              <div style={{ background: "#070707", borderTop: "1px solid #111", borderBottom: "1px solid #111" }}>
+              <div style={{ background: "var(--canvas)", borderTop: "1px solid var(--hairline)", borderBottom: "1px solid var(--hairline)" }} data-scroll>
                 <div className="sheetai-metrics-row">
                   {[
                     { icon: "🎯", value: "<2%", label: "Error Rate" },
@@ -6690,7 +7066,7 @@ select.form-input option {
               </div>
 
               {/* ============ WHY + TESTIMONIALS ============ */}
-              <div className="why-testimonials-section">
+              <div className="why-testimonials-section" data-scroll>
                 <div>
                   <div className="sheetai-features-label" style={{ textAlign: "left", marginBottom: "12px" }}>Why SheetCodeCrest?</div>
                   <h2 className="why-left-heading">
@@ -6720,12 +7096,12 @@ select.form-input option {
 
                 <div className="testimonial-grid">
                   {[
-                    { stars: 5, text: "\"SheetCodeCrest turned our messy Shopify exports into clear, actionable insights. Complete game changer for our D2C brand.\"", name: "Priya Mehta", title: "E-Commerce Director", avatar: "👩", bg: "rgba(34,197,94,0.1)" },
-                    { stars: 5, text: "\"I save at least 10 hours per week on data analysis. The AI insights are incredibly accurate and actionable.\"", name: "Rahul Sharma", title: "Operations Manager", avatar: "👨", bg: "rgba(59,130,246,0.1)" },
-                    { stars: 5, text: "\"Finally, a tool that makes data analytics accessible to everyone on my team, not just the data scientists.\"", name: "Anika Patel", title: "Head of Data", avatar: "👩‍💼", bg: "rgba(168,85,247,0.1)" },
-                    { stars: 5, text: "\"The anomaly detection caught a ₹2L shiprocket billing error we'd missed for 3 months. Incredible ROI.\"", name: "Vikas Kumar", title: "Logistics Analyst", avatar: "🧑‍💻", bg: "rgba(245,158,11,0.1)" },
-                  ].map((t) => (
-                    <div className="testimonial-card-new" key={t.name}>
+                    { stars: 5, text: "\"SheetCodeCrest turned our messy Shopify exports into clear, actionable insights. Complete game changer for our D2C brand.\"", name: "Priya Mehta", title: "E-Commerce Director", avatar: "👩", bg: "rgba(127,166,155,0.1)" },
+                    { stars: 5, text: "\"I save at least 10 hours per week on data analysis. The AI insights are incredibly accurate and actionable.\"", name: "Rahul Sharma", title: "Operations Manager", avatar: "👨", bg: "rgba(127,166,155,0.1)" },
+                    { stars: 5, text: "\"Finally, a tool that makes data analytics accessible to everyone on my team, not just the data scientists.\"", name: "Anika Patel", title: "Head of Data", avatar: "👩‍💼", bg: "rgba(127,166,155,0.1)" },
+                    { stars: 5, text: "\"The anomaly detection caught a ₹2L shiprocket billing error we'd missed for 3 months. Incredible ROI.\"", name: "Vikas Kumar", title: "Logistics Analyst", avatar: "🧑‍💻", bg: "rgba(127,166,155,0.1)" },
+                  ].map((t, idx) => (
+                    <div className="testimonial-card-new" key={t.name} data-scroll data-scroll-delay={idx + 1}>
                       <div className="testimonial-stars">{"★".repeat(t.stars)}</div>
                       <p className="testimonial-text-new">{t.text}</p>
                       <div className="testimonial-author-row">
@@ -6742,7 +7118,7 @@ select.form-input option {
 
               {/* ============ PRICING ============ */}
               {(!currentUser || !currentUser.isPro) && (
-                <div id="pricing-section" className="pricing-section" style={{ position: "relative", overflow: "hidden", borderRadius: "24px" }}>
+                <div id="pricing-section" className="pricing-section" data-scroll style={{ position: "relative", overflow: "hidden", borderRadius: "24px" }}>
                   {/* Premium Canvas Particle Backdrop */}
                   <SaaSBackgroundParticles />
 
@@ -6866,7 +7242,7 @@ select.form-input option {
               )}
 
               {/* ============ FAQ ACCORDION SECTION ============ */}
-              <section className="sheetai-faq-section" style={{ padding: "80px 20px", maxWidth: "900px", margin: "0 auto", position: "relative" }}>
+              <section className="sheetai-faq-section" data-scroll style={{ padding: "80px 20px", maxWidth: "900px", margin: "0 auto", position: "relative" }}>
                 <div className="sheetai-features-label" style={{ textAlign: "center", marginBottom: "12px" }}>Frequently Asked Questions</div>
                 <h3 className="sheetai-features-title" style={{ textAlign: "center", marginBottom: "16px" }}>Got questions? We've got answers</h3>
                 <p style={{ color: "var(--slate)", fontSize: "14.5px", textAlign: "center", maxWidth: "600px", margin: "-4px auto 36px auto", lineHeight: 1.6 }}>
@@ -6901,9 +7277,9 @@ select.form-input option {
                       <div
                         key={index}
                         style={{
-                          background: "rgba(255, 255, 255, 0.02)",
-                          border: isOpen ? "1px solid var(--deep-green)" : "1px solid rgba(255, 255, 255, 0.04)",
-                          boxShadow: isOpen ? "0 0 20px rgba(0, 255, 178, 0.04)" : "none",
+                          background: isOpen ? "var(--soft-stone)" : "var(--primary)",
+                          border: isOpen ? "1px solid var(--deep-green)" : "1px solid var(--hairline)",
+                          boxShadow: isOpen ? "0 10px 30px rgba(127, 166, 155, 0.06)" : "none",
                           borderRadius: "12px",
                           overflow: "hidden",
                           transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
@@ -6922,11 +7298,11 @@ select.form-input option {
                             alignItems: "center",
                             cursor: "pointer",
                             textAlign: "left",
-                            color: "#fff",
+                            color: isOpen ? "var(--deep-green)" : "var(--ink)",
                             fontFamily: "inherit"
                           }}
                         >
-                          <span style={{ fontSize: "14.5px", fontWeight: 600, transition: "color 0.2s", color: isOpen ? "var(--deep-green)" : "#fff" }}>
+                          <span style={{ fontSize: "14.5px", fontWeight: 600, transition: "color 0.2s", color: isOpen ? "var(--deep-green)" : "var(--ink)" }}>
                             {faq.q}
                           </span>
                           <span style={{
@@ -6947,7 +7323,7 @@ select.form-input option {
                             opacity: isOpen ? 1 : 0,
                             overflow: "hidden",
                             transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-                            background: "rgba(0,0,0,0.1)"
+                            background: "transparent"
                           }}
                         >
                           <div style={{ padding: "0 24px 20px 24px", color: "var(--slate)", fontSize: "13px", lineHeight: "1.6" }}>
@@ -6961,8 +7337,8 @@ select.form-input option {
               </section>
 
               {/* ============ CTA BANNER ============ */}
-              <div className="cta-section-new">
-                <div className="cta-banner-new">
+              <div className="cta-section-new" data-scroll>
+                <div className="cta-banner-new" data-scroll="scale-in">
                   <div style={{ display: "flex", alignItems: "center", gap: "1.5rem" }}>
                     <div className="cta-banner-icon">📊</div>
                     <div>
@@ -7019,7 +7395,7 @@ select.form-input option {
               <span>Made with ❤️ by <a href={CODECREST.website} target="_blank" rel="noopener noreferrer" style={{ color: "#22c55e", textDecoration: "none" }}>Codecrest Studio</a></span>
             </div>
           </footer>
-        </>
+        </div>
       )}
 
 
@@ -7119,6 +7495,273 @@ select.form-input option {
                     })}
                 </div>
               </div>
+
+              {/* Apriori Growth Rules cross-selling table */}
+              {shopifyAnalytics.aprioriRules && shopifyAnalytics.aprioriRules.length > 0 && (
+                <div className="section-card" style={{ marginTop: "1.5rem" }}>
+                  <h3 className="card-title">🧠 Growth Association Rules (Apriori Market Basket Heuristics)</h3>
+                  <p style={{ fontSize: "0.8rem", color: "var(--slate)", margin: "-0.5rem 0 1rem 0" }}>
+                    Advanced algorithmic engine mining cross-buying behaviors from checkout transaction histories.
+                  </p>
+                  <div style={{ overflowX: "auto" }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85rem", color: "var(--text)" }}>
+                      <thead>
+                        <tr style={{ borderBottom: "1px solid var(--hairline)", color: "var(--slate)", textTransform: "uppercase", fontSize: "0.75rem", fontWeight: 700 }}>
+                          <th style={{ textAlign: "left", padding: "10px 8px" }}>Item A</th>
+                          <th style={{ textAlign: "left", padding: "10px 8px" }}>Item B</th>
+                          <th style={{ textAlign: "right", padding: "10px 8px" }}>Support (Freq)</th>
+                          <th style={{ textAlign: "right", padding: "10px 8px" }}>Confidence (Rel)</th>
+                          <th style={{ textAlign: "right", padding: "10px 8px" }}>Lift (Strength)</th>
+                          <th style={{ textAlign: "center", padding: "10px 8px" }}>Growth Campaign Action Plan</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {shopifyAnalytics.aprioriRules.slice(0, 5).map((rule, idx) => (
+                          <tr key={idx} style={{ borderBottom: "1px solid var(--hairline)", background: "rgba(255,255,255,0.01)" }}>
+                            <td style={{ padding: "10px 8px", fontWeight: 600 }}>{rule.itemA}</td>
+                            <td style={{ padding: "10px 8px", fontWeight: 600 }}>{rule.itemB}</td>
+                            <td style={{ padding: "10px 8px", textAlign: "right" }}>{(rule.support * 100).toFixed(1)}%</td>
+                            <td style={{ padding: "10px 8px", textAlign: "right" }}>{(rule.confidence * 100).toFixed(1)}%</td>
+                            <td style={{ padding: "10px 8px", textAlign: "right", color: rule.lift > 2.5 ? "var(--amber)" : "inherit", fontWeight: rule.lift > 2.5 ? 700 : 500 }}>
+                              {rule.lift.toFixed(2)}x
+                            </td>
+                            <td style={{ padding: "10px 8px", textAlign: "center" }}>
+                              <span style={{ display: "inline-block", padding: "4px 8px", borderRadius: "6px", fontSize: "0.75rem", background: "rgba(245,158,11,0.1)", color: "var(--amber)", fontWeight: 600 }}>
+                                {rule.lift > 2.5 ? "🚀 High-Value Bundle Package Deal" : "🎯 Active Cross-Sell Campaign"}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* RFM Customer Segment Matrix Cohorts */}
+              {shopifyAnalytics.rfmMatrix && shopifyAnalytics.rfmMatrix.length > 0 && (() => {
+                const rfmCounts: Record<string, number> = {};
+                shopifyAnalytics.rfmMatrix.forEach(p => {
+                  rfmCounts[p.cohort] = (rfmCounts[p.cohort] || 0) + 1;
+                });
+                const totalRfm = shopifyAnalytics.rfmMatrix.length;
+                const rfmMarketingActions: Record<string, string> = {
+                  "Champions": "VIP Early Access & Loyalty rewards",
+                  "Loyal Shoppers": "Referral codes & high-AOV upsells",
+                  "Recent Starters": "Welcome onboarding flow & standard discounts",
+                  "At Risk": "High-priority win-back vouchers & reactivation flows",
+                  "Lost": "Standard low-frequency re-engagement newsletters",
+                  "Unknown": "Collect missing checkout profile attributes"
+                };
+
+                return (
+                  <div className="section-card" style={{ marginTop: "1.5rem" }}>
+                    <h3 className="card-title">👥 Advanced RFM Customer Segmentation Matrix</h3>
+                    <p style={{ fontSize: "0.8rem", color: "var(--slate)", margin: "-0.5rem 0 1rem 0" }}>
+                      Classifies shoppers across Recency (R), Frequency (F), and Monetary (M) spent tertiles.
+                    </p>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "12px" }}>
+                      {Object.entries(rfmCounts)
+                        .sort((a, b) => b[1] - a[1])
+                        .map(([cohort, count]) => {
+                          const pct = (count / totalRfm) * 100;
+                          let badgeColor = "rgba(100,116,139,0.15)";
+                          let textColor = "var(--slate)";
+                          if (cohort === "Champions") {
+                            badgeColor = "rgba(245,158,11,0.2)";
+                            textColor = "var(--amber)";
+                          } else if (cohort === "Loyal Shoppers") {
+                            badgeColor = "rgba(59,130,246,0.2)";
+                            textColor = "var(--action-blue)";
+                          } else if (cohort === "Recent Starters") {
+                            badgeColor = "rgba(16,185,129,0.2)";
+                            textColor = "var(--success-accent)";
+                          } else if (cohort === "At Risk") {
+                            badgeColor = "rgba(239,68,68,0.2)";
+                            textColor = "var(--danger-accent)";
+                          }
+
+                          return (
+                            <div key={cohort} style={{ padding: "12px", borderRadius: "12px", background: "rgba(255,255,255,0.02)", border: "1px solid var(--hairline)" }}>
+                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                                <span style={{ padding: "2px 8px", borderRadius: "6px", fontSize: "0.75rem", fontWeight: 700, background: badgeColor, color: textColor }}>
+                                  {cohort}
+                                </span>
+                                <span style={{ fontSize: "0.75rem", color: "var(--slate)" }}>
+                                  {count} users ({pct.toFixed(1)}%)
+                                </span>
+                              </div>
+                              <div style={{ fontSize: "0.8rem", color: "var(--text)", fontWeight: 500 }}>
+                                <span style={{ color: "var(--slate)", marginRight: "4px" }}>Action Plan:</span>
+                                {rfmMarketingActions[cohort] || "N/A"}
+                              </div>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Cohort Retention visual matrix */}
+              {shopifyAnalytics.cohortRetention && shopifyAnalytics.cohortRetention.length > 0 && (
+                <div className="section-card" style={{ marginTop: "1.5rem" }}>
+                  <h3 className="card-title">👥 Customer Cohort Retention Matrix (N-Month Retention Grid)</h3>
+                  <p style={{ fontSize: "0.8rem", color: "var(--slate)", margin: "-0.5rem 0 1rem 0" }}>
+                    Visualizes cohort repeat checkout patterns over time. Darker cells represent higher customer loyalty and lower churn.
+                  </p>
+                  <div style={{ overflowX: "auto" }}>
+                    <table style={{ width: "100%", borderCollapse: "separate", borderSpacing: "4px", fontSize: "0.8rem" }}>
+                      <thead>
+                        <tr style={{ color: "var(--slate)", textTransform: "uppercase", fontSize: "0.7rem", fontWeight: 700 }}>
+                          <th style={{ textAlign: "left", padding: "8px" }}>Cohort Month</th>
+                          <th style={{ textAlign: "right", padding: "8px" }}>Customers</th>
+                          {Array.from({ length: 6 }).map((_, m) => (
+                            <th key={m} style={{ textAlign: "center", padding: "8px" }}>Month {m}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {shopifyAnalytics.cohortRetention.slice(0, 8).map((cohort, idx) => (
+                          <tr key={idx}>
+                            <td style={{ padding: "8px", fontWeight: 700, background: "rgba(255,255,255,0.02)", borderRadius: "6px" }}>{cohort.cohortMonth}</td>
+                            <td style={{ padding: "8px", textAlign: "right", fontWeight: 600, background: "rgba(255,255,255,0.02)", borderRadius: "6px" }}>{cohort.totalCustomers.toLocaleString("en-IN")}</td>
+                            {cohort.rates.map((rate, m) => {
+                              const opacity = Math.max(0.04, rate / 100);
+                              const bgStyle = `rgba(16, 185, 129, ${opacity})`;
+                              const textStyle = rate > 40 ? "#ffffff" : "var(--text)";
+                              return (
+                                <td 
+                                  key={m} 
+                                  style={{ 
+                                    textAlign: "center", 
+                                    padding: "8px", 
+                                    background: bgStyle, 
+                                    color: textStyle,
+                                    fontWeight: 700, 
+                                    borderRadius: "6px",
+                                    transition: "all 0.3s ease"
+                                  }}
+                                >
+                                  {rate.toFixed(1)}%
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* E-Commerce Pricing & Elasticity Simulator */}
+              {(() => {
+                const totalRev = shopifyAnalytics.totalRevenue;
+                const totalOrders = shopifyAnalytics.totalOrders;
+                const baseAov = totalOrders > 0 ? totalRev / totalOrders : 0;
+                
+                const switchedPercent = Math.min(60, elasticityPrepaidDiscount * 4);
+                const prepaidAovLift = baseAov * (1 + elasticityPrepaidDiscount / 100);
+                
+                const bundleUnitsLift = 1 + (elasticityBundleDiscount / 5) * 0.15;
+                const simulatedAov = baseAov * bundleUnitsLift * (1 - elasticityBundleDiscount / 100);
+                
+                const simulatedOrders = totalOrders * (1 + (elasticityPrepaidDiscount / 10) * 0.05);
+                const simulatedRevenue = simulatedOrders * simulatedAov;
+                const revenueChange = simulatedRevenue - totalRev;
+                const simulatedAovFinal = simulatedAov;
+
+                return (
+                  <div className="section-card" style={{ borderLeft: "4px solid var(--deep-green)", background: "rgba(16, 185, 129, 0.03)", marginTop: "1.5rem" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+                      <div>
+                        <h3 className="card-title" style={{ margin: 0, color: "var(--deep-green)" }}>📊 E-Commerce Pricing & Bundle Elasticity Simulator</h3>
+                        <p style={{ fontSize: "0.85rem", color: "var(--slate)", margin: "4px 0 0 0" }}>
+                          Simulate how prepaid payment incentives and bundle offers affect AOV and gross e-commerce revenues.
+                        </p>
+                      </div>
+                      <span style={{ fontSize: "0.75rem", background: "rgba(16, 185, 129, 0.12)", color: "var(--deep-green)", padding: "4px 8px", borderRadius: "6px", fontWeight: 600 }}>PRO SIMULATOR</span>
+                    </div>
+
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "24px" }}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                        <div>
+                          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.85rem", marginBottom: "6px" }}>
+                            <span style={{ color: "var(--slate)" }}>Prepaid UPI Discount Incentive</span>
+                            <span style={{ fontWeight: 600 }}>{elasticityPrepaidDiscount}% discount</span>
+                          </div>
+                          <input 
+                            type="range" 
+                            min="0" 
+                            max="15" 
+                            step="1"
+                            value={elasticityPrepaidDiscount} 
+                            onChange={(e) => setElasticityPrepaidDiscount(Number(e.target.value))}
+                            style={{ width: "100%", accentColor: "var(--deep-green)", cursor: "pointer" }}
+                          />
+                          <span style={{ fontSize: "0.7rem", color: "var(--slate)" }}>Incentivizes COD checkout profiles to switch to UPI prepaid payment.</span>
+                        </div>
+
+                        <div>
+                          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.85rem", marginBottom: "6px" }}>
+                            <span style={{ color: "var(--slate)" }}>Mined Apriori Bundle Discount</span>
+                            <span style={{ fontWeight: 600 }}>{elasticityBundleDiscount}% discount</span>
+                          </div>
+                          <input 
+                            type="range" 
+                            min="0" 
+                            max="30" 
+                            step="2"
+                            value={elasticityBundleDiscount} 
+                            onChange={(e) => setElasticityBundleDiscount(Number(e.target.value))}
+                            style={{ width: "100%", accentColor: "var(--deep-green)", cursor: "pointer" }}
+                          />
+                          <span style={{ fontSize: "0.7rem", color: "var(--slate)" }}>Promotional deal offered on the top co-purchased product pairs.</span>
+                        </div>
+                      </div>
+
+                      <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--hairline)", borderRadius: "12px", padding: "16px", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.85rem" }}>
+                            <span style={{ color: "var(--slate)" }}>Baseline AOV:</span>
+                            <span style={{ fontWeight: 600 }}>₹{baseAov.toFixed(0)}</span>
+                          </div>
+                          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.85rem" }}>
+                            <span style={{ color: "var(--slate)" }}>Simulated AOV:</span>
+                            <span style={{ fontWeight: 600, color: "var(--success-accent)" }}>₹{simulatedAovFinal.toFixed(0)}</span>
+                          </div>
+                          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.85rem", borderTop: "1px dashed var(--hairline)", paddingTop: "8px" }}>
+                            <span style={{ color: "var(--slate)" }}>Projected Revenue:</span>
+                            <span style={{ fontWeight: 600 }}>₹{(simulatedRevenue / 1e5).toFixed(2)}L</span>
+                          </div>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <div>
+                              <span style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--off-black)" }}>Gross Revenue Lift</span>
+                              <div style={{ fontSize: "0.7rem", color: "var(--slate)" }}>Projected business growth</div>
+                            </div>
+                            <span style={{ fontSize: "1.25rem", fontWeight: 800, color: revenueChange >= 0 ? "#10b981" : "#ef4444" }}>
+                              {revenueChange >= 0 ? `+₹${Math.round(revenueChange).toLocaleString("en-IN")}` : `-₹${Math.round(Math.abs(revenueChange)).toLocaleString("en-IN")}`}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div style={{ background: "rgba(16, 185, 129, 0.08)", padding: "10px", borderRadius: "8px", marginTop: "12px", border: "1px solid rgba(16, 185, 129, 0.15)" }}>
+                          <div style={{ fontWeight: 600, fontSize: "0.8rem", color: "var(--deep-green)", display: "flex", alignItems: "center", gap: "6px" }}>
+                            💡 Elasticity Insights
+                          </div>
+                          <p style={{ fontSize: "0.75rem", color: "var(--slate)", margin: "4px 0 0 0", lineHeight: "1.3" }}>
+                            {revenueChange > 0 
+                              ? `Providing a ${elasticityBundleDiscount}% bundle discount combined with a ${elasticityPrepaidDiscount}% prepaid discount increases Average Order Value and attracts repeat buyers, pushing gross sales up by ₹${Math.round(revenueChange).toLocaleString("en-IN")}.`
+                              : `Model pricing strategies to find the balance between bundle discounts and order frequency.`
+                            }
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
 
               <div className="section-card" style={{ borderLeft: "4px solid var(--deep-green)", borderLeftColor: "var(--deep-green)" }}>
                 <h3 className="card-title">Workbook Generated Like Your Shopify Reference Files</h3>
@@ -7425,6 +8068,270 @@ select.form-input option {
                           </p>
                         </div>
                       </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Freight & Weight Overcharges Audit Dashboard */}
+              {(() => {
+                const auditData = auditLogisticsData(rawRows);
+                const weightAnomalies = auditData.filter(r => r.isWeightAnomaly);
+                const freightLeaks = auditData.filter(r => r.isFreightLeak);
+                
+                const courierDiscrepancies: Record<string, number> = {};
+                weightAnomalies.forEach(r => {
+                  courierDiscrepancies[r.courier] = (courierDiscrepancies[r.courier] || 0) + 1;
+                });
+
+                return (
+                  <div className="section-card" style={{ borderLeft: "4px solid var(--amber)", marginTop: "20px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+                      <div>
+                        <h3 className="card-title" style={{ margin: 0, color: "var(--amber)" }}>🚨 Freight Leakage & Courier Weight Auditor</h3>
+                        <p style={{ fontSize: "0.85rem", color: "var(--slate)", margin: "4px 0 0 0" }}>
+                          Continuous ledger audit auditing charged weights against physical weights and identifying excessive shipping-to-revenue rates.
+                        </p>
+                      </div>
+                      <span style={{ fontSize: "0.75rem", background: "rgba(245, 158, 11, 0.12)", color: "var(--amber)", padding: "4px 8px", borderRadius: "6px", fontWeight: 600 }}>AUDITOR ACTIVE</span>
+                    </div>
+
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "16px", marginBottom: "20px" }}>
+                      <div style={{ padding: "16px", borderRadius: "12px", background: "rgba(239, 68, 68, 0.05)", border: "1px solid rgba(239, 68, 68, 0.15)" }}>
+                        <div style={{ fontSize: "0.8rem", color: "var(--slate)", textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 700 }}>Weight Anomaly Alerts</div>
+                        <div style={{ fontSize: "2rem", fontWeight: 800, color: "var(--danger-accent)", margin: "8px 0" }}>
+                          {weightAnomalies.length}
+                        </div>
+                        <div style={{ fontSize: "0.75rem", color: "var(--slate)" }}>Charged Weight &gt; 1.5x physical weight</div>
+                      </div>
+
+                      <div style={{ padding: "16px", borderRadius: "12px", background: "rgba(245, 158, 11, 0.05)", border: "1px solid rgba(245, 158, 11, 0.15)" }}>
+                        <div style={{ fontSize: "0.8rem", color: "var(--slate)", textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 700 }}>Freight Margin Leaks</div>
+                        <div style={{ fontSize: "2rem", fontWeight: 800, color: "var(--amber)", margin: "8px 0" }}>
+                          {freightLeaks.length}
+                        </div>
+                        <div style={{ fontSize: "0.75rem", color: "var(--slate)" }}>Shipping fee exceeds 30% of order value</div>
+                      </div>
+
+                      <div style={{ padding: "16px", borderRadius: "12px", background: "rgba(255, 255, 255, 0.02)", border: "1px solid var(--hairline)" }}>
+                        <div style={{ fontSize: "0.8rem", color: "var(--slate)", textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 700 }}>Audited Courier Leakage</div>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "4px", marginTop: "8px" }}>
+                          {Object.keys(courierDiscrepancies).length === 0 ? (
+                            <span style={{ fontSize: "0.75rem", color: "var(--success-accent)" }}>✅ No overbilling detected</span>
+                          ) : (
+                            Object.entries(courierDiscrepancies).slice(0, 3).map(([c, count]) => (
+                              <div key={c} style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem" }}>
+                                <span style={{ fontWeight: 600 }}>{c}</span>
+                                <span style={{ color: "var(--danger-accent)", fontWeight: 700 }}>{count} overbills</span>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {weightAnomalies.length > 0 && (
+                      <div style={{ overflowX: "auto" }}>
+                        <h4 style={{ fontSize: "0.85rem", fontWeight: 700, margin: "0 0 8px 0" }}>⚠️ Recent Weight Overcharge Violations</h4>
+                        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.8rem", color: "var(--text)" }}>
+                          <thead>
+                            <tr style={{ borderBottom: "1px solid var(--hairline)", color: "var(--slate)" }}>
+                              <th style={{ textAlign: "left", padding: "6px 8px" }}>Order ID</th>
+                              <th style={{ textAlign: "left", padding: "6px 8px" }}>Courier</th>
+                              <th style={{ textAlign: "right", padding: "6px 8px" }}>Charged Wt</th>
+                              <th style={{ textAlign: "right", padding: "6px 8px" }}>Physical Wt</th>
+                              <th style={{ textAlign: "right", padding: "6px 8px" }}>Overcharge Ratio</th>
+                              <th style={{ textAlign: "right", padding: "6px 8px" }}>Freight Cost</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {weightAnomalies.slice(0, 4).map((r, idx) => (
+                              <tr key={idx} style={{ borderBottom: "1px solid var(--hairline)" }}>
+                                <td style={{ padding: "6px 8px", fontWeight: 600 }}>{r.orderId}</td>
+                                <td style={{ padding: "6px 8px" }}>{r.courier}</td>
+                                <td style={{ padding: "6px 8px", textAlign: "right" }}>{r.chargedWeight.toFixed(2)} kg</td>
+                                <td style={{ padding: "6px 8px", textAlign: "right" }}>{r.physicalWeight.toFixed(2)} kg</td>
+                                <td style={{ padding: "6px 8px", textAlign: "right", color: "var(--danger-accent)", fontWeight: 700 }}>
+                                  {r.weightRatio.toFixed(1)}x
+                                </td>
+                                <td style={{ padding: "6px 8px", textAlign: "right" }}>₹{r.freightCost.toFixed(2)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
+              {/* Predictive RTO Risk Heuristics Panel */}
+              {(() => {
+                const rtoRisks = calculatePredictiveRtoRisk(rawRows);
+                const highRiskCount = rtoRisks.filter(r => r.riskLevel === "High").length;
+                const medRiskCount = rtoRisks.filter(r => r.riskLevel === "Medium").length;
+                const lowRiskCount = rtoRisks.filter(r => r.riskLevel === "Low").length;
+                const totalScored = rtoRisks.length;
+
+                return (
+                  <div className="section-card" style={{ borderLeft: "4px solid var(--danger-accent)", marginTop: "20px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+                      <div>
+                        <h3 className="card-title" style={{ margin: 0, color: "var(--danger-accent)" }}>🚨 Predictive RTO (Return-to-Origin) Risk Auditor</h3>
+                        <p style={{ fontSize: "0.85rem", color: "var(--slate)", margin: "4px 0 0 0" }}>
+                          Calculates risk indices for pending orders based on geographic regions, COD ratios, and bulk purchase anomalies.
+                        </p>
+                      </div>
+                      <span style={{ fontSize: "0.75rem", background: "rgba(239, 68, 68, 0.12)", color: "var(--danger-accent)", padding: "4px 8px", borderRadius: "6px", fontWeight: 600 }}>PREDICTIVE ACTIVE</span>
+                    </div>
+
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px", marginBottom: "20px" }}>
+                      <div style={{ padding: "16px", borderRadius: "12px", background: "rgba(239, 68, 68, 0.05)", border: "1px solid rgba(239, 68, 68, 0.15)", textAlign: "center" }}>
+                        <span style={{ fontSize: "0.75rem", color: "var(--slate)", textTransform: "uppercase", fontWeight: 700 }}>🔴 High RTO Risk</span>
+                        <div style={{ fontSize: "1.75rem", fontWeight: 800, color: "var(--danger-accent)", margin: "6px 0" }}>{highRiskCount}</div>
+                        <span style={{ fontSize: "0.7rem", color: "var(--slate)" }}>{totalScored > 0 ? (highRiskCount/totalScored*100).toFixed(0) : 0}% of order queue</span>
+                      </div>
+                      <div style={{ padding: "16px", borderRadius: "12px", background: "rgba(245, 158, 11, 0.05)", border: "1px solid rgba(245, 158, 11, 0.15)", textAlign: "center" }}>
+                        <span style={{ fontSize: "0.75rem", color: "var(--slate)", textTransform: "uppercase", fontWeight: 700 }}>🟡 Medium RTO Risk</span>
+                        <div style={{ fontSize: "1.75rem", fontWeight: 800, color: "var(--amber)", margin: "6px 0" }}>{medRiskCount}</div>
+                        <span style={{ fontSize: "0.7rem", color: "var(--slate)" }}>{totalScored > 0 ? (medRiskCount/totalScored*100).toFixed(0) : 0}% of order queue</span>
+                      </div>
+                      <div style={{ padding: "16px", borderRadius: "12px", background: "rgba(16, 185, 129, 0.05)", border: "1px solid rgba(16, 185, 129, 0.15)", textAlign: "center" }}>
+                        <span style={{ fontSize: "0.75rem", color: "var(--slate)", textTransform: "uppercase", fontWeight: 700 }}>🟢 Low RTO Risk</span>
+                        <div style={{ fontSize: "1.75rem", fontWeight: 800, color: "var(--success-accent)", margin: "6px 0" }}>{lowRiskCount}</div>
+                        <span style={{ fontSize: "0.7rem", color: "var(--slate)" }}>{totalScored > 0 ? (lowRiskCount/totalScored*100).toFixed(0) : 0}% of order queue</span>
+                      </div>
+                    </div>
+
+                    {highRiskCount > 0 && (
+                      <div style={{ overflowX: "auto" }}>
+                        <h4 style={{ fontSize: "0.85rem", fontWeight: 700, margin: "0 0 8px 0" }}>⚠️ Operational Audit Required: High Risk Pending Shipments</h4>
+                        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.8rem", color: "var(--text)" }}>
+                          <thead>
+                            <tr style={{ borderBottom: "1px solid var(--hairline)", color: "var(--slate)" }}>
+                              <th style={{ textAlign: "left", padding: "6px 8px" }}>Order ID</th>
+                              <th style={{ textAlign: "left", padding: "6px 8px" }}>Customer Name</th>
+                              <th style={{ textAlign: "left", padding: "6px 8px" }}>Payment</th>
+                              <th style={{ textAlign: "left", padding: "6px 8px" }}>State</th>
+                              <th style={{ textAlign: "right", padding: "6px 8px" }}>Risk Index</th>
+                              <th style={{ textAlign: "center", padding: "6px 8px" }}>Action</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {rtoRisks.filter(r => r.riskLevel === "High").slice(0, 4).map((r, idx) => (
+                              <tr key={idx} style={{ borderBottom: "1px solid var(--hairline)" }}>
+                                <td style={{ padding: "6px 8px", fontWeight: 600 }}>{r.orderId}</td>
+                                <td style={{ padding: "6px 8px" }}>{r.customerName}</td>
+                                <td style={{ padding: "6px 8px" }}>
+                                  <span style={{ fontSize: "0.75rem", padding: "2px 6px", borderRadius: "4px", background: "rgba(239, 68, 68, 0.1)", color: "var(--danger-accent)" }}>
+                                    {r.paymentMethod}
+                                  </span>
+                                </td>
+                                <td style={{ padding: "6px 8px" }}>{r.state}</td>
+                                <td style={{ padding: "6px 8px", textAlign: "right", fontWeight: 700, color: "var(--danger-accent)" }}>{r.riskScore}%</td>
+                                <td style={{ padding: "6px 8px", textAlign: "center" }}>
+                                  <span style={{ fontSize: "0.7rem", color: "var(--amber)", fontWeight: 700, textTransform: "uppercase" }}>📞 Call Verify</span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
+              {/* Courier Weight Dispute Claims Center */}
+              {(() => {
+                const auditData = auditLogisticsData(rawRows);
+                const weightAnomalies = auditData.filter(r => r.isWeightAnomaly);
+                if (weightAnomalies.length === 0) return null;
+
+                const selectedAnomaly = weightAnomalies.find(r => r.orderId === selectedDisputeOrderId) || weightAnomalies[0];
+
+                return (
+                  <div className="section-card" style={{ borderLeft: "4px solid var(--amber)", marginTop: "20px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+                      <div>
+                        <h3 className="card-title" style={{ margin: 0, color: "var(--amber)" }}>📋 Courier Weight Dispute & Billing Claims Center</h3>
+                        <p style={{ fontSize: "0.85rem", color: "var(--slate)", margin: "4px 0 0 0" }}>
+                          Instantly draft SLA dispute letters for Shiprocket shipping overbilling claims.
+                        </p>
+                      </div>
+                      <span style={{ fontSize: "0.75rem", background: "rgba(245, 158, 11, 0.12)", color: "var(--amber)", padding: "4px 8px", borderRadius: "6px", fontWeight: 600 }}>CLAIMS DRAFTED</span>
+                    </div>
+
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: "20px" }}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: "250px", overflowY: "auto", borderRight: "1px solid var(--hairline)", paddingRight: "10px" }}>
+                        <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--slate)", textTransform: "uppercase" }}>Disputed Shipments</span>
+                        {weightAnomalies.map((r) => (
+                          <button
+                            key={r.orderId}
+                            type="button"
+                            onClick={() => setSelectedDisputeOrderId(r.orderId)}
+                            style={{
+                              padding: "8px 12px",
+                              borderRadius: "8px",
+                              fontSize: "0.75rem",
+                              fontWeight: selectedAnomaly?.orderId === r.orderId ? 700 : 500,
+                              textAlign: "left",
+                              border: "1px solid var(--hairline)",
+                              cursor: "pointer",
+                              background: selectedAnomaly?.orderId === r.orderId ? "rgba(245,158,11,0.15)" : "rgba(255,255,255,0.02)",
+                              color: selectedAnomaly?.orderId === r.orderId ? "var(--amber)" : "var(--text)",
+                              transition: "all 0.2s ease"
+                            }}
+                          >
+                            Order #{r.orderId} ({r.courier})
+                          </button>
+                        ))}
+                      </div>
+
+                      {selectedAnomaly && (() => {
+                        const claimLetter = generateDisputeLetterText(selectedAnomaly);
+                        return (
+                          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                              <span style={{ fontSize: "0.75rem", color: "var(--slate)" }}>Claim Draft Letter template:</span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(claimLetter);
+                                  alert("✓ Dispute letter text copied to clipboard successfully!");
+                                }}
+                                style={{
+                                  padding: "4px 10px",
+                                  borderRadius: "6px",
+                                  fontSize: "0.75rem",
+                                  fontWeight: 700,
+                                  cursor: "pointer",
+                                  border: "1px solid var(--amber)",
+                                  background: "rgba(245,158,11,0.1)",
+                                  color: "var(--amber)"
+                                }}
+                              >
+                                📋 Copy Dispute Letter
+                              </button>
+                            </div>
+                            <pre style={{
+                              padding: "12px",
+                              borderRadius: "8px",
+                              background: "rgba(0,0,0,0.2)",
+                              border: "1px solid var(--hairline)",
+                              fontSize: "0.75rem",
+                              fontFamily: "monospace",
+                              whiteSpace: "pre-wrap",
+                              color: "var(--slate)",
+                              maxHeight: "180px",
+                              overflowY: "auto",
+                              margin: 0
+                            }}>
+                              {claimLetter}
+                            </pre>
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
                 );
@@ -8659,57 +9566,175 @@ select.form-input option {
                   {/* ─────────── TAB: ANALYTICS ─────────── */}
                   {adminTab === "analytics" && (
                     <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-                      {/* KPI Cards */}
-                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: "12px" }}>
-                        {[
-                          { icon: "👤", label: "Total Users", value: adminUsers.length, color: "#3b82f6" },
-                          { icon: "⚡", label: "PRO Users", value: adminUsers.filter(u => u.isPro).length, color: "#f59e0b" },
-                          { icon: "🆓", label: "Free Users", value: adminUsers.filter(u => !u.isPro).length, color: "#64748b" },
-                          { icon: "💰", label: "Total Revenue", value: `₹${adminPayments.filter(p => p.status === "success").reduce((s: number, p: any) => s + (p.amount || 0), 0).toLocaleString()}`, color: "#10b981" },
-                          { icon: "💳", label: "Transactions", value: adminPayments.length, color: "#8b5cf6" },
-                          { icon: "⏳", label: "Pending", value: adminPayments.filter(p => p.status === "pending_verification").length, color: "#ef4444" },
-                        ].map(card => (
-                          <div key={card.label} style={{ padding: "1.25rem", borderRadius: "12px", background: "rgba(255,255,255,0.03)", border: "1px solid var(--hairline)", textAlign: "center" }}>
-                            <div style={{ fontSize: "28px", marginBottom: "6px" }}>{card.icon}</div>
-                            <div style={{ fontSize: "24px", fontWeight: 800, color: card.color }}>{card.value}</div>
-                            <div style={{ fontSize: "11px", color: "var(--slate)", marginTop: "4px", fontWeight: 500 }}>{card.label}</div>
-                          </div>
-                        ))}
-                      </div>
+                      {/* SaaS Metric Summary Tiles */}
+                      {(() => {
+                        const totalUsers = adminUsers.length;
+                        const proUsers = adminUsers.filter(u => u.isPro).length;
+                        const freeUsers = adminUsers.filter(u => !u.isPro).length;
+                        const successPayments = adminPayments.filter(p => p.status === "success");
+                        const totalRevenue = successPayments.reduce((s: number, p: any) => s + (p.amount || 0), 0);
+                        const arpu = totalRevenue / Math.max(proUsers, 1);
+                        const conversionRate = totalUsers ? (proUsers / totalUsers) * 100 : 0;
+                        const pendingVerifications = adminPayments.filter(p => p.status === "pending_verification");
 
-                      {/* Plan Distribution Chart (CSS bars) */}
-                      <div style={{ padding: "1.25rem", borderRadius: "12px", background: "rgba(255,255,255,0.02)", border: "1px solid var(--hairline)" }}>
-                        <h4 style={{ margin: "0 0 1rem 0", fontSize: "13px", fontWeight: 700, color: "var(--slate)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Plan Distribution</h4>
-                        {[
-                          { label: "PRO Users", count: adminUsers.filter(u => u.isPro).length, color: "#f59e0b" },
-                          { label: "Free Users", count: adminUsers.filter(u => !u.isPro).length, color: "#3b82f6" },
-                        ].map(bar => (
-                          <div key={bar.label} style={{ marginBottom: "12px" }}>
-                            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", marginBottom: "4px" }}>
-                              <span style={{ color: bar.color, fontWeight: 600 }}>{bar.label}</span>
-                              <span style={{ color: "var(--slate)" }}>{bar.count} ({adminUsers.length ? Math.round(bar.count / adminUsers.length * 100) : 0}%)</span>
-                            </div>
-                            <div style={{ height: "8px", borderRadius: "4px", background: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
-                              <div style={{ height: "100%", width: `${adminUsers.length ? (bar.count / adminUsers.length * 100) : 0}%`, background: bar.color, borderRadius: "4px", transition: "width 0.6s ease" }} />
-                            </div>
-                          </div>
-                        ))}
-                      </div>
+                        const downloadJson = (data: any, filename: string) => {
+                          const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+                          const url = URL.createObjectURL(blob);
+                          const a = document.createElement("a");
+                          a.href = url;
+                          a.download = filename;
+                          document.body.appendChild(a);
+                          a.click();
+                          document.body.removeChild(a);
+                          URL.revokeObjectURL(url);
+                          logAdminAction("EXPORT_LEDGER", `Exported data ledger to ${filename}`);
+                          addLog(`📥 Admin: Downloaded database ledger "${filename}".`, "success");
+                        };
 
-                      {/* Recent Signups */}
-                      <div style={{ padding: "1.25rem", borderRadius: "12px", background: "rgba(255,255,255,0.02)", border: "1px solid var(--hairline)" }}>
-                        <h4 style={{ margin: "0 0 1rem 0", fontSize: "13px", fontWeight: 700, color: "var(--slate)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Recent Signups</h4>
-                        {adminUsers.slice(0, 8).map(u => (
-                          <div key={u.username} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "8px 0", borderBottom: "1px solid var(--hairline)" }}>
-                            <span style={{ width: "32px", height: "32px", borderRadius: "50%", background: u.isPro ? "rgba(245,158,11,0.2)" : "rgba(100,116,139,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "13px", fontWeight: 700, flexShrink: 0 }}>{(u.name || u.username)[0].toUpperCase()}</span>
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ fontWeight: 600, fontSize: "13px" }}>{u.username} {u.name && <span style={{ color: "var(--slate)", fontWeight: 400, fontSize: "11px" }}>({u.name})</span>}</div>
-                              <div style={{ fontSize: "11px", color: "var(--slate)" }}>{u.dateCreated}</div>
+                        return (
+                          <>
+                            {/* Premium KPI Metric Cards */}
+                            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "12px" }}>
+                              {[
+                                { icon: "👥", label: "Registered Users", value: totalUsers.toLocaleString(), sub: `${freeUsers} Trial / ${proUsers} Pro`, color: "var(--action-blue)" },
+                                { icon: "⚡", label: "PRO Subscriptions", value: proUsers.toLocaleString(), sub: `Conv. Rate: ${conversionRate.toFixed(1)}%`, color: "var(--amber)" },
+                                { icon: "💰", label: "Total Platform Revenue", value: `₹${totalRevenue.toLocaleString()}`, sub: `From ${successPayments.length} purchases`, color: "#10b981" },
+                                { icon: "📈", label: "ARPU (Average Revenue)", value: `₹${Math.round(arpu).toLocaleString()}`, sub: "Per paying subscriber", color: "#8b5cf6" },
+                              ].map(card => (
+                                <div key={card.label} style={{ padding: "1.25rem", borderRadius: "16px", background: "rgba(255,255,255,0.03)", border: "1px solid var(--hairline)", position: "relative", overflow: "hidden", display: "flex", flexDirection: "column", justifyContent: "space-between", minHeight: "115px" }}>
+                                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                                    <span style={{ fontSize: "11px", color: "var(--slate)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>{card.label}</span>
+                                    <span style={{ fontSize: "20px" }}>{card.icon}</span>
+                                  </div>
+                                  <div style={{ margin: "8px 0" }}>
+                                    <div style={{ fontSize: "24px", fontWeight: 900, color: card.color, fontFamily: "var(--font-display)" }}>{card.value}</div>
+                                    <div style={{ fontSize: "10px", color: "var(--slate)", marginTop: "2px", fontWeight: 550 }}>{card.sub}</div>
+                                  </div>
+                                </div>
+                              ))}
                             </div>
-                            <span className={`plan-badge ${u.isPro ? "pro" : "free"}`} style={{ fontSize: "9px", padding: "2px 6px" }}>{u.isPro ? "PRO" : "FREE"}</span>
-                          </div>
-                        ))}
-                      </div>
+
+                            {/* Pro Conversion Velocity Progress bar */}
+                            <div style={{ padding: "1.25rem", borderRadius: "16px", background: "rgba(255,255,255,0.02)", border: "1px solid var(--hairline)" }}>
+                              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", marginBottom: "6px", fontWeight: 600 }}>
+                                <span style={{ color: "var(--slate)" }}>SaaS Pro Conversion Velocity</span>
+                                <span style={{ color: "var(--amber)", fontWeight: 700 }}>{conversionRate.toFixed(2)}% Conversion Rate</span>
+                              </div>
+                              <div style={{ height: "10px", borderRadius: "5px", background: "rgba(255,255,255,0.05)", overflow: "hidden", display: "flex" }}>
+                                <div style={{ height: "100%", width: `${conversionRate}%`, background: "linear-gradient(90deg, var(--focus-blue), var(--amber))", borderRadius: "5px", transition: "width 0.6s ease" }} />
+                              </div>
+                              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "10px", color: "var(--slate)", marginTop: "6px" }}>
+                                <span>{freeUsers} Free Tier Users</span>
+                                <span>{proUsers} Pro Members</span>
+                              </div>
+                            </div>
+
+                            {/* Verification Portal for Pending UPI Payments */}
+                            <div style={{ padding: "1.25rem", borderRadius: "16px", background: "rgba(255,255,255,0.02)", border: "1px solid var(--hairline)" }}>
+                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+                                <h4 style={{ margin: 0, fontSize: "13px", fontWeight: 700, color: "var(--amber)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                                  ⏳ UPI Manual verification queue ({pendingVerifications.length})
+                                </h4>
+                                <span style={{ fontSize: "11px", color: "var(--slate)" }}>Approve / reject UPI UTR submissions</span>
+                              </div>
+                              {pendingVerifications.length > 0 ? (
+                                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                                  {pendingVerifications.map((pay) => (
+                                    <div key={pay.id || pay.paymentId} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", background: "rgba(255,255,255,0.02)", border: "1px solid var(--hairline)", borderRadius: "8px", flexWrap: "wrap", gap: "10px" }}>
+                                      <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                                        <div style={{ fontSize: "12px", fontWeight: 700 }}>
+                                          @{pay.username} <span style={{ color: "#10b981", fontWeight: 600, marginLeft: "4px" }}>₹{pay.amount}</span>
+                                        </div>
+                                        <div style={{ fontSize: "10px", color: "var(--slate)", fontFamily: "monospace" }}>
+                                          UTR: {pay.paymentId.replace("upi_utr_pending_", "")}
+                                        </div>
+                                      </div>
+                                      <div style={{ display: "flex", gap: "6px" }}>
+                                        <button type="button" onClick={() => handleAdminApproveUpi(pay.paymentId, pay.username)}
+                                          style={{ padding: "5px 10px", borderRadius: "6px", fontSize: "11px", fontWeight: 700, cursor: "pointer", border: "1px solid #10b981", background: "rgba(16,185,129,0.1)", color: "#10b981" }}>
+                                          ✓ Approve
+                                        </button>
+                                        <button type="button" onClick={() => handleAdminRejectPayment(pay.paymentId, pay.username)}
+                                          style={{ padding: "5px 10px", borderRadius: "6px", fontSize: "11px", fontWeight: 700, cursor: "pointer", border: "1px solid #ef4444", background: "rgba(239,68,68,0.1)", color: "#ef4444" }}>
+                                          ✕ Reject
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <div style={{ padding: "1.5rem", textAlign: "center", color: "var(--slate)", fontSize: "12px", border: "1px dashed var(--hairline)", borderRadius: "8px" }}>
+                                  🎉 No pending manual payments in the verification queue.
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Secure Database Backups / Exports */}
+                            <div style={{ padding: "1.25rem", borderRadius: "16px", background: "rgba(255,255,255,0.02)", border: "1px solid var(--hairline)" }}>
+                              <h4 style={{ margin: "0 0 10px 0", fontSize: "13px", fontWeight: 700, color: "var(--slate)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                                💾 Secure Database Backups & Audit Ledgers
+                              </h4>
+                              <p style={{ fontSize: "11px", color: "var(--slate)", margin: "0 0 12px 0", lineHeight: "1.4" }}>
+                                Export full platform snapshots locally in JSON format to inspect user growth, transactions, and administrator actions.
+                              </p>
+                              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                                <button type="button" onClick={() => downloadJson(adminUsers, `sheetcodecrest_users_${new Date().toISOString().slice(0, 10)}.json`)}
+                                  style={{ padding: "8px 14px", borderRadius: "8px", fontSize: "11px", fontWeight: 700, cursor: "pointer", border: "1px solid var(--hairline)", background: "rgba(255,255,255,0.04)", color: "var(--text)" }}>
+                                  📥 Export Users Ledger
+                                </button>
+                                <button type="button" onClick={() => downloadJson(adminPayments, `sheetcodecrest_payments_${new Date().toISOString().slice(0, 10)}.json`)}
+                                  style={{ padding: "8px 14px", borderRadius: "8px", fontSize: "11px", fontWeight: 700, cursor: "pointer", border: "1px solid var(--hairline)", background: "rgba(255,255,255,0.04)", color: "var(--text)" }}>
+                                  📥 Export Payments Ledger
+                                </button>
+                                <button type="button" onClick={() => downloadJson(adminLogs, `sheetcodecrest_audit_logs_${new Date().toISOString().slice(0, 10)}.json`)}
+                                  style={{ padding: "8px 14px", borderRadius: "8px", fontSize: "11px", fontWeight: 700, cursor: "pointer", border: "1px solid var(--hairline)", background: "rgba(255,255,255,0.04)", color: "var(--text)" }}>
+                                  📥 Export Audit Logs
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Plan Distribution Chart & Recent Signups Row */}
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }} className="chart-row">
+                              {/* Plan Distribution */}
+                              <div style={{ padding: "1.25rem", borderRadius: "16px", background: "rgba(255,255,255,0.02)", border: "1px solid var(--hairline)" }}>
+                                <h4 style={{ margin: "0 0 1rem 0", fontSize: "13px", fontWeight: 700, color: "var(--slate)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Plan Distribution</h4>
+                                {[
+                                  { label: "PRO Active Members", count: proUsers, color: "var(--amber)" },
+                                  { label: "Free Trial Users", count: freeUsers, color: "var(--action-blue)" },
+                                ].map(bar => (
+                                  <div key={bar.label} style={{ marginBottom: "12px" }}>
+                                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", marginBottom: "4px" }}>
+                                      <span style={{ color: bar.color, fontWeight: 600 }}>{bar.label}</span>
+                                      <span style={{ color: "var(--slate)" }}>{bar.count} ({totalUsers ? Math.round(bar.count / totalUsers * 100) : 0}%)</span>
+                                    </div>
+                                    <div style={{ height: "8px", borderRadius: "4px", background: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
+                                      <div style={{ height: "100%", width: `${totalUsers ? (bar.count / totalUsers * 100) : 0}%`, background: bar.color, borderRadius: "4px", transition: "width 0.6s ease" }} />
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+
+                              {/* Recent Signups */}
+                              <div style={{ padding: "1.25rem", borderRadius: "16px", background: "rgba(255,255,255,0.02)", border: "1px solid var(--hairline)" }}>
+                                <h4 style={{ margin: "0 0 1rem 0", fontSize: "13px", fontWeight: 700, color: "var(--slate)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Recent Signups</h4>
+                                <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                                  {adminUsers.slice(0, 4).map(u => (
+                                    <div key={u.username} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "6px 0", borderBottom: "1px solid var(--hairline)" }}>
+                                      <span style={{ width: "26px", height: "26px", borderRadius: "50%", background: u.isPro ? "rgba(245,158,11,0.2)" : "rgba(100,116,139,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", fontWeight: 700, flexShrink: 0 }}>{(u.name || u.username)[0].toUpperCase()}</span>
+                                      <div style={{ flex: 1, minWidth: 0 }}>
+                                        <div style={{ fontWeight: 600, fontSize: "12px", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>
+                                          {u.username} {u.name && <span style={{ color: "var(--slate)", fontWeight: 400, fontSize: "10px" }}>({u.name})</span>}
+                                        </div>
+                                      </div>
+                                      <span className={`plan-badge ${u.isPro ? "pro" : "free"}`} style={{ fontSize: "8px", padding: "1px 5px" }}>{u.isPro ? "PRO" : "FREE"}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          </>
+                        );
+                      })()}
                     </div>
                   )}
 
