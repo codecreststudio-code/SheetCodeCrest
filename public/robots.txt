@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://sheetcodecrest.vercel.app/sitemap.xml
